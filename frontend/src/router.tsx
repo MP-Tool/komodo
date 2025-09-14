@@ -128,7 +128,11 @@ const RequireAuth = () => {
   const { data: user, error } = useUser();
   const location = useLocation();
 
-  if (error) {
+  // Check if user has JWT token
+  const hasJwt = !!LOGIN_TOKENS.jwt();
+
+  // If no JWT token, redirect to login immediately
+  if (!hasJwt || error) {
     if (location.pathname === "/") {
       return <Navigate to="/login" replace />;
     }
