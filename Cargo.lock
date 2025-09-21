@@ -940,7 +940,11 @@ dependencies = [
 
 [[package]]
 name = "cache"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "tokio",
@@ -1132,7 +1136,11 @@ dependencies = [
 
 [[package]]
 name = "command"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "komodo_client",
  "run_command",
@@ -1158,7 +1166,11 @@ checksum = "e47641d3deaf41fb1538ac1f54735925e275eaf3bf4d55c81b137fba797e5cbb"
 
 [[package]]
 name = "config"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "colored",
  "indexmap 2.11.4",
@@ -1443,7 +1455,11 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 
 [[package]]
 name = "database"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "async-compression",
@@ -1751,7 +1767,11 @@ dependencies = [
 
 [[package]]
 name = "environment"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "formatting",
@@ -1761,7 +1781,11 @@ dependencies = [
 
 [[package]]
 name = "environment_file"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "thiserror 2.0.16",
 ]
@@ -1857,7 +1881,11 @@ dependencies = [
 
 [[package]]
 name = "formatting"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "serror",
 ]
@@ -2029,7 +2057,11 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
 name = "git"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "cache",
@@ -2629,7 +2661,11 @@ dependencies = [
 
 [[package]]
 name = "interpolate"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "komodo_client",
@@ -2760,7 +2796,11 @@ dependencies = [
 
 [[package]]
 name = "komodo_cli"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "chrono",
@@ -2775,6 +2815,7 @@ dependencies = [
  "futures-util",
  "komodo_client",
  "logger",
+ "noise",
  "serde",
  "serde_json",
  "serde_qs",
@@ -2785,7 +2826,11 @@ dependencies = [
 
 [[package]]
 name = "komodo_client"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "async_timing_util",
@@ -2820,7 +2865,11 @@ dependencies = [
 
 [[package]]
 name = "komodo_core"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2891,7 +2940,11 @@ dependencies = [
 
 [[package]]
 name = "komodo_periphery"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3015,7 +3068,11 @@ dependencies = [
 
 [[package]]
 name = "logger"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "komodo_client",
@@ -3283,6 +3340,16 @@ dependencies = [
  "cfg-if",
  "cfg_aliases 0.1.1",
  "libc",
+]
+
+[[package]]
+name = "noise"
+version = "2.0.0-dev-0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bytes",
+ "snow",
 ]
 
 [[package]]
@@ -3776,7 +3843,11 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "periphery_client"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "axum",
@@ -3789,7 +3860,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serror",
- "sha1",
  "tokio",
  "tokio-tungstenite 0.27.0",
  "tokio-util",
@@ -4337,7 +4407,11 @@ dependencies = [
 
 [[package]]
 name = "response"
+<<<<<<< HEAD
 version = "1.19.5"
+=======
+version = "2.0.0-dev-0"
+>>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
  "axum",
@@ -4701,9 +4775,9 @@ checksum = "d767eb0aabc880b29956c35734170f26ed551a859dbd361d140cdbeca61ab1e2"
 
 [[package]]
 name = "serde"
-version = "1.0.225"
+version = "1.0.226"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd6c24dee235d0da097043389623fb913daddf92c76e9f5a1db88607a0bcbd1d"
+checksum = "0dca6411025b24b60bfa7ec1fe1f8e710ac09782dca409ee8237ba74b51295fd"
 dependencies = [
  "serde_core",
  "serde_derive",
@@ -4731,18 +4805,18 @@ dependencies = [
 
 [[package]]
 name = "serde_core"
-version = "1.0.225"
+version = "1.0.226"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "659356f9a0cb1e529b24c01e43ad2bdf520ec4ceaf83047b83ddcc2251f96383"
+checksum = "ba2ba63999edb9dac981fb34b3e5c0d111a69b0924e253ed29d83f7c99e966a4"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.225"
+version = "1.0.226"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ea936adf78b1f766949a4977b91d2f5595825bd6ec079aa9543ad2685fc4516"
+checksum = "8db53ae22f34573731bafa1db20f04027b2d25e02d8205921b569171699cdb33"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5685,18 +5759,18 @@ dependencies = [
 
 [[package]]
 name = "transport"
-version = "1.19.4"
+version = "2.0.0-dev-0"
 dependencies = [
  "anyhow",
  "axum",
  "base64 0.22.1",
  "bytes",
  "futures-util",
+ "noise",
  "rand 0.9.2",
  "serde",
  "sha1",
  "sha2",
- "snow",
  "tokio",
  "tokio-tungstenite 0.27.0",
  "tracing",
