@@ -2908,6 +2908,7 @@ dependencies = [
  "jsonwebtoken",
  "komodo_client",
  "logger",
+ "noise",
  "nom_pem",
  "octorust",
  "openidconnect",
