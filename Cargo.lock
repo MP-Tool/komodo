@@ -2971,6 +2971,7 @@ dependencies = [
  "interpolate",
  "komodo_client",
  "logger",
+ "noise",
  "periphery_client",
  "portable-pty",
  "resolver_api",
