@@ -2928,6 +2928,7 @@ dependencies = [
  "slack_client_rs",
  "svi",
  "tokio",
+ "tokio-tungstenite 0.27.0",
  "tokio-util",
  "toml",
  "toml_pretty",
@@ -2935,6 +2936,7 @@ dependencies = [
  "tracing",
  "transport",
  "typeshare",
+ "url",
  "urlencoding",
  "uuid",
  "wildcard",
@@ -3852,22 +3854,18 @@ version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
 dependencies = [
  "anyhow",
- "axum",
  "bytes",
  "cache",
  "futures-util",
  "komodo_client",
  "resolver_api",
- "rustls 0.23.32",
  "serde",
  "serde_json",
  "serror",
  "tokio",
- "tokio-tungstenite 0.27.0",
  "tokio-util",
  "tracing",
  "transport",
- "url",
  "uuid",
 ]
 
