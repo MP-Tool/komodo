@@ -941,10 +941,14 @@ dependencies = [
 [[package]]
 name = "cache"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "tokio",
@@ -1137,10 +1141,14 @@ dependencies = [
 [[package]]
 name = "command"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "komodo_client",
  "run_command",
@@ -1167,10 +1175,14 @@ checksum = "e47641d3deaf41fb1538ac1f54735925e275eaf3bf4d55c81b137fba797e5cbb"
 [[package]]
 name = "config"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "colored",
  "indexmap 2.11.4",
@@ -1456,10 +1468,14 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 [[package]]
 name = "database"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "async-compression",
@@ -1768,10 +1784,14 @@ dependencies = [
 [[package]]
 name = "environment"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "formatting",
@@ -1782,10 +1802,14 @@ dependencies = [
 [[package]]
 name = "environment_file"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "thiserror 2.0.16",
 ]
@@ -1882,10 +1906,14 @@ dependencies = [
 [[package]]
 name = "formatting"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "serror",
 ]
@@ -2058,10 +2086,14 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 [[package]]
 name = "git"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "cache",
@@ -2662,10 +2694,14 @@ dependencies = [
 [[package]]
 name = "interpolate"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "komodo_client",
@@ -2797,10 +2833,14 @@ dependencies = [
 [[package]]
 name = "komodo_cli"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "chrono",
@@ -2827,10 +2867,14 @@ dependencies = [
 [[package]]
 name = "komodo_client"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "async_timing_util",
@@ -2867,10 +2911,14 @@ dependencies = [
 [[package]]
 name = "komodo_core"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2945,10 +2993,14 @@ dependencies = [
 [[package]]
 name = "komodo_periphery"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3074,10 +3126,14 @@ dependencies = [
 [[package]]
 name = "logger"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "komodo_client",
@@ -3349,7 +3405,7 @@ dependencies = [
 
 [[package]]
 name = "noise"
-version = "2.0.0-dev-0"
+version = "2.0.0-dev-1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3848,10 +3904,14 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 [[package]]
 name = "periphery_client"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "bytes",
@@ -4408,10 +4468,14 @@ dependencies = [
 [[package]]
 name = "response"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
 >>>>>>> 6fbead30 (noise library and cli key utilities)
+=======
+version = "2.0.0-dev-1"
+>>>>>>> 2bbaa170 (dev-1)
 dependencies = [
  "anyhow",
  "axum",
@@ -5759,7 +5823,7 @@ dependencies = [
 
 [[package]]
 name = "transport"
-version = "2.0.0-dev-0"
+version = "2.0.0-dev-1"
 dependencies = [
  "anyhow",
  "axum",
