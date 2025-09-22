@@ -942,6 +942,7 @@ dependencies = [
 name = "cache"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -949,6 +950,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "tokio",
@@ -1142,6 +1146,7 @@ dependencies = [
 name = "command"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -1149,6 +1154,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "komodo_client",
  "run_command",
@@ -1176,6 +1184,7 @@ checksum = "e47641d3deaf41fb1538ac1f54735925e275eaf3bf4d55c81b137fba797e5cbb"
 name = "config"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -1183,6 +1192,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "colored",
  "indexmap 2.11.4",
@@ -1469,6 +1481,7 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 name = "database"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -1476,6 +1489,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "async-compression",
@@ -1785,6 +1801,7 @@ dependencies = [
 name = "environment"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -1792,6 +1809,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "formatting",
@@ -1803,6 +1823,7 @@ dependencies = [
 name = "environment_file"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -1810,6 +1831,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "thiserror 2.0.16",
 ]
@@ -1907,6 +1931,7 @@ dependencies = [
 name = "formatting"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -1914,6 +1939,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "serror",
 ]
@@ -2087,6 +2115,7 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 name = "git"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -2094,6 +2123,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "cache",
@@ -2695,6 +2727,7 @@ dependencies = [
 name = "interpolate"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -2702,6 +2735,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "komodo_client",
@@ -2834,6 +2870,7 @@ dependencies = [
 name = "komodo_cli"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -2841,6 +2878,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "chrono",
@@ -2868,6 +2908,7 @@ dependencies = [
 name = "komodo_client"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -2875,6 +2916,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "async_timing_util",
@@ -2912,6 +2956,7 @@ dependencies = [
 name = "komodo_core"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -2919,6 +2964,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2994,6 +3042,7 @@ dependencies = [
 name = "komodo_periphery"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -3001,6 +3050,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3127,6 +3179,7 @@ dependencies = [
 name = "logger"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -3134,6 +3187,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "komodo_client",
@@ -3405,7 +3461,7 @@ dependencies = [
 
 [[package]]
 name = "noise"
-version = "2.0.0-dev-1"
+version = "2.0.0-dev-2"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3905,6 +3961,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 name = "periphery_client"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -3912,6 +3969,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "bytes",
@@ -4469,6 +4529,7 @@ dependencies = [
 name = "response"
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "1.19.5"
 =======
 version = "2.0.0-dev-0"
@@ -4476,6 +4537,9 @@ version = "2.0.0-dev-0"
 =======
 version = "2.0.0-dev-1"
 >>>>>>> 2bbaa170 (dev-1)
+=======
+version = "2.0.0-dev-2"
+>>>>>>> 151a2100 (dev-2)
 dependencies = [
  "anyhow",
  "axum",
@@ -5823,7 +5887,7 @@ dependencies = [
 
 [[package]]
 name = "transport"
-version = "2.0.0-dev-1"
+version = "2.0.0-dev-2"
 dependencies = [
  "anyhow",
  "axum",
