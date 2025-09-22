@@ -4153,19 +4153,10 @@ version = "2.0.0-dev-4"
 version = "2.0.0-dev-5"
 >>>>>>> 3edfbe8b (deploy 2.0.0-dev-5)
 dependencies = [
- "anyhow",
- "bytes",
- "cache",
- "futures-util",
  "komodo_client",
  "resolver_api",
  "serde",
- "serde_json",
  "serror",
- "tokio",
- "tokio-util",
- "tracing",
- "transport",
  "uuid",
 ]
 
