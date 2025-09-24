@@ -60,9 +60,10 @@ impl PeripheryClient {
 
     // The args have changed.
     if args.address.is_empty() {
+      // Periphery -> Core connection
       // Remove this connection, wait and see if client reconnects
       connections.remove(&server_id).await;
-      tokio::time::sleep(Duration::from_secs(500)).await;
+      tokio::time::sleep(Duration::from_millis(500)).await;
       let connection =
         connections.get(&server_id).await.with_context(|| {
           format!("Server {server_id} is not connected")
@@ -72,6 +73,7 @@ impl PeripheryClient {
         channels: connection.channels.clone(),
       })
     } else {
+      // Core -> Periphery connection
       let channels =
         args.spawn_client_connection(server_id.clone()).await?;
       Ok(PeripheryClient {
