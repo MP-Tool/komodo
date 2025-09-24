@@ -6,9 +6,10 @@ use std::{
   time::Duration,
 };
 
-use anyhow::{Context, anyhow};
+use anyhow::anyhow;
 use bytes::Bytes;
 use cache::CloneCache;
+use komodo_client::entities::optional_str;
 use serror::serror_into_anyhow_error;
 use tokio::sync::{
   RwLock,
@@ -46,35 +47,32 @@ impl<W: Websocket> WebsocketHandler<'_, W> {
       connection,
     } = self;
 
-    let private_key = if connection.core_private_key.is_empty() {
-      &core_config().private_key
+    let core_private_key = if let Some(private_key) =
+      optional_str(&connection.core_private_key)
+    {
+      private_key
     } else {
-      &connection.core_private_key
+      &core_config().private_key
     };
 
-    let expected_public_key = if !connection
-      .periphery_public_key
-      .is_empty()
+    let periphery_public_key =
+      optional_str(&connection.periphery_public_key)
+        .or(core_config().periphery_public_key.as_deref());
+
+    // Periphery -> Core connection requires a public key pinned
+    if connection.address.is_empty() && periphery_public_key.is_none()
     {
-      Some(connection.periphery_public_key.as_str())
-    } else if connection.address.is_empty() {
-      // Only force periphery public key for Periphery -> Core connections
-      Some(
-        core_config()
-          .periphery_public_key
-          .as_deref()
-          .context("Must either configure Server 'Periphery Public Key' or set KOMODO_PERIPHERY_PUBLIC_KEY")?
-      )
-    } else {
-      None
-    };
+      return Err(anyhow!(
+        "Must either configure Server 'Periphery Public Key' or set KOMODO_PERIPHERY_PUBLIC_KEY for Periphery -> Core connection."
+      ));
+    }
 
     L::login(
       &mut socket,
       connection_identifiers,
-      private_key,
+      core_private_key,
       &PeripheryPublicKeyValidator {
-        expected: expected_public_key,
+        expected: periphery_public_key,
       },
     )
     .await?;
