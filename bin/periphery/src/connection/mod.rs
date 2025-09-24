@@ -133,7 +133,7 @@ impl<W: Websocket, S: FnMut()> WebsocketHandler<'_, W, S> {
             break;
           }
           Err(e) => {
-            error!("Failed to read websocket message | {e:?}");
+            warn!("Failed to read websocket message | {e:?}");
             break;
           }
         };
