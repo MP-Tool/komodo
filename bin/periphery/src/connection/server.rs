@@ -1,6 +1,10 @@
 use std::{
   net::{IpAddr, SocketAddr},
   str::FromStr,
+  sync::{
+    OnceLock,
+    atomic::{self, AtomicBool},
+  },
 };
 
 use anyhow::{Context, anyhow};
@@ -60,6 +64,11 @@ pub async fn run() -> anyhow::Result<()> {
   Ok(())
 }
 
+fn already_logged_login_error() -> &'static AtomicBool {
+  static ALREADY_LOGGED: OnceLock<AtomicBool> = OnceLock::new();
+  ALREADY_LOGGED.get_or_init(|| AtomicBool::new(false))
+}
+
 async fn handler(
   mut headers: HeaderMap,
   ws: WebSocketUpgrade,
@@ -77,10 +86,17 @@ async fn handler(
       socket: AxumWebsocket(socket),
       connection_identifiers: identifiers.build(&[]),
       write_receiver: &mut write_receiver,
-      on_login_success: || {},
+      on_login_success: || {
+        already_logged_login_error()
+          .store(false, atomic::Ordering::Relaxed);
+      },
     };
     if let Err(e) = handler.handle::<ServerLoginFlow>().await {
-      warn!("Core failed to login to connection | {e:#}");
+      let already_logged = already_logged_login_error();
+      if !already_logged.load(atomic::Ordering::Relaxed) {
+        warn!("Core failed to login to connection | {e:#}");
+        already_logged.store(true, atomic::Ordering::Relaxed);
+      }
     }
   }))
 }
