@@ -1,4 +1,4 @@
-use anyhow::{Context, anyhow};
+use anyhow::anyhow;
 use axum::{
   extract::{Query, WebSocketUpgrade},
   http::{HeaderMap, StatusCode},
@@ -12,7 +12,9 @@ use transport::{
   websocket::axum::AxumWebsocket,
 };
 
-use crate::{config::core_config, state::periphery_connections};
+use crate::{
+  connection::PeripheryConnectionArgs, state::periphery_connections,
+};
 
 pub async fn handler(
   Query(PeripheryConnectionQuery { server: _server }): Query<
@@ -53,17 +55,15 @@ pub async fn handler(
     );
   }
 
-  let expected_public_key = if server.config.public_key.is_empty() {
-    core_config()
-      .periphery_public_key
-      .clone()
-      .context("Must either configure Server 'Periphery Public Key' or set KOMODO_PERIPHERY_PUBLIC_KEY")?
-  } else {
-    server.config.public_key
-  };
-
   let (connection, mut write_receiver) = periphery_connections()
-    .insert(server.id.clone(), None)
+    .insert(
+      server.id.clone(),
+      PeripheryConnectionArgs {
+        address: "",
+        private_key: &server.config.private_key,
+        expected_public_key: &server.config.public_key,
+      },
+    )
     .await;
 
   Ok(ws.on_upgrade(|socket| async move {
@@ -71,12 +71,6 @@ pub async fn handler(
     let handler = super::WebsocketHandler {
       socket: AxumWebsocket(socket),
       connection_identifiers: identifiers.build(query.as_bytes()),
-      private_key: if server.config.private_key.is_empty() {
-        &core_config().private_key
-      } else {
-        &server.config.private_key
-      },
-      expected_public_key: Some(&expected_public_key),
       write_receiver: &mut write_receiver,
       connection: &connection,
     };

@@ -22,6 +22,7 @@ use octorust::auth::{
 use crate::{
   auth::jwt::JwtClient,
   config::core_config,
+  connection::PeripheryConnections,
   helpers::{
     action_state::ActionStates, all_resources::AllResourcesById,
   },
@@ -29,7 +30,6 @@ use crate::{
     CachedDeploymentStatus, CachedRepoStatus, CachedServerStatus,
     CachedStackStatus, History,
   },
-  periphery::PeripheryConnections,
 };
 
 static DB_CLIENT: OnceLock<database::Client> = OnceLock::new();

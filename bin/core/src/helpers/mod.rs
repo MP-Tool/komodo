@@ -17,6 +17,7 @@ use komodo_client::entities::{
 };
 use rand::Rng;
 
+use crate::connection::PeripheryConnectionArgs;
 use crate::{
   config::core_config, periphery::PeripheryClient, state::db_client,
 };
@@ -191,7 +192,15 @@ pub async fn periphery_client(
   if !server.config.enabled {
     return Err(anyhow!("server not enabled"));
   }
-  PeripheryClient::new(server.id.clone()).await
+  PeripheryClient::new(
+    server.id.clone(),
+    PeripheryConnectionArgs {
+      address: &server.config.address,
+      private_key: &server.config.private_key,
+      expected_public_key: &server.config.public_key,
+    },
+  )
+  .await
 }
 
 #[instrument]

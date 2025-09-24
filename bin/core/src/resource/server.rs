@@ -15,8 +15,10 @@ use komodo_client::entities::{
 
 use crate::{
   config::core_config,
+  connection::PeripheryConnectionArgs,
   helpers::query::get_system_info,
   monitor::update_cache_for_server,
+  periphery::PeripheryClient,
   state::{
     action_states, db_client, periphery_connections,
     server_status_cache,
@@ -148,6 +150,21 @@ impl super::KomodoResource for Server {
     updated: &Self,
     _update: &mut Update,
   ) -> anyhow::Result<()> {
+    if updated.config.enabled {
+      // Init periphery client to trigger reconnection
+      // if relevant parameters change.
+      let _ = PeripheryClient::new(
+        updated.id.clone(),
+        PeripheryConnectionArgs {
+          address: &updated.config.address,
+          private_key: &updated.config.private_key,
+          expected_public_key: &updated.config.public_key,
+        },
+      )
+      .await;
+    } else {
+      periphery_connections().remove(&updated.id).await;
+    }
     update_cache_for_server(updated, true).await;
     Ok(())
   }

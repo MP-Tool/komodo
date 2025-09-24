@@ -1,179 +1,95 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use axum::http::HeaderValue;
-use komodo_client::entities::{optional_string, server::Server};
 use periphery_client::CONNECTION_RETRY_SECONDS;
 use rustls::{ClientConfig, client::danger::ServerCertVerifier};
 use tokio_tungstenite::Connector;
-use tracing::{info, warn};
 use transport::{
   auth::{ClientLoginFlow, ConnectionIdentifiers},
   fix_ws_address,
   websocket::tungstenite::TungsteniteWebsocket,
 };
 
-use crate::{config::core_config, state::periphery_connections};
+use crate::{
+  connection::PeripheryConnectionArgs, periphery::ConnectionChannels,
+  state::periphery_connections,
+};
 
-/// Managed connections to exactly those specified by specs (ServerId -> Address)
-pub async fn manage_client_connections(servers: &[Server]) {
-  let periphery_connections = periphery_connections();
-
-  let specs = servers
-    .iter()
-    .filter(|s| s.config.enabled)
-    .map(|s| {
-      (
-        &s.id,
-        (
-          &s.config.address,
-          &s.config.private_key,
-          &s.config.public_key,
-        ),
-      )
-    })
-    .collect::<HashMap<_, _>>();
-
-  // Clear non specced / enabled server connections
-  for server_id in periphery_connections.get_keys().await {
-    if !specs.contains_key(&server_id) {
-      info!(
-        "Specs do not contain {server_id}, cancelling connection"
-      );
-      periphery_connections.remove(&server_id).await;
+impl PeripheryConnectionArgs<'_> {
+  pub async fn spawn_client_connection(
+    self,
+    server_id: String,
+  ) -> anyhow::Result<Arc<ConnectionChannels>> {
+    if self.address.is_empty() {
+      return Err(anyhow!(
+        "Cannot spawn client connection with empty address"
+      ));
     }
-  }
 
-  // Apply latest connection specs
-  for (server_id, (address, private_key, expected_public_key)) in
-    specs
-  {
-    let address = if address.is_empty() {
-      address.to_string()
-    } else {
-      fix_ws_address(address)
-    };
-    match (
-      address.is_empty(),
-      periphery_connections.get(server_id).await,
-    ) {
-      // Periphery -> Core connections
-      (true, Some(existing)) if existing.address.is_none() => {
-        continue;
-      }
-      (true, Some(existing)) => {
-        existing.cancel();
-        continue;
-      }
-      (true, None) => continue,
-      // Core -> Periphery connections
-      (false, Some(existing))
-        if existing
-          .address
-          .as_ref()
-          .map(|a| a == &address)
-          .unwrap_or_default() =>
-      {
-        // Connection OK
-        continue;
-      }
-      // Recreate connection cases
-      (false, Some(_)) => {}
-      (false, None) => {}
-    };
-    // If reaches here, recreate the connection.
-    if let Err(e) = spawn_client_connection(
-      server_id.clone(),
-      address,
-      private_key.clone(),
-      optional_string(expected_public_key),
-    )
-    .await
-    {
-      warn!(
-        "Failed to spawn new connnection for {server_id} | {e:#}"
-      );
+    let address = fix_ws_address(self.address);
+
+    let url = ::url::Url::parse(&address)
+      .context("Failed to parse server address")?;
+    let mut host = url.host().context("url has no host")?.to_string();
+    if let Some(port) = url.port() {
+      host.push(':');
+      host.push_str(&port.to_string());
     }
-  }
-}
 
-// Assumes address already wss formatted
-pub async fn spawn_client_connection(
-  server_id: String,
-  address: String,
-  private_key: String,
-  expected_public_key: Option<String>,
-) -> anyhow::Result<()> {
-  let url = ::url::Url::parse(&address)
-    .context("Failed to parse server address")?;
-  let mut host = url.host().context("url has no host")?.to_string();
-  if let Some(port) = url.port() {
-    host.push(':');
-    host.push_str(&port.to_string());
-  }
+    let (connection, mut write_receiver) =
+      periphery_connections().insert(server_id, self).await;
 
-  let (connection, mut write_receiver) = periphery_connections()
-    .insert(server_id, address.clone().into())
-    .await;
+    let channels = connection.channels.clone();
 
-  let config = core_config();
-  let private_key = if private_key.is_empty() {
-    config.private_key.clone()
-  } else {
-    private_key
-  };
-  let expected_public_key = expected_public_key
-    .or_else(|| config.periphery_public_key.clone());
+    tokio::spawn(async move {
+      loop {
+        let ws = tokio::select! {
+          _ = connection.cancel.cancelled() => {
+            break
+          }
+          ws = connect_websocket(&address) => ws,
+        };
 
-  tokio::spawn(async move {
-    loop {
-      let ws = tokio::select! {
-        _ = connection.cancel.cancelled() => {
-          break
-        }
-        ws = connect_websocket(&address) => ws,
-      };
+        let (socket, accept) = match ws {
+          Ok(res) => res,
+          Err(e) => {
+            connection.set_error(e).await;
+            tokio::time::sleep(Duration::from_secs(
+              CONNECTION_RETRY_SECONDS,
+            ))
+            .await;
+            continue;
+          }
+        };
 
-      let (socket, accept) = match ws {
-        Ok(res) => res,
-        Err(e) => {
+        let handler = super::WebsocketHandler {
+          socket,
+          connection_identifiers: ConnectionIdentifiers {
+            host: host.as_bytes(),
+            accept: accept.as_bytes(),
+            query: &[],
+          },
+          write_receiver: &mut write_receiver,
+          connection: &connection,
+        };
+
+        if let Err(e) = handler.handle::<ClientLoginFlow>().await {
+          if connection.cancel.is_cancelled() {
+            break;
+          }
           connection.set_error(e).await;
           tokio::time::sleep(Duration::from_secs(
             CONNECTION_RETRY_SECONDS,
           ))
           .await;
           continue;
-        }
-      };
+        };
+      }
+    });
 
-      let handler = super::WebsocketHandler {
-        socket,
-        connection_identifiers: ConnectionIdentifiers {
-          host: host.as_bytes(),
-          accept: accept.as_bytes(),
-          query: &[],
-        },
-        private_key: &private_key,
-        expected_public_key: expected_public_key.as_deref(),
-        write_receiver: &mut write_receiver,
-        connection: &connection,
-      };
-
-      if let Err(e) = handler.handle::<ClientLoginFlow>().await {
-        if connection.cancel.is_cancelled() {
-          break;
-        }
-        connection.set_error(e).await;
-        tokio::time::sleep(Duration::from_secs(
-          CONNECTION_RETRY_SECONDS,
-        ))
-        .await;
-        continue;
-      };
-    }
-  });
-
-  Ok(())
+    Ok(channels)
+  }
 }
 
 pub async fn connect_websocket(

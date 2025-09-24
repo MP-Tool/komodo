@@ -1,10 +1,4 @@
-use std::{
-  sync::{
-    Arc,
-    atomic::{self, AtomicBool},
-  },
-  time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
@@ -13,24 +7,19 @@ use periphery_client::api;
 use resolver_api::HasResponse;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::json;
-use serror::{deserialize_error_bytes, serror_into_anyhow_error};
-use tokio::sync::{
-  RwLock,
-  mpsc::{self, Sender, error::SendError},
-};
-use tokio_util::sync::CancellationToken;
+use serror::deserialize_error_bytes;
+use tokio::sync::mpsc::{self, Sender};
 use tracing::warn;
 use transport::{
   MessageState,
-  bytes::{
-    from_transport_bytes, id_from_transport_bytes, to_transport_bytes,
-  },
-  channel::{BufferedReceiver, buffered_channel},
-  fix_ws_address,
+  bytes::{from_transport_bytes, to_transport_bytes},
 };
 use uuid::Uuid;
 
-use crate::state::periphery_connections;
+use crate::{
+  connection::{PeripheryConnection, PeripheryConnectionArgs},
+  state::periphery_connections,
+};
 
 pub mod terminal;
 
@@ -44,31 +33,56 @@ pub struct PeripheryClient {
 impl PeripheryClient {
   pub async fn new(
     server_id: String,
+    args: PeripheryConnectionArgs<'_>,
   ) -> anyhow::Result<PeripheryClient> {
-    Ok(PeripheryClient {
-      channels: periphery_connections()
-        .get(&server_id)
-        .await
-        .context("Periphery not connected")?
-        .channels
-        .clone(),
-      server_id,
-    })
+    let connections = periphery_connections();
+
+    // Spawn client side connection if one doesn't exist.
+    let Some(connection) = connections.get(&server_id).await else {
+      if args.address.is_empty() {
+        return Err(anyhow!("Server {server_id} is not connected"));
+      }
+      let channels =
+        args.spawn_client_connection(server_id.clone()).await?;
+      return Ok(PeripheryClient {
+        server_id,
+        channels,
+      });
+    };
+
+    // Ensure the connection args are unchanged.
+    if args.matches(&connection) {
+      return Ok(PeripheryClient {
+        server_id,
+        channels: connection.channels.clone(),
+      });
+    }
+
+    // The args have changed.
+    if args.address.is_empty() {
+      // Remove this connection, wait and see if client reconnects
+      connections.remove(&server_id).await;
+      tokio::time::sleep(Duration::from_secs(500)).await;
+      let connection =
+        connections.get(&server_id).await.with_context(|| {
+          format!("Server {server_id} is not connected")
+        })?;
+      Ok(PeripheryClient {
+        server_id,
+        channels: connection.channels.clone(),
+      })
+    } else {
+      let channels =
+        args.spawn_client_connection(server_id.clone()).await?;
+      Ok(PeripheryClient {
+        server_id,
+        channels,
+      })
+    }
   }
 
-  pub async fn new_with_spawned_client_connection<
-    F: Future<Output = anyhow::Result<()>>,
-  >(
-    server_id: String,
-    address: &str,
-    // (Server id, address)
-    spawn: impl FnOnce(String, String) -> F,
-  ) -> anyhow::Result<PeripheryClient> {
-    if address.is_empty() {
-      return Err(anyhow!("Server address cannot be empty"));
-    }
-    spawn(server_id.clone(), fix_ws_address(address)).await?;
-    PeripheryClient::new(server_id).await
+  pub async fn cleanup(self) -> Option<Arc<PeripheryConnection>> {
+    periphery_connections().remove(&self.server_id).await
   }
 
   #[tracing::instrument(level = "debug", skip(self))]
@@ -178,169 +192,5 @@ impl PeripheryClient {
         }
       }
     }
-  }
-}
-
-#[derive(Default)]
-pub struct PeripheryConnections(
-  CloneCache<String, Arc<PeripheryConnection>>,
-);
-
-impl PeripheryConnections {
-  pub async fn insert(
-    &self,
-    server_id: String,
-    address: Option<String>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<Bytes>) {
-    let channels = if let Some(existing_connection) =
-      self.0.remove(&server_id).await
-    {
-      existing_connection.cancel();
-      // Keep the same channels so requests
-      // can handle disconnects while processing.
-      existing_connection.channels.clone()
-    } else {
-      Default::default()
-    };
-
-    let (connection, receiver) =
-      PeripheryConnection::new(address, channels);
-
-    self.0.insert(server_id, connection.clone()).await;
-
-    (connection, receiver)
-  }
-
-  pub async fn get(
-    &self,
-    server_id: &String,
-  ) -> Option<Arc<PeripheryConnection>> {
-    self.0.get(server_id).await
-  }
-
-  /// Remove and cancel connection
-  pub async fn remove(
-    &self,
-    server_id: &String,
-  ) -> Option<Arc<PeripheryConnection>> {
-    self
-      .0
-      .remove(server_id)
-      .await
-      .inspect(|connection| connection.cancel())
-  }
-
-  pub async fn get_keys(&self) -> Vec<String> {
-    self.0.get_keys().await
-  }
-}
-
-#[derive(Debug)]
-pub struct PeripheryConnection {
-  /// Specify outbound connection address.
-  /// Inbound connections have this as None
-  pub address: Option<String>,
-  /// Whether Periphery is currently connected.
-  pub connected: AtomicBool,
-  /// Stores latest connection error
-  pub error: RwLock<Option<serror::Serror>>,
-  /// Cancel the connection
-  pub cancel: CancellationToken,
-  /// Send bytes to Periphery
-  pub sender: Sender<Bytes>,
-  /// Send bytes from Periphery to channel handlers.
-  /// Must be maintained if new connection replaces old
-  /// at the same server id.
-  pub channels: Arc<ConnectionChannels>,
-}
-
-impl PeripheryConnection {
-  pub fn new(
-    address: Option<String>,
-    channels: Arc<ConnectionChannels>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<Bytes>) {
-    let (sender, receiver) = buffered_channel();
-    (
-      PeripheryConnection {
-        address,
-        sender,
-        channels,
-        connected: AtomicBool::new(false),
-        error: RwLock::new(None),
-        cancel: CancellationToken::new(),
-      }
-      .into(),
-      receiver,
-    )
-  }
-
-  pub async fn handle_incoming_bytes(&self, bytes: Bytes) {
-    let id = match id_from_transport_bytes(&bytes) {
-      Ok(res) => res,
-      Err(e) => {
-        // TODO: handle better
-        warn!("Failed to read id | {e:#}");
-        return;
-      }
-    };
-    let Some(channel) = self.channels.get(&id).await else {
-      // TODO: handle better
-      warn!("Failed to send response | No response channel found");
-      return;
-    };
-    if let Err(e) = channel.send(bytes).await {
-      // TODO: handle better
-      warn!("Failed to send response | Channel failure | {e:#}");
-    }
-  }
-
-  pub async fn send(
-    &self,
-    value: Bytes,
-  ) -> Result<(), SendError<Bytes>> {
-    self.sender.send(value).await
-  }
-
-  pub fn set_connected(&self, connected: bool) {
-    self.connected.store(connected, atomic::Ordering::Relaxed);
-  }
-
-  pub fn connected(&self) -> bool {
-    self.connected.load(atomic::Ordering::Relaxed)
-  }
-
-  /// Polls connected 3 times (1s in between) before bailing.
-  pub async fn bail_if_not_connected(&self) -> anyhow::Result<()> {
-    for i in 0..3 {
-      if self.connected() {
-        return Ok(());
-      }
-      if i < 2 {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-      }
-    }
-    if let Some(e) = self.error().await {
-      Err(serror_into_anyhow_error(e))
-    } else {
-      Err(anyhow!("Server is not currently connected"))
-    }
-  }
-
-  pub async fn error(&self) -> Option<serror::Serror> {
-    self.error.read().await.clone()
-  }
-
-  pub async fn set_error(&self, e: anyhow::Error) {
-    let mut error = self.error.write().await;
-    *error = Some(e.into());
-  }
-
-  pub async fn clear_error(&self) {
-    let mut error = self.error.write().await;
-    *error = None;
-  }
-
-  pub fn cancel(&self) {
-    self.cancel.cancel();
   }
 }

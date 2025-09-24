@@ -7,7 +7,6 @@ use database::{
   mongo_indexed::doc, mungos::mongodb::bson::oid::ObjectId,
 };
 use formatting::format_serror;
-use komodo_client::entities::optional_string;
 use komodo_client::{
   api::write::*,
   entities::{
@@ -31,7 +30,7 @@ use periphery_client::api::build::{
 use resolver_api::Resolve;
 use tokio::fs;
 
-use crate::connection::client::spawn_client_connection;
+use crate::connection::PeripheryConnectionArgs;
 use crate::periphery::PeripheryClient;
 use crate::{
   config::core_config,
@@ -433,21 +432,15 @@ async fn get_on_host_periphery(
     BuilderConfig::Url(config) => {
       // TODO: Ensure connection is actually established.
       // Builder id no good because it may be active for multiple connections.
-      let periphery =
-        PeripheryClient::new_with_spawned_client_connection(
-          ObjectId::new().to_hex(),
-          &config.address,
-          |server_id, address| async move {
-            spawn_client_connection(
-              server_id,
-              address,
-              config.private_key,
-              optional_string(config.public_key),
-            )
-            .await
-          },
-        )
-        .await?;
+      let periphery = PeripheryClient::new(
+        ObjectId::new().to_hex(),
+        PeripheryConnectionArgs {
+          address: &config.address,
+          private_key: &config.private_key,
+          expected_public_key: &config.public_key,
+        },
+      )
+      .await?;
       // Poll for connection to be estalished
       let mut err = None;
       for _ in 0..10 {

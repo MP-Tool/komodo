@@ -6,7 +6,7 @@ use formatting::muted;
 use komodo_client::entities::{
   Version,
   builder::{AwsBuilderConfig, Builder, BuilderConfig},
-  komodo_timestamp, optional_string,
+  komodo_timestamp,
   server::Server,
   update::{Log, Update},
 };
@@ -14,10 +14,16 @@ use periphery_client::api::{self, GetVersionResponse};
 
 use crate::{
   cloud::{
+    BuildCleanupData,
     aws::ec2::{
-      launch_ec2_instance, terminate_ec2_instance_with_retry, Ec2Instance
-    }, BuildCleanupData
-  }, connection::client::spawn_client_connection, helpers::update::update_update, periphery::PeripheryClient, resource
+      Ec2Instance, launch_ec2_instance,
+      terminate_ec2_instance_with_retry,
+    },
+  },
+  connection::PeripheryConnectionArgs,
+  helpers::update::update_update,
+  periphery::PeripheryClient,
+  resource,
 };
 
 use super::periphery_client;
@@ -42,21 +48,15 @@ pub async fn get_builder_periphery(
       }
       // TODO: Dont use builder id, or will be problems
       // with simultaneous spawned builders.
-      let periphery =
-        PeripheryClient::new_with_spawned_client_connection(
-          ObjectId::new().to_hex(),
-          &config.address,
-          |server_id, address| async move {
-            spawn_client_connection(
-              server_id,
-              address,
-              config.private_key,
-              optional_string(config.public_key),
-            )
-            .await
-          },
-        )
-        .await?;
+      let periphery = PeripheryClient::new(
+        ObjectId::new().to_hex(),
+        PeripheryConnectionArgs {
+          address: &config.address,
+          private_key: &config.private_key,
+          expected_public_key: &config.public_key,
+        },
+      )
+      .await?;
       periphery
         .health_check()
         .await
@@ -109,21 +109,15 @@ async fn get_aws_builder(
   // TODO: Handle ad-hoc (non server) periphery connections. These don't have ids.
   let periphery_address =
     format!("{protocol}://{ip}:{}", config.port);
-  let periphery =
-    PeripheryClient::new_with_spawned_client_connection(
-      ObjectId::new().to_hex(),
-      &periphery_address,
-      |server_id, address| async move {
-        spawn_client_connection(
-          server_id,
-          address,
-          config.private_key,
-          optional_string(config.public_key),
-        )
-        .await
-      },
-    )
-    .await?;
+  let periphery = PeripheryClient::new(
+    ObjectId::new().to_hex(),
+    PeripheryConnectionArgs {
+      address: &periphery_address,
+      private_key: &config.private_key,
+      expected_public_key: &config.public_key,
+    },
+  )
+  .await?;
 
   let start_connect_ts = komodo_timestamp();
   let mut res = Ok(GetVersionResponse {
@@ -175,11 +169,13 @@ async fn get_aws_builder(
   )
 }
 
-#[instrument(skip(update))]
+#[instrument(skip(periphery, update))]
 pub async fn cleanup_builder_instance(
+  periphery: PeripheryClient,
   cleanup_data: BuildCleanupData,
   update: &mut Update,
 ) {
+  periphery.cleanup().await;
   match cleanup_data {
     BuildCleanupData::Server => {
       // Nothing to clean up

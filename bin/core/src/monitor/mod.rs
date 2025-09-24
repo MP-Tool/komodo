@@ -113,8 +113,6 @@ async fn refresh_server_cache(ts: i64) {
         return;
       }
     };
-  crate::connection::client::manage_client_connections(&servers)
-    .await;
   let futures = servers.into_iter().map(|server| async move {
     update_cache_for_server(&server, false).await;
   });
