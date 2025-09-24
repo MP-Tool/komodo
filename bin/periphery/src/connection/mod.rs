@@ -58,35 +58,28 @@ pub fn init_response_channel() {
     .expect("response_receiver initialized more than once");
 }
 
-pub struct WebsocketHandler<'a, W, S> {
+pub struct WebsocketHandler<'a, W> {
   pub socket: W,
   pub connection_identifiers: ConnectionIdentifiers<'a>,
   pub write_receiver: &'a mut BufferedReceiver<Bytes>,
-  pub on_login_success: S,
 }
 
-impl<W: Websocket, S: FnMut()> WebsocketHandler<'_, W, S> {
-  async fn handle<L: LoginFlow>(self) -> anyhow::Result<()> {
-    let WebsocketHandler {
-      mut socket,
-      connection_identifiers,
-      write_receiver,
-      mut on_login_success,
-    } = self;
-
+impl<W: Websocket> WebsocketHandler<'_, W> {
+  async fn login<L: LoginFlow>(&mut self) -> anyhow::Result<()> {
     L::login(
-      &mut socket,
-      connection_identifiers,
+      &mut self.socket,
+      self.connection_identifiers,
       &periphery_config().private_key,
       &CorePublicKeyValidator,
     )
-    .await?;
-    on_login_success();
+    .await
+  }
 
+  async fn handle(self) {
     let config = periphery_config();
     info!(
       "Logged in to Core connection websocket{}",
-      if config.core_host.is_some()
+      if config.core_address.is_some()
         && let Some(connect_as) = &config.connect_as
       {
         format!(" as Server {connect_as}")
@@ -95,11 +88,11 @@ impl<W: Websocket, S: FnMut()> WebsocketHandler<'_, W, S> {
       }
     );
 
-    let (mut ws_write, mut ws_read) = socket.split();
+    let (mut ws_write, mut ws_read) = self.socket.split();
 
     let forward_writes = async {
       loop {
-        let msg = match write_receiver.recv().await {
+        let msg = match self.write_receiver.recv().await {
           // Sender Dropped (shouldn't happen, it is static).
           None => break,
           // This has to copy the bytes to follow ownership rules.
@@ -108,7 +101,7 @@ impl<W: Websocket, S: FnMut()> WebsocketHandler<'_, W, S> {
         match ws_write.send(msg).await {
           // Clears the stored message from receiver buffer.
           // TODO: Move after response ack.
-          Ok(_) => write_receiver.clear_buffer(),
+          Ok(_) => self.write_receiver.clear_buffer(),
           Err(e) => {
             warn!("Failed to send response | {e:?}");
             let _ = ws_write.close(None).await;
@@ -143,9 +136,7 @@ impl<W: Websocket, S: FnMut()> WebsocketHandler<'_, W, S> {
     tokio::select! {
       _ = forward_writes => {},
       _ = handle_reads => {},
-    };
-
-    Ok(())
+    }
   }
 }
 

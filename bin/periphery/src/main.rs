@@ -32,7 +32,7 @@ async fn app() -> anyhow::Result<()> {
   docker::stats::spawn_polling_thread();
   connection::init_response_channel();
 
-  match (&config.core_host, &config.connect_as) {
+  match (&config.core_address, &config.connect_as) {
     (Some(core_host), Some(connect_as)) => {
       connection::client::handler(core_host, connect_as).await
     }

@@ -247,12 +247,12 @@ impl MergePartial for BuilderConfig {
         BuilderConfig::Url(config) => {
           let config = UrlBuilderConfig {
             address: partial.address.unwrap_or(config.address),
-            private_key: partial
-              .private_key
-              .unwrap_or(config.private_key),
-            public_key: partial
-              .public_key
-              .unwrap_or(config.public_key),
+            core_private_key: partial
+              .core_private_key
+              .unwrap_or(config.core_private_key),
+            periphery_public_key: partial
+              .periphery_public_key
+              .unwrap_or(config.periphery_public_key),
           };
           BuilderConfig::Url(config)
         }
@@ -291,12 +291,12 @@ impl MergePartial for BuilderConfig {
               .unwrap_or(config.use_public_ip),
             port: partial.port.unwrap_or(config.port),
             use_https: partial.use_https.unwrap_or(config.use_https),
-            private_key: partial
-              .private_key
-              .unwrap_or(config.private_key),
-            public_key: partial
-              .public_key
-              .unwrap_or(config.public_key),
+            core_private_key: partial
+              .core_private_key
+              .unwrap_or(config.core_private_key),
+            periphery_public_key: partial
+              .periphery_public_key
+              .unwrap_or(config.periphery_public_key),
             user_data: partial.user_data.unwrap_or(config.user_data),
             git_providers: partial
               .git_providers
@@ -326,13 +326,14 @@ pub struct UrlBuilderConfig {
   /// The address of the Periphery agent
   #[serde(default = "default_address")]
   pub address: String,
-  /// A custom private key to use. Otherwise, use the default private key.
+  /// A custom private key to use to authenticate with the Periphery agent.
+  /// Otherwise, use the default Core private key.
   #[serde(default)]
-  pub private_key: String,
+  pub core_private_key: String,
   /// An expected public key associated with Periphery private key.
   /// If empty, doesn't validate Periphery public key.
   #[serde(default)]
-  pub public_key: String,
+  pub periphery_public_key: String,
 }
 
 fn default_address() -> String {
@@ -343,8 +344,8 @@ impl Default for UrlBuilderConfig {
   fn default() -> Self {
     Self {
       address: default_address(),
-      private_key: Default::default(),
-      public_key: Default::default(),
+      core_private_key: Default::default(),
+      periphery_public_key: Default::default(),
     }
   }
 }
@@ -455,14 +456,14 @@ pub struct AwsBuilderConfig {
   #[builder(default)]
   pub user_data: String,
 
-  /// A custom private key to use to authenticate with agent.
+  /// A custom private key to use to authenticate with the Periphery agent.
   /// Otherwise, use the default Core private key.
   #[serde(default)]
-  pub private_key: String,
+  pub core_private_key: String,
   /// An expected public key associated with Periphery private key.
   /// If empty, doesn't validate Periphery public key.
   #[serde(default)]
-  pub public_key: String,
+  pub periphery_public_key: String,
 
   /// Which git providers are available on the AMI
   #[serde(default)]
@@ -497,8 +498,8 @@ impl Default for AwsBuilderConfig {
       assign_public_ip: Default::default(),
       use_public_ip: Default::default(),
       user_data: Default::default(),
-      private_key: Default::default(),
-      public_key: Default::default(),
+      core_private_key: Default::default(),
+      periphery_public_key: Default::default(),
       git_providers: Default::default(),
       docker_registries: Default::default(),
       secrets: Default::default(),

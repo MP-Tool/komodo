@@ -8,7 +8,7 @@ use komodo_client::entities::server::Server;
 use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
   PeripheryConnectionQuery,
-  auth::{ServerHeaderIdentifiers, ServerLoginFlow},
+  auth::{HeaderConnectionIdentifiers, ServerLoginFlow},
   websocket::axum::AxumWebsocket,
 };
 
@@ -23,8 +23,9 @@ pub async fn handler(
   mut headers: HeaderMap,
   ws: WebSocketUpgrade,
 ) -> serror::Result<Response> {
-  let identifiers = ServerHeaderIdentifiers::extract(&mut headers)
-    .status_code(StatusCode::UNAUTHORIZED)?;
+  let identifiers =
+    HeaderConnectionIdentifiers::extract(&mut headers)
+      .status_code(StatusCode::UNAUTHORIZED)?;
 
   let server = crate::resource::get::<Server>(&_server)
     .await
@@ -60,8 +61,8 @@ pub async fn handler(
       server.id.clone(),
       PeripheryConnectionArgs {
         address: "",
-        private_key: &server.config.private_key,
-        expected_public_key: &server.config.public_key,
+        core_private_key: &server.config.core_private_key,
+        periphery_public_key: &server.config.periphery_public_key,
       },
     )
     .await;

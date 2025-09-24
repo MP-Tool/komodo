@@ -20,7 +20,7 @@ use axum::{
 use axum_server::tls_rustls::RustlsConfig;
 use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
-  auth::{ServerHeaderIdentifiers, ServerLoginFlow},
+  auth::{HeaderConnectionIdentifiers, ServerLoginFlow},
   websocket::axum::AxumWebsocket,
 };
 
@@ -78,26 +78,30 @@ async fn handler(
     .try_lock()
     .status_code(StatusCode::FORBIDDEN)?;
 
-  let identifiers = ServerHeaderIdentifiers::extract(&mut headers)
-    .status_code(StatusCode::UNAUTHORIZED)?;
+  let identifiers =
+    HeaderConnectionIdentifiers::extract(&mut headers)
+      .status_code(StatusCode::UNAUTHORIZED)?;
 
   Ok(ws.on_upgrade(|socket| async move {
-    let handler = super::WebsocketHandler {
+    let mut handler = super::WebsocketHandler {
       socket: AxumWebsocket(socket),
       connection_identifiers: identifiers.build(&[]),
       write_receiver: &mut write_receiver,
-      on_login_success: || {
-        already_logged_login_error()
-          .store(false, atomic::Ordering::Relaxed);
-      },
     };
-    if let Err(e) = handler.handle::<ServerLoginFlow>().await {
+
+    if let Err(e) = handler.login::<ServerLoginFlow>().await {
       let already_logged = already_logged_login_error();
       if !already_logged.load(atomic::Ordering::Relaxed) {
         warn!("Core failed to login to connection | {e:#}");
         already_logged.store(true, atomic::Ordering::Relaxed);
       }
+      return;
     }
+
+    already_logged_login_error()
+      .store(false, atomic::Ordering::Relaxed);
+
+    handler.handle().await
   }))
 }
 

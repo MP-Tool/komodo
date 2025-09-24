@@ -4,16 +4,15 @@ use anyhow::Context;
 use axum::http::HeaderValue;
 use periphery_client::CONNECTION_RETRY_SECONDS;
 use transport::{
-  auth::{ClientLoginFlow, ConnectionIdentifiers},
+  auth::{AddressConnectionIdentifiers, ClientLoginFlow},
   fix_ws_address,
   websocket::tungstenite::TungsteniteWebsocket,
 };
-use url::Url;
 
 use crate::connection::ws_receiver;
 
 pub async fn handler(
-  core_host: &str,
+  address: &str,
   connect_as: &str,
 ) -> anyhow::Result<()> {
   if let Err(e) =
@@ -27,41 +26,34 @@ pub async fn handler(
     .try_lock()
     .context("Websocket handler called more than once.")?;
 
-  let core_host = fix_ws_address(core_host);
-  let core_endpoint = format!(
-    "{core_host}/ws/periphery?server={}",
-    urlencoding::encode(connect_as)
-  );
-  let url =
-    Url::parse(&core_endpoint).context("Failed to parse ws url")?;
-  let host: Vec<u8> =
-    url.host().context("Url has no host")?.to_string().into();
-  let query = url.query().context("Url has no query")?.as_bytes();
+  let address = fix_ws_address(address);
+  let identifiers = AddressConnectionIdentifiers::extract(&address)?;
+  let query = format!("server={}", urlencoding::encode(connect_as));
+  let endpoint = format!("{address}/ws/periphery?{query}");
 
-  info!("Initiating outbound connection to {url}");
+  info!("Initiating outbound connection to {endpoint}");
 
   let mut already_logged_connection_error = false;
   let mut already_logged_login_error = false;
 
   loop {
-    let (socket, accept) =
-      match connect_websocket(&core_endpoint).await {
-        Ok(res) => res,
-        Err(e) => {
-          if !already_logged_connection_error {
-            warn!("{e:#}");
-            already_logged_connection_error = true;
-            // If error transitions from login to connection,
-            // set to false to see login error after reconnect.
-            already_logged_login_error = false;
-          }
-          tokio::time::sleep(Duration::from_secs(
-            CONNECTION_RETRY_SECONDS,
-          ))
-          .await;
-          continue;
+    let (socket, accept) = match connect_websocket(&endpoint).await {
+      Ok(res) => res,
+      Err(e) => {
+        if !already_logged_connection_error {
+          warn!("{e:#}");
+          already_logged_connection_error = true;
+          // If error transitions from login to connection,
+          // set to false to see login error after reconnect.
+          already_logged_login_error = false;
         }
-      };
+        tokio::time::sleep(Duration::from_secs(
+          CONNECTION_RETRY_SECONDS,
+        ))
+        .await;
+        continue;
+      }
+    };
 
     already_logged_connection_error = false;
 
@@ -69,20 +61,14 @@ pub async fn handler(
       info!("Connected to core connection websocket");
     }
 
-    let connection_identifiers = ConnectionIdentifiers {
-      host: &host,
-      accept: accept.as_bytes(),
-      query,
-    };
-
-    let handler = super::WebsocketHandler {
+    let mut handler = super::WebsocketHandler {
       socket,
-      connection_identifiers,
+      connection_identifiers: identifiers
+        .build(accept.as_bytes(), query.as_bytes()),
       write_receiver: &mut write_receiver,
-      on_login_success: || already_logged_login_error = false,
     };
 
-    if let Err(e) = handler.handle::<ClientLoginFlow>().await {
+    if let Err(e) = handler.login::<ClientLoginFlow>().await {
       if !already_logged_login_error {
         warn!("Failed to login | {e:#}");
         already_logged_login_error = true;
@@ -92,7 +78,11 @@ pub async fn handler(
       ))
       .await;
       continue;
-    };
+    }
+
+    already_logged_login_error = false;
+
+    handler.handle().await
   }
 }
 

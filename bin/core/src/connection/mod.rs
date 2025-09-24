@@ -46,17 +46,17 @@ impl<W: Websocket> WebsocketHandler<'_, W> {
       connection,
     } = self;
 
-    let private_key = if connection.private_key.is_empty() {
+    let private_key = if connection.core_private_key.is_empty() {
       &core_config().private_key
     } else {
-      &connection.private_key
+      &connection.core_private_key
     };
 
     let expected_public_key = if !connection
-      .expected_public_key
+      .periphery_public_key
       .is_empty()
     {
-      Some(connection.expected_public_key.as_str())
+      Some(connection.periphery_public_key.as_str())
     } else if connection.address.is_empty() {
       // Only force periphery public key for Periphery -> Core connections
       Some(
@@ -221,15 +221,15 @@ impl PeripheryConnections {
 #[derive(Clone, Copy)]
 pub struct PeripheryConnectionArgs<'a> {
   pub address: &'a str,
-  pub private_key: &'a str,
-  pub expected_public_key: &'a str,
+  pub core_private_key: &'a str,
+  pub periphery_public_key: &'a str,
 }
 
 impl PeripheryConnectionArgs<'_> {
   pub fn matches(&self, connection: &PeripheryConnection) -> bool {
     self.address == connection.address
-      && self.private_key == connection.private_key
-      && self.expected_public_key == connection.expected_public_key
+      && self.core_private_key == connection.core_private_key
+      && self.periphery_public_key == connection.periphery_public_key
   }
 }
 
@@ -239,10 +239,10 @@ pub struct PeripheryConnection {
   /// Inbound connections have this as empty string
   pub address: String,
   /// The private key to use, or empty for core private key
-  pub private_key: String,
+  pub core_private_key: String,
   /// The public key to expect Periphery to have.
   /// Required non-empty for inbound connection.
-  pub expected_public_key: String,
+  pub periphery_public_key: String,
   /// Whether Periphery is currently connected.
   pub connected: AtomicBool,
   /// Stores latest connection error
@@ -266,8 +266,8 @@ impl PeripheryConnection {
     (
       PeripheryConnection {
         address: args.address.to_string(),
-        private_key: args.private_key.to_string(),
-        expected_public_key: args.expected_public_key.to_string(),
+        core_private_key: args.core_private_key.to_string(),
+        periphery_public_key: args.periphery_public_key.to_string(),
         sender,
         channels,
         connected: AtomicBool::new(false),

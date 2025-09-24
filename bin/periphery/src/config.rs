@@ -74,7 +74,9 @@ pub fn periphery_config() -> &'static PeripheryConfig {
       core_public_key: env
         .periphery_core_public_key
         .or(config.core_public_key),
-      core_host: env.periphery_core_host.or(config.core_host),
+      core_address: env
+        .periphery_core_address
+        .or(config.core_address),
       connect_as: env.periphery_connect_as.or(config.connect_as),
       port: env.periphery_port.unwrap_or(config.port),
       bind_ip: env.periphery_bind_ip.unwrap_or(config.bind_ip),

@@ -157,8 +157,8 @@ impl super::KomodoResource for Server {
         updated.id.clone(),
         PeripheryConnectionArgs {
           address: &updated.config.address,
-          private_key: &updated.config.private_key,
-          expected_public_key: &updated.config.public_key,
+          core_private_key: &updated.config.core_private_key,
+          periphery_public_key: &updated.config.periphery_public_key,
         },
       )
       .await;

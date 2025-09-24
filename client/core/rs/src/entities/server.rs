@@ -91,18 +91,18 @@ pub struct ServerConfig {
   pub enabled: bool,
 
   /// An optional override private key to use
-  /// to authenticate with periphery agent.
+  /// to authenticate with Periphery agent.
   /// If this is empty, will use private key in core config.
   #[serde(default)]
   #[builder(default)]
-  pub private_key: String,
+  pub core_private_key: String,
 
-  /// The accepted public key associated with
+  /// The expected public key associated with
   /// private key of the periphery agent.
-  /// If this is empty, will not validate the Periphery public key.
+  /// If this is empty, falls back to 'periphery_public_key'
   #[serde(default)]
   #[builder(default)]
-  pub public_key: String,
+  pub periphery_public_key: String,
 
   /// Sometimes the system stats reports a mount path that is not desired.
   /// Use this field to filter it out from the report.
@@ -271,8 +271,8 @@ impl Default for ServerConfig {
       send_disk_alerts: default_send_alerts(),
       send_version_mismatch_alerts: default_send_alerts(),
       region: Default::default(),
-      private_key: Default::default(),
-      public_key: Default::default(),
+      core_private_key: Default::default(),
+      periphery_public_key: Default::default(),
       cpu_warning: default_cpu_warning(),
       cpu_critical: default_cpu_critical(),
       mem_warning: default_mem_warning(),

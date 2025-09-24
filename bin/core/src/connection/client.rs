@@ -6,7 +6,7 @@ use periphery_client::CONNECTION_RETRY_SECONDS;
 use rustls::{ClientConfig, client::danger::ServerCertVerifier};
 use tokio_tungstenite::Connector;
 use transport::{
-  auth::{ClientLoginFlow, ConnectionIdentifiers},
+  auth::{AddressConnectionIdentifiers, ClientLoginFlow},
   fix_ws_address,
   websocket::tungstenite::TungsteniteWebsocket,
 };
@@ -29,13 +29,8 @@ impl PeripheryConnectionArgs<'_> {
 
     let address = fix_ws_address(self.address);
 
-    let url = ::url::Url::parse(&address)
-      .context("Failed to parse server address")?;
-    let mut host = url.host().context("url has no host")?.to_string();
-    if let Some(port) = url.port() {
-      host.push(':');
-      host.push_str(&port.to_string());
-    }
+    let identifiers =
+      AddressConnectionIdentifiers::extract(&address)?;
 
     let (connection, mut write_receiver) =
       periphery_connections().insert(server_id, self).await;
@@ -65,11 +60,8 @@ impl PeripheryConnectionArgs<'_> {
 
         let handler = super::WebsocketHandler {
           socket,
-          connection_identifiers: ConnectionIdentifiers {
-            host: host.as_bytes(),
-            accept: accept.as_bytes(),
-            query: &[],
-          },
+          connection_identifiers: identifiers
+            .build(accept.as_bytes(), &[]),
           write_receiver: &mut write_receiver,
           connection: &connection,
         };

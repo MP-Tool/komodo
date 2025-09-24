@@ -18,15 +18,6 @@ use tracing::warn;
 
 use crate::{MessageState, websocket::Websocket};
 
-pub struct ConnectionIdentifiers<'a> {
-  /// Server hostname
-  pub host: &'a [u8],
-  /// Query: 'server=<SERVER>'
-  pub query: &'a [u8],
-  /// Sec-Websocket-Accept, unique for each connection
-  pub accept: &'a [u8],
-}
-
 pub trait PublicKeyValidator {
   fn validate(&self, public_key: String) -> anyhow::Result<()>;
 }
@@ -259,6 +250,16 @@ fn nonce() -> [u8; 32] {
   out
 }
 
+#[derive(Clone, Copy)]
+pub struct ConnectionIdentifiers<'a> {
+  /// Server hostname
+  pub host: &'a [u8],
+  /// Query: 'server=<SERVER>'
+  pub query: &'a [u8],
+  /// Sec-Websocket-Accept, unique for each connection
+  pub accept: &'a [u8],
+}
+
 impl ConnectionIdentifiers<'_> {
   /// nonce: Server computed random connection nonce, sent to client before auth handshake
   pub fn hash(&self, nonce: &[u8]) -> [u8; 32] {
@@ -275,17 +276,46 @@ impl ConnectionIdentifiers<'_> {
   }
 }
 
-/// Used to extract owned connection identifier
-/// in server side connection handler.
-pub struct ServerHeaderIdentifiers {
-  pub host: HeaderValue,
-  pub accept: String,
+pub struct AddressConnectionIdentifiers {
+  host: String,
 }
 
-impl ServerHeaderIdentifiers {
+impl AddressConnectionIdentifiers {
+  pub fn extract(address: &str) -> anyhow::Result<Self> {
+    let url = ::url::Url::parse(&address)
+      .context("Failed to parse server address")?;
+    let mut host = url.host().context("url has no host")?.to_string();
+    if let Some(port) = url.port() {
+      host.push(':');
+      host.push_str(&port.to_string());
+    };
+    Ok(Self { host })
+  }
+
+  pub fn build<'a>(
+    &'a self,
+    accept: &'a [u8],
+    query: &'a [u8],
+  ) -> ConnectionIdentifiers<'a> {
+    ConnectionIdentifiers {
+      host: self.host.as_bytes(),
+      query,
+      accept,
+    }
+  }
+}
+
+/// Used to extract owned connection identifier
+/// in server side connection handler.
+pub struct HeaderConnectionIdentifiers {
+  host: HeaderValue,
+  accept: String,
+}
+
+impl HeaderConnectionIdentifiers {
   pub fn extract(
     headers: &mut HeaderMap,
-  ) -> anyhow::Result<ServerHeaderIdentifiers> {
+  ) -> anyhow::Result<HeaderConnectionIdentifiers> {
     let host = headers
       .remove("x-forwarded-host")
       .or(headers.remove("host"))
@@ -294,7 +324,7 @@ impl ServerHeaderIdentifiers {
       .remove("sec-websocket-key")
       .context("Headers do not contain Sec-Websocket-Key")?;
     let accept = compute_accept(key.as_bytes());
-    Ok(ServerHeaderIdentifiers { host, accept })
+    Ok(HeaderConnectionIdentifiers { host, accept })
   }
 
   pub fn build<'a>(
@@ -308,10 +338,6 @@ impl ServerHeaderIdentifiers {
     }
   }
 }
-
-// pub fn extract_server_identifiers(headers: &mut HeaderMap) -> anyhow::Result<(Head)> {
-
-// }
 
 pub fn compute_accept(sec_websocket_key: &[u8]) -> String {
   // This is standard GUID to compute Sec-Websocket-Accept

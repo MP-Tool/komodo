@@ -127,8 +127,8 @@ pub struct Env {
   pub periphery_private_key_file: Option<PathBuf>,
   /// Override `core_public_key`
   pub periphery_core_public_key: Option<String>,
-  /// Override `core_host`
-  pub periphery_core_host: Option<String>,
+  /// Override `core_address`
+  pub periphery_core_address: Option<String>,
   /// Override `connect_as`
   pub periphery_connect_as: Option<String>,
   /// Override `port`
@@ -204,10 +204,9 @@ pub struct PeripheryConfig {
   // ============================
   /// Address of Komodo Core when connecting outbound
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub core_host: Option<String>,
+  pub core_address: Option<String>,
 
   /// Server name / id to connect as
-  /// TODO: explore using device identifier like MAC
   #[serde(skip_serializing_if = "Option::is_none")]
   pub connect_as: Option<String>,
 
@@ -376,7 +375,7 @@ impl Default for PeripheryConfig {
     Self {
       private_key: default_private_key(),
       core_public_key: None,
-      core_host: None,
+      core_address: None,
       connect_as: None,
       port: default_periphery_port(),
       bind_ip: default_periphery_bind_ip(),
@@ -410,7 +409,7 @@ impl PeripheryConfig {
     PeripheryConfig {
       private_key: empty_or_redacted(&self.private_key),
       core_public_key: self.core_public_key.clone(),
-      core_host: self.core_host.clone(),
+      core_address: self.core_address.clone(),
       connect_as: self.connect_as.clone(),
       port: self.port,
       bind_ip: self.bind_ip.clone(),

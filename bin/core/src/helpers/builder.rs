@@ -52,8 +52,8 @@ pub async fn get_builder_periphery(
         ObjectId::new().to_hex(),
         PeripheryConnectionArgs {
           address: &config.address,
-          private_key: &config.private_key,
-          expected_public_key: &config.public_key,
+          core_private_key: &config.core_private_key,
+          periphery_public_key: &config.periphery_public_key,
         },
       )
       .await?;
@@ -113,8 +113,8 @@ async fn get_aws_builder(
     ObjectId::new().to_hex(),
     PeripheryConnectionArgs {
       address: &periphery_address,
-      private_key: &config.private_key,
-      expected_public_key: &config.public_key,
+      core_private_key: &config.core_private_key,
+      periphery_public_key: &config.periphery_public_key,
     },
   )
   .await?;

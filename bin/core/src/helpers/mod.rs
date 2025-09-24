@@ -196,8 +196,8 @@ pub async fn periphery_client(
     server.id.clone(),
     PeripheryConnectionArgs {
       address: &server.config.address,
-      private_key: &server.config.private_key,
-      expected_public_key: &server.config.public_key,
+      core_private_key: &server.config.core_private_key,
+      periphery_public_key: &server.config.periphery_public_key,
     },
   )
   .await
