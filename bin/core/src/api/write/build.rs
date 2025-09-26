@@ -439,6 +439,7 @@ async fn get_on_host_periphery(
           core_private_key: &config.core_private_key,
           periphery_public_key: &config.periphery_public_key,
         },
+        &config.passkey,
       )
       .await?;
       // Poll for connection to be estalished

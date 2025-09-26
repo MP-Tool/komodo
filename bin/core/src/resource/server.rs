@@ -160,6 +160,7 @@ impl super::KomodoResource for Server {
           core_private_key: &updated.config.core_private_key,
           periphery_public_key: &updated.config.periphery_public_key,
         },
+        &updated.config.passkey,
       )
       .await;
     } else {

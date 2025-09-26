@@ -199,6 +199,7 @@ pub async fn periphery_client(
       core_private_key: &server.config.core_private_key,
       periphery_public_key: &server.config.periphery_public_key,
     },
+    &server.config.passkey,
   )
   .await
 }

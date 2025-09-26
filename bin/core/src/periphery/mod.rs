@@ -34,6 +34,8 @@ impl PeripheryClient {
   pub async fn new(
     server_id: String,
     args: PeripheryConnectionArgs<'_>,
+    // deprecated.
+    passkey: &str,
   ) -> anyhow::Result<PeripheryClient> {
     let connections = periphery_connections();
 
@@ -42,8 +44,12 @@ impl PeripheryClient {
       if args.address.is_empty() {
         return Err(anyhow!("Server {server_id} is not connected"));
       }
-      let channels =
-        args.spawn_client_connection(server_id.clone()).await?;
+      let channels = args
+        .spawn_client_connection(
+          server_id.clone(),
+          passkey.to_string(),
+        )
+        .await?;
       return Ok(PeripheryClient {
         server_id,
         channels,
@@ -74,8 +80,12 @@ impl PeripheryClient {
       })
     } else {
       // Core -> Periphery connection
-      let channels =
-        args.spawn_client_connection(server_id.clone()).await?;
+      let channels = args
+        .spawn_client_connection(
+          server_id.clone(),
+          passkey.to_string(),
+        )
+        .await?;
       Ok(PeripheryClient {
         server_id,
         channels,

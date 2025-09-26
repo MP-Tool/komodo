@@ -55,6 +55,7 @@ pub async fn get_builder_periphery(
           core_private_key: &config.core_private_key,
           periphery_public_key: &config.periphery_public_key,
         },
+        &config.passkey,
       )
       .await?;
       periphery
@@ -116,6 +117,7 @@ async fn get_aws_builder(
       core_private_key: &config.core_private_key,
       periphery_public_key: &config.periphery_public_key,
     },
+    "",
   )
   .await?;
 

@@ -253,6 +253,7 @@ impl MergePartial for BuilderConfig {
             periphery_public_key: partial
               .periphery_public_key
               .unwrap_or(config.periphery_public_key),
+            passkey: partial.passkey.unwrap_or(config.passkey),
           };
           BuilderConfig::Url(config)
         }
@@ -325,15 +326,26 @@ pub type _PartialUrlBuilderConfig = PartialUrlBuilderConfig;
 pub struct UrlBuilderConfig {
   /// The address of the Periphery agent
   #[serde(default = "default_address")]
+  #[builder(default = default_address())]
+  #[partial(default(default_address()))]
   pub address: String,
   /// A custom private key to use to authenticate with the Periphery agent.
   /// Otherwise, use the default Core private key.
   #[serde(default)]
+  #[builder(default)]
   pub core_private_key: String,
   /// An expected public key associated with Periphery private key.
   /// If empty, doesn't validate Periphery public key.
   #[serde(default)]
+  #[builder(default)]
   pub periphery_public_key: String,
+  /// Deprecated. Use private / public keys instead.
+  /// An optional override passkey to use
+  /// to authenticate with periphery agent.
+  /// If this is empty, will use passkey in core config.
+  #[serde(default)]
+  #[builder(default)]
+  pub passkey: String,
 }
 
 fn default_address() -> String {
@@ -346,6 +358,7 @@ impl Default for UrlBuilderConfig {
       address: default_address(),
       core_private_key: Default::default(),
       periphery_public_key: Default::default(),
+      passkey: Default::default(),
     }
   }
 }

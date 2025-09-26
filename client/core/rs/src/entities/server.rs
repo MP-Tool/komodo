@@ -104,6 +104,14 @@ pub struct ServerConfig {
   #[builder(default)]
   pub periphery_public_key: String,
 
+  /// Deprecated. Use private / public keys instead.
+  /// An optional override passkey to use
+  /// to authenticate with periphery agent.
+  /// If this is empty, will use passkey in core config.
+  #[serde(default)]
+  #[builder(default)]
+  pub passkey: String,
+
   /// Sometimes the system stats reports a mount path that is not desired.
   /// Use this field to filter it out from the report.
   #[serde(default, deserialize_with = "string_list_deserializer")]
@@ -273,6 +281,7 @@ impl Default for ServerConfig {
       region: Default::default(),
       core_private_key: Default::default(),
       periphery_public_key: Default::default(),
+      passkey: Default::default(),
       cpu_warning: default_cpu_warning(),
       cpu_critical: default_cpu_critical(),
       mem_warning: default_mem_warning(),

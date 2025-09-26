@@ -22,6 +22,7 @@ impl PeripheryConnectionArgs<'_> {
   pub async fn spawn_client_connection(
     self,
     server_id: String,
+    passkey: String,
   ) -> anyhow::Result<Arc<ConnectionChannels>> {
     if self.address.is_empty() {
       return Err(anyhow!(
@@ -68,7 +69,7 @@ impl PeripheryConnectionArgs<'_> {
           connection: &connection,
         };
 
-        if let Err(e) = handle_login(&mut handler).await {
+        if let Err(e) = handle_login(&mut handler, &passkey).await {
           if connection.cancel.is_cancelled() {
             break;
           }
@@ -90,6 +91,8 @@ impl PeripheryConnectionArgs<'_> {
 
 async fn handle_login(
   handler: &mut super::WebsocketHandler<'_, TungsteniteWebsocket>,
+  // deprecated.
+  passkey: &str,
 ) -> anyhow::Result<()> {
   // Get the required auth type
   let bytes = handler
@@ -104,12 +107,16 @@ async fn handle_login(
     // Passkey auth
     &[1] => {
       let res = async {
-        let mut passkey: Vec<u8> = core_config()
-          .passkey
-          .as_deref()
-          .context("Periphery requires passkey auth")?
-          .as_bytes()
-          .to_vec();
+        let mut passkey = if passkey.is_empty() {
+          core_config()
+            .passkey
+            .as_deref()
+            .context("Periphery requires passkey auth")?
+            .as_bytes()
+            .to_vec()
+        } else {
+          passkey.as_bytes().to_vec()
+        };
         passkey.push(MessageState::Successful.as_byte());
 
         handler
