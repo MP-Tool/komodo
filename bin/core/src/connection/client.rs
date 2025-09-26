@@ -89,6 +89,8 @@ impl PeripheryConnectionArgs<'_> {
   }
 }
 
+/// Custom Core -> Periphery side only login wrapper
+/// to implement passkey support for backward compatibility
 async fn handle_login(
   handler: &mut super::WebsocketHandler<'_, TungsteniteWebsocket>,
   // deprecated.
