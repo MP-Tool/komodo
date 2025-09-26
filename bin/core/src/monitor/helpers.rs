@@ -11,7 +11,7 @@ use komodo_client::entities::{
     ServerState,
   },
   stack::{ComposeProject, Stack, StackState},
-  stats::{SingleDiskUsage, SystemStats},
+  stats::{SingleDiskUsage, SystemInformation, SystemStats},
 };
 use serror::Serror;
 
@@ -104,6 +104,7 @@ pub async fn insert_server_status(
   server: &Server,
   state: ServerState,
   version: String,
+  info: Option<SystemInformation>,
   stats: Option<SystemStats>,
   (containers, networks, images, volumes, projects): DockerLists,
   err: impl Into<Option<Serror>>,
@@ -116,6 +117,7 @@ pub async fn insert_server_status(
         id: server.id.clone(),
         state,
         version,
+        info,
         stats,
         health,
         containers,

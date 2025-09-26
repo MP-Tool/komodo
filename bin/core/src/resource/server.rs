@@ -16,7 +16,6 @@ use komodo_client::entities::{
 use crate::{
   config::core_config,
   connection::PeripheryConnectionArgs,
-  helpers::query::get_system_info,
   monitor::update_cache_for_server,
   periphery::PeripheryClient,
   state::{
@@ -62,11 +61,14 @@ impl super::KomodoResource for Server {
     server: Resource<Self::Config, Self::Info>,
   ) -> Self::ListItem {
     let status = server_status_cache().get(&server.id).await;
-    let (terminals_disabled, container_exec_disabled) =
-      get_system_info(&server)
-        .await
-        .map(|i| (i.terminals_disabled, i.container_exec_disabled))
-        .unwrap_or((true, true));
+    let (terminals_disabled, container_exec_disabled) = status
+      .as_ref()
+      .and_then(|s| {
+        s.info
+          .as_ref()
+          .map(|i| (i.terminals_disabled, i.container_exec_disabled))
+      })
+      .unwrap_or((true, true));
     ServerListItem {
       name: server.name,
       id: server.id,

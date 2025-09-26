@@ -14,7 +14,7 @@ use komodo_client::entities::{
   komodo_timestamp, optional_string,
   server::{Server, ServerHealth, ServerState},
   stack::{ComposeProject, StackService, StackState},
-  stats::SystemStats,
+  stats::{SystemInformation, SystemStats},
 };
 use periphery_client::api::{self, git::GetLatestCommit};
 use serror::Serror;
@@ -49,8 +49,9 @@ pub struct CachedServerStatus {
   pub id: String,
   pub state: ServerState,
   pub version: String,
-  pub stats: Option<SystemStats>,
   pub health: Option<ServerHealth>,
+  pub info: Option<SystemInformation>,
+  pub stats: Option<SystemStats>,
   pub containers: Option<Vec<ContainerListItem>>,
   pub networks: Option<Vec<NetworkListItem>>,
   pub images: Option<Vec<ImageListItem>>,
@@ -187,7 +188,8 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
     insert_server_status(
       server,
       ServerState::Disabled,
-      String::from("unknown"),
+      String::from("Unknown"),
+      None,
       None,
       (None, None, None, None, None),
       None,
@@ -200,8 +202,11 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
     return;
   };
 
-  let version = match periphery.request(api::GetVersion {}).await {
-    Ok(version) => version.version,
+  let info = match periphery
+    .request(api::stats::GetSystemInformation {})
+    .await
+  {
+    Ok(info) => info,
     Err(e) => {
       insert_deployments_status_unknown(deployments).await;
       insert_stacks_status_unknown(stacks).await;
@@ -210,6 +215,7 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
         server,
         ServerState::NotOk,
         String::from("Unknown"),
+        None,
         None,
         (None, None, None, None, None),
         Serror::from(&e),
@@ -229,7 +235,8 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
         insert_server_status(
           server,
           ServerState::NotOk,
-          String::from("unknown"),
+          info.version.clone(),
+          Some(info),
           None,
           (None, None, None, None, None),
           Serror::from(&e),
@@ -265,7 +272,8 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
       insert_server_status(
         server,
         ServerState::Ok,
-        version,
+        info.version.clone(),
+        Some(info),
         stats,
         (
           Some(containers.clone()),
@@ -284,7 +292,8 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
       insert_server_status(
         server,
         ServerState::Ok,
-        version,
+        info.version.clone(),
+        Some(info),
         stats,
         (None, None, None, None, None),
         Some(e.into()),

@@ -217,5 +217,6 @@ fn get_system_information(
     terminals_disabled: config.disable_terminals,
     container_exec_disabled: config.disable_container_exec,
     public_key: periphery_public_key().clone(),
+    version: env!("CARGO_PKG_VERSION").to_string(),
   }
 }

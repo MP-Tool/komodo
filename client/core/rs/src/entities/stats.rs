@@ -27,6 +27,8 @@ pub struct SystemInformation {
   pub container_exec_disabled: bool,
   /// The public key of the Periphery agent
   pub public_key: String,
+  /// The version of the Periphery agent
+  pub version: String,
 }
 
 /// System stats stored on the database.

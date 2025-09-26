@@ -43,14 +43,13 @@ use periphery_client::api::{
   network::InspectNetwork,
   volume::InspectVolume,
 };
+use reqwest::StatusCode;
 use resolver_api::Resolve;
+use serror::AddStatusCode;
 use tokio::sync::Mutex;
 
 use crate::{
-  helpers::{
-    periphery_client,
-    query::{get_all_tags, get_system_info},
-  },
+  helpers::{periphery_client, query::get_all_tags},
   permission::get_check_permissions,
   resource,
   stack::compose_container_match_regex,
@@ -235,8 +234,16 @@ impl Resolve<ReadArgs> for GetSystemInformation {
       user,
       PermissionLevel::Read.into(),
     )
-    .await?;
-    get_system_info(&server).await.map_err(Into::into)
+    .await
+    .status_code(StatusCode::BAD_REQUEST)?;
+    let info = server_status_cache()
+      .get(&server.id)
+      .await
+      .context("No status found for server")?
+      .info
+      .clone()
+      .context("No info found for server")?;
+    Ok(info)
   }
 }
 
@@ -289,7 +296,8 @@ impl Resolve<ReadArgs> for ListSystemProcesses {
         cached.0.clone()
       }
       _ => {
-        let stats = periphery_client(&server).await?
+        let stats = periphery_client(&server)
+          .await?
           .request(periphery::stats::GetSystemProcesses {})
           .await?;
         lock.insert(
@@ -478,7 +486,8 @@ impl Resolve<ReadArgs> for InspectDockerContainer {
         .into(),
       );
     }
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(InspectContainer {
         name: self.container,
       })
@@ -506,7 +515,8 @@ impl Resolve<ReadArgs> for GetContainerLog {
       PermissionLevel::Read.logs(),
     )
     .await?;
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(periphery::container::GetContainerLog {
         name: container,
         tail: cmp::min(tail, MAX_LOG_LENGTH),
@@ -537,7 +547,8 @@ impl Resolve<ReadArgs> for SearchContainerLog {
       PermissionLevel::Read.logs(),
     )
     .await?;
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(periphery::container::GetContainerLogSearch {
         name: container,
         terms,
@@ -657,7 +668,8 @@ impl Resolve<ReadArgs> for InspectDockerNetwork {
         .into(),
       );
     }
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(InspectNetwork { name: self.network })
       .await?;
     Ok(res)
@@ -706,7 +718,8 @@ impl Resolve<ReadArgs> for InspectDockerImage {
           .into(),
       );
     }
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(InspectImage { name: self.image })
       .await?;
     Ok(res)
@@ -736,7 +749,8 @@ impl Resolve<ReadArgs> for ListDockerImageHistory {
         .into(),
       );
     }
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(ImageHistory { name: self.image })
       .await?;
     Ok(res)
@@ -785,7 +799,8 @@ impl Resolve<ReadArgs> for InspectDockerVolume {
           .into(),
       );
     }
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(InspectVolume { name: self.volume })
       .await?;
     Ok(res)
@@ -865,7 +880,8 @@ impl Resolve<ReadArgs> for ListTerminals {
     let cache = terminals_cache().get_or_insert(server.id.clone());
     let mut cache = cache.lock().await;
     if self.fresh || komodo_timestamp() > cache.ttl {
-      cache.list = periphery_client(&server).await?
+      cache.list = periphery_client(&server)
+        .await?
         .request(periphery_client::api::terminal::ListTerminals {})
         .await
         .context("Failed to get fresh terminal list")?;

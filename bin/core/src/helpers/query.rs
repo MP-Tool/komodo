@@ -1,11 +1,6 @@
-use std::{
-  collections::HashMap,
-  str::FromStr,
-  sync::{Arc, OnceLock},
-};
+use std::{collections::HashMap, str::FromStr};
 
 use anyhow::{Context, anyhow};
-use async_timing_util::{ONE_MIN_MS, unix_timestamp_ms};
 use database::mungos::{
   find::find_collect,
   mongodb::{
@@ -30,7 +25,6 @@ use komodo_client::{
     repo::Repo,
     server::{Server, ServerState},
     stack::{Stack, StackServiceNames, StackState},
-    stats::SystemInformation,
     sync::ResourceSync,
     tag::Tag,
     update::Update,
@@ -39,8 +33,6 @@ use komodo_client::{
     variable::Variable,
   },
 };
-use periphery_client::api::stats;
-use tokio::sync::Mutex;
 
 use crate::{
   config::core_config,
@@ -53,8 +45,6 @@ use crate::{
     stack_status_cache,
   },
 };
-
-use super::periphery_client;
 
 // user: Id or username
 #[instrument(level = "debug")]
@@ -85,7 +75,8 @@ pub async fn get_server_state(server: &Server) -> ServerState {
     return ServerState::Disabled;
   }
   // Unwrap ok: Server disabled check above
-  match super::periphery_client(server).await
+  match super::periphery_client(server)
+    .await
     .unwrap()
     .request(periphery_client::api::GetHealth {})
     .await
@@ -411,39 +402,6 @@ pub async fn get_variables_and_secrets()
     .collect();
 
   Ok(VariablesAndSecrets { variables, secrets })
-}
-
-// This protects the peripheries from spam requests
-const SYSTEM_INFO_EXPIRY: u128 = ONE_MIN_MS;
-type SystemInfoCache =
-  Mutex<HashMap<String, Arc<(SystemInformation, u128)>>>;
-fn system_info_cache() -> &'static SystemInfoCache {
-  static SYSTEM_INFO_CACHE: OnceLock<SystemInfoCache> =
-    OnceLock::new();
-  SYSTEM_INFO_CACHE.get_or_init(Default::default)
-}
-
-pub async fn get_system_info(
-  server: &Server,
-) -> anyhow::Result<SystemInformation> {
-  let mut lock = system_info_cache().lock().await;
-  let res = match lock.get(&server.id) {
-    Some(cached) if cached.1 > unix_timestamp_ms() => {
-      cached.0.clone()
-    }
-    _ => {
-      let stats = periphery_client(server).await?
-        .request(stats::GetSystemInformation {})
-        .await?;
-      lock.insert(
-        server.id.clone(),
-        (stats.clone(), unix_timestamp_ms() + SYSTEM_INFO_EXPIRY)
-          .into(),
-      );
-      stats
-    }
-  };
-  Ok(res)
 }
 
 /// Get last time procedure / action was run using Update query.
