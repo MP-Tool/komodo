@@ -25,6 +25,7 @@ pub mod terminal;
 
 pub type ConnectionChannels = CloneCache<Uuid, Sender<Bytes>>;
 
+#[derive(Debug)]
 pub struct PeripheryClient {
   pub server_id: String,
   channels: Arc<ConnectionChannels>,

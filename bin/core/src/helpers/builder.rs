@@ -62,7 +62,7 @@ pub async fn get_builder_periphery(
         .health_check()
         .await
         .context("Url Builder failed health check")?;
-      Ok((periphery, BuildCleanupData::Server))
+      Ok((periphery, BuildCleanupData::Url))
     }
     BuilderConfig::Server(config) => {
       if config.server_id.is_empty() {
@@ -171,21 +171,24 @@ async fn get_aws_builder(
   )
 }
 
-#[instrument(skip(periphery, update))]
+#[instrument(skip(update))]
 pub async fn cleanup_builder_instance(
   periphery: PeripheryClient,
   cleanup_data: BuildCleanupData,
   update: &mut Update,
 ) {
-  periphery.cleanup().await;
   match cleanup_data {
     BuildCleanupData::Server => {
       // Nothing to clean up
+    }
+    BuildCleanupData::Url => {
+      periphery.cleanup().await;
     }
     BuildCleanupData::Aws {
       instance_id,
       region,
     } => {
+      periphery.cleanup().await;
       let _instance_id = instance_id.clone();
       tokio::spawn(async move {
         let _ =
