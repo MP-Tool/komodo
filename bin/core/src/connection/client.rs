@@ -4,16 +4,18 @@ use anyhow::{Context, anyhow};
 use axum::http::HeaderValue;
 use periphery_client::CONNECTION_RETRY_SECONDS;
 use rustls::{ClientConfig, client::danger::ServerCertVerifier};
+use serror::{deserialize_error_bytes, serialize_error_bytes};
 use tokio_tungstenite::Connector;
 use transport::{
+  MessageState,
   auth::{AddressConnectionIdentifiers, ClientLoginFlow},
   fix_ws_address,
-  websocket::tungstenite::TungsteniteWebsocket,
+  websocket::{Websocket, tungstenite::TungsteniteWebsocket},
 };
 
 use crate::{
-  connection::PeripheryConnectionArgs, periphery::ConnectionChannels,
-  state::periphery_connections,
+  config::core_config, connection::PeripheryConnectionArgs,
+  periphery::ConnectionChannels, state::periphery_connections,
 };
 
 impl PeripheryConnectionArgs<'_> {
@@ -58,7 +60,7 @@ impl PeripheryConnectionArgs<'_> {
           }
         };
 
-        let handler = super::WebsocketHandler {
+        let mut handler = super::WebsocketHandler {
           socket,
           connection_identifiers: identifiers
             .build(accept.as_bytes(), &[]),
@@ -66,7 +68,7 @@ impl PeripheryConnectionArgs<'_> {
           connection: &connection,
         };
 
-        if let Err(e) = handler.handle::<ClientLoginFlow>().await {
+        if let Err(e) = handle_login(&mut handler).await {
           if connection.cancel.is_cancelled() {
             break;
           }
@@ -77,6 +79,8 @@ impl PeripheryConnectionArgs<'_> {
           .await;
           continue;
         };
+
+        handler.handle().await
       }
     });
 
@@ -84,7 +88,80 @@ impl PeripheryConnectionArgs<'_> {
   }
 }
 
-pub async fn connect_websocket(
+async fn handle_login(
+  handler: &mut super::WebsocketHandler<'_, TungsteniteWebsocket>,
+) -> anyhow::Result<()> {
+  // Get the required auth type
+  let bytes = handler
+    .socket
+    .recv_bytes()
+    .await
+    .context("Failed to receive login type indicator")?;
+
+  match bytes.iter().as_slice() {
+    // Noise auth
+    &[0] => handler.login::<ClientLoginFlow>().await,
+    // Passkey auth
+    &[1] => {
+      let res = async {
+        let mut passkey: Vec<u8> = core_config()
+          .passkey
+          .as_deref()
+          .context("Periphery requires passkey auth")?
+          .as_bytes()
+          .to_vec();
+        passkey.push(MessageState::Successful.as_byte());
+
+        handler
+          .socket
+          .send(passkey.into())
+          .await
+          .context("Failed to send passkey")?;
+
+        // Receive login state message and return based on value
+        let state_msg = handler.socket.recv_bytes().await.context(
+          "Failed to receive authentication state message",
+        )?;
+        let state = state_msg.last().context(
+          "Authentication state message did not contain state byte",
+        )?;
+        match MessageState::from_byte(*state) {
+          MessageState::Successful => anyhow::Ok(()),
+          _ => Err(deserialize_error_bytes(
+            &state_msg[..(state_msg.len() - 1)],
+          )),
+        }
+      }
+      .await;
+      if let Err(e) = res {
+        let mut bytes = serialize_error_bytes(&e);
+        bytes.push(MessageState::Failed.as_byte());
+        if let Err(e) = handler
+          .socket
+          .send(bytes.into())
+          .await
+          .context("Failed to send login failed to client")
+        {
+          // Log additional error
+          warn!("{e:#}");
+        }
+        // Close socket
+        let _ = handler.socket.close(None).await;
+        // Return the original error
+        Err(e)
+      } else {
+        Ok(())
+      }
+    }
+    other => {
+      return Err(anyhow!(
+        "Receieved invalid login type pattern: {other:?}"
+      ));
+    }
+  }
+}
+
+async fn connect_websocket(
   url: &str,
 ) -> anyhow::Result<(TungsteniteWebsocket, HeaderValue)> {
   let (ws, mut response) = if url.starts_with("wss") {

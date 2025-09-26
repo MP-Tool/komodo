@@ -18,13 +18,21 @@ use axum::{
   routing::get,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use serror::{AddStatusCode, AddStatusCodeError};
+use bytes::Bytes;
+use serror::{
+  AddStatusCode, AddStatusCodeError, deserialize_error_bytes,
+  serialize_error_bytes,
+};
 use transport::{
+  MessageState,
   auth::{HeaderConnectionIdentifiers, ServerLoginFlow},
-  websocket::axum::AxumWebsocket,
+  websocket::{Websocket, axum::AxumWebsocket},
 };
 
-use crate::{config::periphery_config, connection::ws_receiver};
+use crate::{
+  config::periphery_config,
+  connection::{WebsocketHandler, ws_receiver},
+};
 
 pub async fn run() -> anyhow::Result<()> {
   let config = periphery_config();
@@ -89,12 +97,13 @@ async fn handler(
       write_receiver: &mut write_receiver,
     };
 
-    if let Err(e) = handler.login::<ServerLoginFlow>().await {
+    if let Err(e) = handle_login(&mut handler).await {
       let already_logged = already_logged_login_error();
       if !already_logged.load(atomic::Ordering::Relaxed) {
         warn!("Core failed to login to connection | {e:#}");
         already_logged.store(true, atomic::Ordering::Relaxed);
       }
+      // End the connection
       return;
     }
 
@@ -103,6 +112,98 @@ async fn handler(
 
     handler.handle().await
   }))
+}
+
+async fn handle_login(
+  handler: &mut WebsocketHandler<'_, AxumWebsocket>,
+) -> anyhow::Result<()> {
+  if let Some(passkeys) = periphery_config().passkeys.as_ref() {
+    warn!(
+      "Authenticating using Passkeys. Upgrade to private / public key authentication for enhanced security."
+    );
+    let res = async {
+      // Send login type
+      handler
+        .socket
+        // Passkey auth: [1]
+        .send(Bytes::from_owner([1]))
+        .await
+        .context("Failed to send login type indicator")?;
+
+      // Receieve passkey
+      let bytes = handler
+        .socket
+        .recv_bytes()
+        .await
+        .context("Failed to receive passkey from Core")?;
+      let passkey = match MessageState::from_byte(
+        *bytes.last().context("passkey message is empty")?,
+      ) {
+        MessageState::Successful => &bytes[..(bytes.len() - 1)],
+        _ => {
+          return Err(deserialize_error_bytes(
+            &bytes[..(bytes.len() - 1)],
+          ));
+        }
+      };
+
+      if passkeys.iter().any(|expected_passkey| {
+        expected_passkey.as_bytes() == passkey
+      }) {
+        handler
+          .socket
+          .send(MessageState::Successful.into())
+          .await
+          .context("Failed to send login type indicator")?;
+        Ok(())
+      } else {
+        let e = anyhow!("Invalid passkey");
+        let mut bytes = serialize_error_bytes(&e);
+        bytes.push(MessageState::Failed.as_byte());
+        if let Err(e) = handler
+          .socket
+          .send(bytes.into())
+          .await
+          .context("Failed to send login failed")
+        {
+          // Log additional error
+          warn!("{e:#}");
+          // Close socket
+          let _ = handler.socket.close(None).await;
+        }
+        // Return the original error
+        Err(e)
+      }
+    }
+    .await;
+    if let Err(e) = res {
+      let mut bytes = serialize_error_bytes(&e);
+      bytes.push(MessageState::Failed.as_byte());
+      if let Err(e) = handler
+        .socket
+        .send(bytes.into())
+        .await
+        .context("Failed to send login failed to client")
+      {
+        // Log additional error
+        warn!("{e:#}");
+      }
+      // Close socket
+      let _ = handler.socket.close(None).await;
+      // Return the original error
+      Err(e)
+    } else {
+      Ok(())
+    }
+  } else {
+    handler
+      .socket
+      // Noise handshake auth: [0]
+      .send(Bytes::from_owner([0]))
+      .await
+      .context("Failed to send login type indicator")?;
+    handler.login::<ServerLoginFlow>().await
+  }
 }
 
 async fn guard_request_by_ip(

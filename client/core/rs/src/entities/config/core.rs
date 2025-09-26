@@ -77,6 +77,10 @@ pub struct Env {
   pub komodo_private_key_file: Option<PathBuf>,
   /// Override `periphery_public_key`
   pub komodo_periphery_public_key: Option<String>,
+  /// Override `passkey`
+  pub komodo_passkey: Option<String>,
+  /// Override `passkey` from file
+  pub komodo_passkey_file: Option<PathBuf>,
   /// Override `timezone`
   #[serde(alias = "tz", alias = "TZ")]
   pub komodo_timezone: Option<String>,
@@ -321,7 +325,7 @@ pub struct CoreConfig {
 
   /// Default private key to use with Noise handshake to authenticate with Periphery agents.
   /// If not provided, will use random default.
-  /// Note. The private key can be overridden on individual Server / Builds
+  /// Note. The private key used can be overridden for individual Servers / Builders
   #[serde(default = "default_private_key")]
   pub private_key: String,
 
@@ -329,9 +333,14 @@ pub struct CoreConfig {
   /// Core gains knowledge of the Periphery public key through the noise handshake.
   /// If not provided, Periphery -> Core connected Servers must
   /// configure accepted public keys individually.
-  /// Note: If used, the public key can still be overridden on individual Server / Builds
+  /// Note: If used, the public key can still be overridden on individual Servers / Builders
   #[serde(skip_serializing_if = "Option::is_none")]
   pub periphery_public_key: Option<String>,
+
+  /// Deprecated. Legacy v1 compatibility.
+  /// Users should upgrade to private / public key authentication.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub passkey: Option<String>,
 
   /// A TZ Identifier. If not provided, will use Core local timezone.
   /// https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
@@ -715,6 +724,7 @@ impl Default for CoreConfig {
       internet_interface: Default::default(),
       private_key: default_private_key(),
       periphery_public_key: Default::default(),
+      passkey: Default::default(),
       timezone: Default::default(),
       ui_write_disabled: Default::default(),
       disable_confirm_dialog: Default::default(),
@@ -778,6 +788,7 @@ impl CoreConfig {
       bind_ip: config.bind_ip,
       private_key: empty_or_redacted(&config.private_key),
       periphery_public_key: config.periphery_public_key,
+      passkey: config.passkey.as_deref().map(empty_or_redacted),
       timezone: config.timezone,
       first_server: config.first_server,
       first_server_name: config.first_server_name,

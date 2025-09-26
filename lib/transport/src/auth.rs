@@ -129,9 +129,9 @@ impl LoginFlow for ServerLoginFlow {
         {
           // Log additional error
           warn!("{e:#}");
-          // Close socket
-          let _ = socket.close(None).await;
         }
+        // Close socket
+        let _ = socket.close(None).await;
         // Return the original error
         Err(e)
       }
@@ -233,9 +233,9 @@ impl LoginFlow for ClientLoginFlow {
       {
         // Log additional error
         warn!("{e:#}");
-        // Close socket
-        let _ = socket.close(None).await;
       }
+      // Close socket
+      let _ = socket.close(None).await;
       // Return the original error
       Err(e)
     } else {

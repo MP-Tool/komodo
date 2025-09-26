@@ -99,6 +99,8 @@ pub fn core_config() -> &'static CoreConfig {
       jwt_secret: maybe_read_item_from_file(env.komodo_jwt_secret_file, env.komodo_jwt_secret).unwrap_or(config.jwt_secret),
       private_key: maybe_read_item_from_file(env.komodo_private_key_file, env.komodo_private_key)
         .unwrap_or(config.private_key),
+      passkey: maybe_read_item_from_file(env.komodo_passkey_file, env.komodo_passkey)
+        .or(config.passkey),
       webhook_secret: maybe_read_item_from_file(env.komodo_webhook_secret_file, env.komodo_webhook_secret)
         .unwrap_or(config.webhook_secret),
       database: DatabaseConfig {

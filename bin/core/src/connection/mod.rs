@@ -39,16 +39,9 @@ pub struct WebsocketHandler<'a, W> {
 }
 
 impl<W: Websocket> WebsocketHandler<'_, W> {
-  async fn handle<L: LoginFlow>(self) -> anyhow::Result<()> {
-    let WebsocketHandler {
-      mut socket,
-      connection_identifiers,
-      write_receiver,
-      connection,
-    } = self;
-
+  async fn login<L: LoginFlow>(&mut self) -> anyhow::Result<()> {
     let core_private_key = if let Some(private_key) =
-      optional_str(&connection.core_private_key)
+      optional_str(&self.connection.core_private_key)
     {
       private_key
     } else {
@@ -56,11 +49,12 @@ impl<W: Websocket> WebsocketHandler<'_, W> {
     };
 
     let periphery_public_key =
-      optional_str(&connection.periphery_public_key)
+      optional_str(&self.connection.periphery_public_key)
         .or(core_config().periphery_public_key.as_deref());
 
     // Periphery -> Core connection requires a public key pinned
-    if connection.address.is_empty() && periphery_public_key.is_none()
+    if self.connection.address.is_empty()
+      && periphery_public_key.is_none()
     {
       return Err(anyhow!(
         "Must either configure Server 'Periphery Public Key' or set KOMODO_PERIPHERY_PUBLIC_KEY for Periphery -> Core connection."
@@ -68,14 +62,23 @@ impl<W: Websocket> WebsocketHandler<'_, W> {
     }
 
     L::login(
-      &mut socket,
-      connection_identifiers,
+      &mut self.socket,
+      self.connection_identifiers,
       core_private_key,
       &PeripheryPublicKeyValidator {
         expected: periphery_public_key,
       },
     )
-    .await?;
+    .await
+  }
+
+  async fn handle(self) {
+    let WebsocketHandler {
+      socket,
+      write_receiver,
+      connection,
+      ..
+    } = self;
 
     let handler_cancel = CancellationToken::new();
 
@@ -140,8 +143,6 @@ impl<W: Websocket> WebsocketHandler<'_, W> {
     tokio::join!(forward_writes, handle_reads);
 
     connection.set_connected(false);
-
-    Ok(())
   }
 }
 

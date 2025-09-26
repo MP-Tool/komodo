@@ -127,6 +127,10 @@ pub struct Env {
   pub periphery_private_key_file: Option<PathBuf>,
   /// Override `core_public_key`
   pub periphery_core_public_key: Option<String>,
+  /// Override `passkeys`
+  pub periphery_passkeys: Option<Vec<String>>,
+  /// Override `passkeys` from file
+  pub periphery_passkeys_file: Option<PathBuf>,
   /// Override `core_address`
   pub periphery_core_address: Option<String>,
   /// Override `connect_as`
@@ -198,6 +202,10 @@ pub struct PeripheryConfig {
   /// for additional trust.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub core_public_key: Option<String>,
+  /// Deprecated. Legacy v1 compatibility.
+  /// Users should upgrade to private / public key authentication.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub passkeys: Option<Vec<String>>,
 
   // ============================
   // = OUTBOUND CONNECTION MODE =
@@ -375,6 +383,7 @@ impl Default for PeripheryConfig {
     Self {
       private_key: default_private_key(),
       core_public_key: None,
+      passkeys: None,
       core_address: None,
       connect_as: None,
       port: default_periphery_port(),
@@ -409,6 +418,9 @@ impl PeripheryConfig {
     PeripheryConfig {
       private_key: empty_or_redacted(&self.private_key),
       core_public_key: self.core_public_key.clone(),
+      passkeys: self.passkeys.as_ref().map(|passkeys| {
+        passkeys.iter().map(|p| empty_or_redacted(p)).collect()
+      }),
       core_address: self.core_address.clone(),
       connect_as: self.connect_as.clone(),
       port: self.port,

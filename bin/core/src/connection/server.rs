@@ -69,15 +69,17 @@ pub async fn handler(
 
   Ok(ws.on_upgrade(|socket| async move {
     let query = format!("server={}", urlencoding::encode(&_server));
-    let handler = super::WebsocketHandler {
+    let mut handler = super::WebsocketHandler {
       socket: AxumWebsocket(socket),
       connection_identifiers: identifiers.build(query.as_bytes()),
       write_receiver: &mut write_receiver,
       connection: &connection,
     };
 
-    if let Err(e) = handler.handle::<ServerLoginFlow>().await {
+    if let Err(e) = handler.login::<ServerLoginFlow>().await {
       connection.set_error(e).await;
     }
+
+    handler.handle().await
   }))
 }

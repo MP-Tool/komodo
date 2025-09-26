@@ -3,7 +3,9 @@ use std::{path::PathBuf, sync::OnceLock};
 use clap::Parser;
 use colored::Colorize;
 use config::ConfigLoader;
-use environment_file::maybe_read_item_from_file;
+use environment_file::{
+  maybe_read_item_from_file, maybe_read_list_from_file,
+};
 use komodo_client::entities::{
   config::periphery::{CliArgs, Env, PeripheryConfig},
   logger::{LogConfig, LogLevel},
@@ -74,6 +76,11 @@ pub fn periphery_config() -> &'static PeripheryConfig {
       core_public_key: env
         .periphery_core_public_key
         .or(config.core_public_key),
+      passkeys: maybe_read_list_from_file(
+        env.periphery_passkeys_file,
+        env.periphery_passkeys,
+      )
+      .or(config.passkeys),
       core_address: env
         .periphery_core_address
         .or(config.core_address),
