@@ -93,7 +93,7 @@ impl PeripheryConnectionArgs<'_> {
 /// to implement passkey support for backward compatibility
 async fn handle_login(
   handler: &mut super::WebsocketHandler<'_, TungsteniteWebsocket>,
-  // deprecated.
+  // for legacy auth
   passkey: &str,
 ) -> anyhow::Result<()> {
   // Get the required auth type
@@ -107,66 +107,74 @@ async fn handle_login(
     // Noise auth
     &[0] => handler.login::<ClientLoginFlow>().await,
     // Passkey auth
-    &[1] => {
-      let res = async {
-        let mut passkey = if passkey.is_empty() {
-          core_config()
-            .passkey
-            .as_deref()
-            .context("Periphery requires passkey auth")?
-            .as_bytes()
-            .to_vec()
-        } else {
-          passkey.as_bytes().to_vec()
-        };
-        passkey.push(MessageState::Successful.as_byte());
-
-        handler
-          .socket
-          .send(passkey.into())
-          .await
-          .context("Failed to send passkey")?;
-
-        // Receive login state message and return based on value
-        let state_msg = handler.socket.recv_bytes().await.context(
-          "Failed to receive authentication state message",
-        )?;
-        let state = state_msg.last().context(
-          "Authentication state message did not contain state byte",
-        )?;
-        match MessageState::from_byte(*state) {
-          MessageState::Successful => anyhow::Ok(()),
-          _ => Err(deserialize_error_bytes(
-            &state_msg[..(state_msg.len() - 1)],
-          )),
-        }
-      }
-      .await;
-      if let Err(e) = res {
-        let mut bytes = serialize_error_bytes(&e);
-        bytes.push(MessageState::Failed.as_byte());
-        if let Err(e) = handler
-          .socket
-          .send(bytes.into())
-          .await
-          .context("Failed to send login failed to client")
-        {
-          // Log additional error
-          warn!("{e:#}");
-        }
-        // Close socket
-        let _ = handler.socket.close(None).await;
-        // Return the original error
-        Err(e)
-      } else {
-        Ok(())
-      }
-    }
+    &[1] => handle_passkey_login(handler, passkey).await,
     other => {
       return Err(anyhow!(
         "Receieved invalid login type pattern: {other:?}"
       ));
     }
+  }
+}
+
+async fn handle_passkey_login(
+  handler: &mut super::WebsocketHandler<'_, TungsteniteWebsocket>,
+  // for legacy auth
+  passkey: &str,
+) -> anyhow::Result<()> {
+  let res = async {
+    let mut passkey = if passkey.is_empty() {
+      core_config()
+        .passkey
+        .as_deref()
+        .context("Periphery requires passkey auth")?
+        .as_bytes()
+        .to_vec()
+    } else {
+      passkey.as_bytes().to_vec()
+    };
+    passkey.push(MessageState::Successful.as_byte());
+
+    handler
+      .socket
+      .send(passkey.into())
+      .await
+      .context("Failed to send passkey")?;
+
+    // Receive login state message and return based on value
+    let state_msg = handler
+      .socket
+      .recv_bytes()
+      .await
+      .context("Failed to receive authentication state message")?;
+    let state = state_msg.last().context(
+      "Authentication state message did not contain state byte",
+    )?;
+    match MessageState::from_byte(*state) {
+      MessageState::Successful => anyhow::Ok(()),
+      _ => Err(deserialize_error_bytes(
+        &state_msg[..(state_msg.len() - 1)],
+      )),
+    }
+  }
+  .await;
+  if let Err(e) = res {
+    let mut bytes = serialize_error_bytes(&e);
+    bytes.push(MessageState::Failed.as_byte());
+    if let Err(e) = handler
+      .socket
+      .send(bytes.into())
+      .await
+      .context("Failed to send login failed to client")
+    {
+      // Log additional error
+      warn!("{e:#}");
+    }
+    // Close socket
+    let _ = handler.socket.close(None).await;
+    // Return the original error
+    Err(e)
+  } else {
+    Ok(())
   }
 }
 

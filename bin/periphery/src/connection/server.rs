@@ -123,93 +123,101 @@ async fn handle_login(
 
   match (&config.core_public_key, &config.passkeys) {
     (Some(_), _) | (_, None) => {
+      // Send login type [0] (Noise auth)
       handler
         .socket
-        // Noise handshake auth: [0]
         .send(Bytes::from_owner([0]))
         .await
         .context("Failed to send login type indicator")?;
       handler.login::<ServerLoginFlow>().await
     }
     (None, Some(passkeys)) => {
-      warn!(
-        "Authenticating using Passkeys. Set 'core_public_key' (PERIPHERY_CORE_PUBLIC_KEY) instead to enhance security."
-      );
-      let res = async {
-        // Send login type
-        handler
-          .socket
-          // Passkey auth: [1]
-          .send(Bytes::from_owner([1]))
-          .await
-          .context("Failed to send login type indicator")?;
+      handle_passkey_login(handler, passkeys).await
+    }
+  }
+}
 
-        // Receieve passkey
-        let bytes = handler
-          .socket
-          .recv_bytes()
-          .await
-          .context("Failed to receive passkey from Core")?;
-        let passkey = match MessageState::from_byte(
-          *bytes.last().context("passkey message is empty")?,
-        ) {
-          MessageState::Successful => &bytes[..(bytes.len() - 1)],
-          _ => {
-            return Err(deserialize_error_bytes(
-              &bytes[..(bytes.len() - 1)],
-            ));
-          }
-        };
+async fn handle_passkey_login(
+  handler: &mut WebsocketHandler<'_, AxumWebsocket>,
+  passkeys: &[String],
+) -> anyhow::Result<()> {
+  warn!(
+    "Authenticating using Passkeys. Set 'core_public_key' (PERIPHERY_CORE_PUBLIC_KEY) instead to enhance security."
+  );
+  let res = async {
+    // Send login type
+    handler
+      .socket
+      // Passkey auth: [1]
+      .send(Bytes::from_owner([1]))
+      .await
+      .context("Failed to send login type indicator")?;
 
-        if passkeys.iter().any(|expected_passkey| {
-          expected_passkey.as_bytes() == passkey
-        }) {
-          handler
-            .socket
-            .send(MessageState::Successful.into())
-            .await
-            .context("Failed to send login type indicator")?;
-          Ok(())
-        } else {
-          let e = anyhow!("Invalid passkey");
-          let mut bytes = serialize_error_bytes(&e);
-          bytes.push(MessageState::Failed.as_byte());
-          if let Err(e) = handler
-            .socket
-            .send(bytes.into())
-            .await
-            .context("Failed to send login failed")
-          {
-            // Log additional error
-            warn!("{e:#}");
-            // Close socket
-            let _ = handler.socket.close(None).await;
-          }
-          // Return the original error
-          Err(e)
-        }
+    // Receieve passkey
+    let bytes = handler
+      .socket
+      .recv_bytes()
+      .await
+      .context("Failed to receive passkey from Core")?;
+    let passkey = match MessageState::from_byte(
+      *bytes.last().context("passkey message is empty")?,
+    ) {
+      MessageState::Successful => &bytes[..(bytes.len() - 1)],
+      _ => {
+        return Err(deserialize_error_bytes(
+          &bytes[..(bytes.len() - 1)],
+        ));
       }
-      .await;
-      if let Err(e) = res {
-        let mut bytes = serialize_error_bytes(&e);
-        bytes.push(MessageState::Failed.as_byte());
-        if let Err(e) = handler
-          .socket
-          .send(bytes.into())
-          .await
-          .context("Failed to send login failed to client")
-        {
-          // Log additional error
-          warn!("{e:#}");
-        }
+    };
+
+    if passkeys
+      .iter()
+      .any(|expected_passkey| expected_passkey.as_bytes() == passkey)
+    {
+      handler
+        .socket
+        .send(MessageState::Successful.into())
+        .await
+        .context("Failed to send login type indicator")?;
+      Ok(())
+    } else {
+      let e = anyhow!("Invalid passkey");
+      let mut bytes = serialize_error_bytes(&e);
+      bytes.push(MessageState::Failed.as_byte());
+      if let Err(e) = handler
+        .socket
+        .send(bytes.into())
+        .await
+        .context("Failed to send login failed")
+      {
+        // Log additional error
+        warn!("{e:#}");
         // Close socket
         let _ = handler.socket.close(None).await;
-        // Return the original error
-        Err(e)
-      } else {
-        Ok(())
       }
+      // Return the original error
+      Err(e)
     }
+  }
+  .await;
+  if let Err(e) = res {
+    let mut bytes = serialize_error_bytes(&e);
+    bytes.push(MessageState::Failed.as_byte());
+    if let Err(e) = handler
+      .socket
+      .send(bytes.into())
+      .await
+      .context("Failed to send login failed to client")
+    {
+      // Log additional error
+      warn!("{e:#}");
+    }
+    // Close socket
+    let _ = handler.socket.close(None).await;
+    // Return the original error
+    Err(e)
+  } else {
+    Ok(())
   }
 }
 
