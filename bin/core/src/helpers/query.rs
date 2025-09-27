@@ -74,13 +74,10 @@ pub async fn get_server_state(server: &Server) -> ServerState {
   if !server.config.enabled {
     return ServerState::Disabled;
   }
-  // Unwrap ok: Server disabled check above
-  match super::periphery_client(server)
-    .await
-    .unwrap()
-    .request(periphery_client::api::GetHealth {})
-    .await
-  {
+  let Ok(periphery) = super::periphery_client(server).await else {
+    return ServerState::NotOk;
+  };
+  match periphery.request(periphery_client::api::GetHealth {}).await {
     Ok(_) => ServerState::Ok,
     Err(_) => ServerState::NotOk,
   }
