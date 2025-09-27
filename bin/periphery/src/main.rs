@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use futures::{StreamExt, stream::FuturesUnordered};
 
 use crate::config::periphery_public_key;
 
@@ -28,18 +28,48 @@ async fn app() -> anyhow::Result<()> {
     info!("{:?}", config.sanitized());
   }
 
+  install_crypto_provider();
   stats::spawn_polling_thread();
   docker::stats::spawn_polling_thread();
 
-  match (&config.core_address, &config.connect_as) {
-    (Some(core_host), Some(connect_as)) => {
-      connection::client::handler(core_host, connect_as).await
+  let mut handles = FuturesUnordered::new();
+
+  // Spawn client side connections
+  match (&config.core_addresses, &config.connect_as) {
+    (Some(addresses), Some(connect_as)) => {
+      for address in addresses {
+        handles.push(tokio::spawn(connection::client::handler(
+          address, connect_as,
+        )));
+      }
     }
-    (None, _) => connection::server::run().await,
-    (Some(_), None) => Err(anyhow!(
-      "Must provide 'connect_as' (PERIPHERY_CONNECT_AS) for outbound connection."
-    )),
+    (Some(_), None) => {
+      warn!(
+        "'core_addresses' are defined for outbound connection, but missing 'connect_as' (PERIPHERY_CONNECT_AS)"
+      );
+    }
+    _ => {}
   }
+
+  // Spawn server connection handler
+  if config.server_enabled {
+    handles.push(tokio::spawn(connection::server::run()));
+  }
+
+  // Watch the threads
+  while let Some(res) = handles.next().await {
+    match res {
+      Ok(Err(e)) => {
+        error!("CONNECTION ERROR: {e:#}");
+      }
+      Err(e) => {
+        error!("SPAWN ERROR: {e:#}");
+      }
+      Ok(Ok(())) => {}
+    }
+  }
+
+  Ok(())
 }
 
 #[tokio::main]
@@ -59,4 +89,13 @@ async fn main() -> anyhow::Result<()> {
   }
 
   Ok(())
+}
+
+fn install_crypto_provider() {
+  if let Err(e) =
+    rustls::crypto::aws_lc_rs::default_provider().install_default()
+  {
+    error!("Failed to install default crypto provider | {e:?}");
+    std::process::exit(1);
+  };
 }

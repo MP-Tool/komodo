@@ -81,10 +81,13 @@ pub fn periphery_config() -> &'static PeripheryConfig {
         env.periphery_passkeys,
       )
       .or(config.passkeys),
-      core_address: env
-        .periphery_core_address
-        .or(config.core_address),
+      core_addresses: env
+        .periphery_core_addresses
+        .or(config.core_addresses),
       connect_as: env.periphery_connect_as.or(config.connect_as),
+      server_enabled: env
+        .periphery_server_enabled
+        .unwrap_or(config.server_enabled),
       port: env.periphery_port.unwrap_or(config.port),
       bind_ip: env.periphery_bind_ip.unwrap_or(config.bind_ip),
       root_directory: env

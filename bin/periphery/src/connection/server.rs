@@ -51,9 +51,6 @@ pub async fn run() -> anyhow::Result<()> {
 
   if config.ssl_enabled {
     info!("🔒 Periphery SSL Enabled");
-    rustls::crypto::ring::default_provider()
-      .install_default()
-      .expect("failed to install default rustls CryptoProvider");
     crate::helpers::ensure_ssl_certs().await;
     info!("Komodo Periphery starting on wss://{}", socket_addr);
     let ssl_config = RustlsConfig::from_pem_file(
@@ -91,6 +88,18 @@ async fn handler(
   let args = Arc::new(Args { core });
 
   let channel = channels().get_or_insert_default(&args.core).await;
+
+  // Ensure the receiver is free before upgrading connection.
+  // Due to ownership, it needs to be re-locked inside the ws handler,
+  // opening up a possible timing edge case, but should be good enough.
+  drop(
+    channel
+      .receiver()
+      .with_context(|| {
+        format!("Connection for {} is already connected", args.core)
+      })
+      .inspect_err(|e| warn!("{e:#}"))?,
+  );
 
   Ok(ws.on_upgrade(|socket| async move {
     let mut socket = AxumWebsocket(socket);

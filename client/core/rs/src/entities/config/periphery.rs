@@ -132,10 +132,13 @@ pub struct Env {
   pub periphery_passkeys: Option<Vec<String>>,
   /// Override `passkeys` from file
   pub periphery_passkeys_file: Option<PathBuf>,
-  /// Override `core_address`
-  pub periphery_core_address: Option<String>,
+  /// Override `core_addresses`
+  #[serde(alias = "periphery_core_address")]
+  pub periphery_core_addresses: Option<Vec<String>>,
   /// Override `connect_as`
   pub periphery_connect_as: Option<String>,
+  /// Override `server_enabled`
+  pub periphery_server_enabled: Option<bool>,
   /// Override `port`
   pub periphery_port: Option<u16>,
   /// Override `bind_ip`
@@ -202,6 +205,7 @@ pub struct PeripheryConfig {
   /// Optionally pin a specific Core public key
   /// for additional trust.
   #[serde(
+    default,
     alias = "core_public_key",
     deserialize_with = "option_string_list_deserializer",
     skip_serializing_if = "Option::is_none"
@@ -209,23 +213,33 @@ pub struct PeripheryConfig {
   pub core_public_keys: Option<Vec<String>>,
   /// Deprecated. Legacy v1 compatibility.
   /// Users should upgrade to private / public key authentication.
+  /// Can only be used with Core -> Periphery connection.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub passkeys: Option<Vec<String>>,
 
-  // ============================
-  // = OUTBOUND CONNECTION MODE =
-  // ============================
+  // =======================
+  // = OUTBOUND CONNECTION =
+  // =======================
   /// Address of Komodo Core when connecting outbound
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub core_address: Option<String>,
+  #[serde(
+    default,
+    alias = "core_address",
+    deserialize_with = "option_string_list_deserializer",
+    skip_serializing_if = "Option::is_none"
+  )]
+  pub core_addresses: Option<Vec<String>>,
 
   /// Server name / id to connect as
   #[serde(skip_serializing_if = "Option::is_none")]
   pub connect_as: Option<String>,
 
-  // ===========================
-  // = INBOUND CONNECTION MODE =
-  // ===========================
+  // ======================
+  // = INBOUND CONNECTION =
+  // ======================
+  /// Enable the inbound connection server
+  #[serde(default = "default_server_enabled")]
+  pub server_enabled: bool,
+
   /// The port periphery will run on.
   /// Default: `8120`
   #[serde(default = "default_periphery_port")]
@@ -379,6 +393,10 @@ fn default_container_stats_polling_rate() -> Timelength {
   Timelength::ThirtySeconds
 }
 
+fn default_server_enabled() -> bool {
+  true
+}
+
 fn default_ssl_enabled() -> bool {
   true
 }
@@ -389,8 +407,9 @@ impl Default for PeripheryConfig {
       private_key: default_private_key(),
       core_public_keys: None,
       passkeys: None,
-      core_address: None,
+      core_addresses: None,
       connect_as: None,
+      server_enabled: default_server_enabled(),
       port: default_periphery_port(),
       bind_ip: default_periphery_bind_ip(),
       root_directory: default_root_directory(),
@@ -426,8 +445,9 @@ impl PeripheryConfig {
       passkeys: self.passkeys.as_ref().map(|passkeys| {
         passkeys.iter().map(|p| empty_or_redacted(p)).collect()
       }),
-      core_address: self.core_address.clone(),
+      core_addresses: self.core_addresses.clone(),
       connect_as: self.connect_as.clone(),
+      server_enabled: self.server_enabled,
       port: self.port,
       bind_ip: self.bind_ip.clone(),
       root_directory: self.root_directory.clone(),

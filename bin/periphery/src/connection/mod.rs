@@ -111,7 +111,7 @@ async fn handle<W: Websocket>(
   info!(
     "Logged in to Komodo Core {} websocket{}",
     args.core,
-    if config.core_address.is_some()
+    if config.core_addresses.is_some()
       && let Some(connect_as) = &config.connect_as
     {
       format!(" as Server {connect_as}")

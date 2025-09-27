@@ -15,13 +15,6 @@ pub async fn handler(
   address: &str,
   connect_as: &str,
 ) -> anyhow::Result<()> {
-  if let Err(e) =
-    rustls::crypto::aws_lc_rs::default_provider().install_default()
-  {
-    error!("Failed to install default crypto provider | {e:?}");
-    std::process::exit(1);
-  };
-
   let address = fix_ws_address(address);
   let identifiers = AddressConnectionIdentifiers::extract(&address)?;
   let query = format!("server={}", urlencoding::encode(connect_as));
