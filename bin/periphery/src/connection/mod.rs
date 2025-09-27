@@ -86,7 +86,7 @@ impl PublicKeyValidator for CorePublicKeyValidator {
   }
 }
 
-async fn login<W: Websocket, L: LoginFlow>(
+async fn handle_login<W: Websocket, L: LoginFlow>(
   socket: &mut W,
   identifiers: ConnectionIdentifiers<'_>,
 ) -> anyhow::Result<()> {
@@ -99,7 +99,7 @@ async fn login<W: Websocket, L: LoginFlow>(
   .await
 }
 
-async fn handle<W: Websocket>(
+async fn handle_socket<W: Websocket>(
   socket: W,
   args: &Arc<Args>,
   sender: &Sender<Bytes>,

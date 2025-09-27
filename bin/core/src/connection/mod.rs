@@ -31,125 +31,11 @@ use crate::{config::core_config, periphery::ConnectionChannels};
 pub mod client;
 pub mod server;
 
-pub struct WebsocketHandler<'a, W> {
-  pub socket: W,
-  pub connection_identifiers: ConnectionIdentifiers<'a>,
-  pub write_receiver: &'a mut BufferedReceiver<Bytes>,
-  pub connection: &'a PeripheryConnection,
-}
-
-impl<W: Websocket> WebsocketHandler<'_, W> {
-  async fn login<L: LoginFlow>(&mut self) -> anyhow::Result<()> {
-    let core_private_key = if let Some(private_key) =
-      optional_str(&self.connection.core_private_key)
-    {
-      private_key
-    } else {
-      &core_config().private_key
-    };
-
-    let periphery_public_key =
-      optional_str(&self.connection.periphery_public_key)
-        .or(core_config().periphery_public_key.as_deref());
-
-    // Periphery -> Core connection requires a public key pinned
-    if self.connection.address.is_empty()
-      && periphery_public_key.is_none()
-    {
-      return Err(anyhow!(
-        "Must either configure Server 'Periphery Public Key' or set KOMODO_PERIPHERY_PUBLIC_KEY for Periphery -> Core connection."
-      ));
-    }
-
-    L::login(
-      &mut self.socket,
-      self.connection_identifiers,
-      core_private_key,
-      &PeripheryPublicKeyValidator {
-        expected: periphery_public_key,
-      },
-    )
-    .await
-  }
-
-  async fn handle(self) {
-    let WebsocketHandler {
-      socket,
-      write_receiver,
-      connection,
-      ..
-    } = self;
-
-    let handler_cancel = CancellationToken::new();
-
-    connection.set_connected(true);
-    connection.clear_error().await;
-
-    let (mut ws_write, mut ws_read) = socket.split();
-
-    let forward_writes = async {
-      loop {
-        let next = tokio::select! {
-          next = write_receiver.recv() => next,
-          _ = connection.cancel.cancelled() => break,
-          _ = handler_cancel.cancelled() => break,
-        };
-
-        let message = match next {
-          Some(request) => Bytes::copy_from_slice(request),
-          // Sender Dropped (shouldn't happen, a reference is held on 'connection').
-          None => break,
-        };
-
-        match ws_write.send(message).await {
-          Ok(_) => write_receiver.clear_buffer(),
-          Err(e) => {
-            connection.set_error(e.into()).await;
-            break;
-          }
-        }
-      }
-      // Cancel again if not already
-      let _ = ws_write.close(None).await;
-      handler_cancel.cancel();
-    };
-
-    let handle_reads = async {
-      loop {
-        let next = tokio::select! {
-          next = ws_read.recv() => next,
-          _ = connection.cancel.cancelled() => break,
-          _ = handler_cancel.cancelled() => break,
-        };
-
-        match next {
-          Ok(WebsocketMessage::Binary(bytes)) => {
-            connection.handle_incoming_bytes(bytes).await
-          }
-          Ok(WebsocketMessage::Close(_))
-          | Ok(WebsocketMessage::Closed) => {
-            connection.set_error(anyhow!("Connection closed")).await;
-            break;
-          }
-          Err(e) => {
-            connection.set_error(e.into()).await;
-          }
-        };
-      }
-      // Cancel again if not already
-      handler_cancel.cancel();
-    };
-
-    tokio::join!(forward_writes, handle_reads);
-
-    connection.set_connected(false);
-  }
-}
-
 pub struct PeripheryPublicKeyValidator<'a> {
   /// If None, ignore public key.
   pub expected: Option<&'a str>,
 }
+
 impl PublicKeyValidator for PeripheryPublicKeyValidator<'_> {
   fn validate(&self, public_key: String) -> anyhow::Result<()> {
     if let Some(expected) = self.expected
@@ -276,6 +162,111 @@ impl PeripheryConnection {
       .into(),
       receiver,
     )
+  }
+
+  pub async fn handle_login<W: Websocket, L: LoginFlow>(
+    &self,
+    socket: &mut W,
+    identifiers: ConnectionIdentifiers<'_>,
+  ) -> anyhow::Result<()> {
+    let core_private_key = if let Some(private_key) =
+      optional_str(&self.core_private_key)
+    {
+      private_key
+    } else {
+      &core_config().private_key
+    };
+
+    let periphery_public_key =
+      optional_str(&self.periphery_public_key)
+        .or(core_config().periphery_public_key.as_deref());
+
+    // Periphery -> Core connection requires a public key pinned
+    if self.address.is_empty() && periphery_public_key.is_none() {
+      return Err(anyhow!(
+        "Must either configure Server 'Periphery Public Key' or set KOMODO_PERIPHERY_PUBLIC_KEY for Periphery -> Core connection."
+      ));
+    }
+
+    L::login(
+      socket,
+      identifiers,
+      core_private_key,
+      &PeripheryPublicKeyValidator {
+        expected: periphery_public_key,
+      },
+    )
+    .await
+  }
+
+  pub async fn handle_socket<W: Websocket>(
+    &self,
+    socket: W,
+    receiver: &mut BufferedReceiver<Bytes>,
+  ) {
+    let handler_cancel = CancellationToken::new();
+
+    self.set_connected(true);
+    self.clear_error().await;
+
+    let (mut ws_write, mut ws_read) = socket.split();
+
+    let forward_writes = async {
+      loop {
+        let next = tokio::select! {
+          next = receiver.recv() => next,
+          _ = self.cancel.cancelled() => break,
+          _ = handler_cancel.cancelled() => break,
+        };
+
+        let message = match next {
+          Some(request) => Bytes::copy_from_slice(request),
+          // Sender Dropped (shouldn't happen, a reference is held on 'connection').
+          None => break,
+        };
+
+        match ws_write.send(message).await {
+          Ok(_) => receiver.clear_buffer(),
+          Err(e) => {
+            self.set_error(e.into()).await;
+            break;
+          }
+        }
+      }
+      // Cancel again if not already
+      let _ = ws_write.close(None).await;
+      handler_cancel.cancel();
+    };
+
+    let handle_reads = async {
+      loop {
+        let next = tokio::select! {
+          next = ws_read.recv() => next,
+          _ = self.cancel.cancelled() => break,
+          _ = handler_cancel.cancelled() => break,
+        };
+
+        match next {
+          Ok(WebsocketMessage::Binary(bytes)) => {
+            self.handle_incoming_bytes(bytes).await
+          }
+          Ok(WebsocketMessage::Close(_))
+          | Ok(WebsocketMessage::Closed) => {
+            self.set_error(anyhow!("Connection closed")).await;
+            break;
+          }
+          Err(e) => {
+            self.set_error(e.into()).await;
+          }
+        };
+      }
+      // Cancel again if not already
+      handler_cancel.cancel();
+    };
+
+    tokio::join!(forward_writes, handle_reads);
+
+    self.set_connected(false);
   }
 
   pub async fn handle_incoming_bytes(&self, bytes: Bytes) {

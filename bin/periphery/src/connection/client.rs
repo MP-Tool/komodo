@@ -60,7 +60,7 @@ pub async fn handler(
       info!("Connected to core connection websocket");
     }
 
-    if let Err(e) = super::login::<_, ClientLoginFlow>(
+    if let Err(e) = super::handle_login::<_, ClientLoginFlow>(
       &mut socket,
       identifiers.build(accept.as_bytes(), query.as_bytes()),
     )
@@ -79,7 +79,13 @@ pub async fn handler(
 
     already_logged_login_error = false;
 
-    super::handle(socket, &args, &channel.sender, &mut receiver).await
+    super::handle_socket(
+      socket,
+      &args,
+      &channel.sender,
+      &mut receiver,
+    )
+    .await
   }
 }
 

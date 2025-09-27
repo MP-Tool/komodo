@@ -8,14 +8,17 @@ use serror::{deserialize_error_bytes, serialize_error_bytes};
 use tokio_tungstenite::Connector;
 use transport::{
   MessageState,
-  auth::{AddressConnectionIdentifiers, ClientLoginFlow},
+  auth::{
+    AddressConnectionIdentifiers, ClientLoginFlow,
+    ConnectionIdentifiers,
+  },
   fix_ws_address,
   websocket::{Websocket, tungstenite::TungsteniteWebsocket},
 };
 
 use crate::{
   config::{core_config, core_connection_query},
-  connection::PeripheryConnectionArgs,
+  connection::{PeripheryConnection, PeripheryConnectionArgs},
   periphery::ConnectionChannels,
   state::periphery_connections,
 };
@@ -37,7 +40,7 @@ impl PeripheryConnectionArgs<'_> {
       AddressConnectionIdentifiers::extract(&address)?;
     let endpoint = format!("{address}/?{}", core_connection_query());
 
-    let (connection, mut write_receiver) =
+    let (connection, mut receiver) =
       periphery_connections().insert(server_id, self).await;
 
     let channels = connection.channels.clone();
@@ -51,7 +54,7 @@ impl PeripheryConnectionArgs<'_> {
           }
         };
 
-        let (socket, accept) = match ws {
+        let (mut socket, accept) = match ws {
           Ok(res) => res,
           Err(e) => {
             connection.set_error(e).await;
@@ -63,17 +66,15 @@ impl PeripheryConnectionArgs<'_> {
           }
         };
 
-        let mut handler = super::WebsocketHandler {
-          socket,
-          connection_identifiers: identifiers.build(
-            accept.as_bytes(),
-            core_connection_query().as_bytes(),
-          ),
-          write_receiver: &mut write_receiver,
-          connection: &connection,
-        };
+        let identifiers = identifiers.build(
+          accept.as_bytes(),
+          core_connection_query().as_bytes(),
+        );
 
-        if let Err(e) = handle_login(&mut handler, &passkey).await {
+        if let Err(e) = connection
+          .client_login(&mut socket, identifiers, &passkey)
+          .await
+        {
           if connection.cancel.is_cancelled() {
             break;
           }
@@ -85,7 +86,7 @@ impl PeripheryConnectionArgs<'_> {
           continue;
         };
 
-        handler.handle().await
+        connection.handle_socket(socket, &mut receiver).await
       }
     });
 
@@ -93,35 +94,40 @@ impl PeripheryConnectionArgs<'_> {
   }
 }
 
-/// Custom Core -> Periphery side only login wrapper
-/// to implement passkey support for backward compatibility
-async fn handle_login(
-  handler: &mut super::WebsocketHandler<'_, TungsteniteWebsocket>,
-  // for legacy auth
-  passkey: &str,
-) -> anyhow::Result<()> {
-  // Get the required auth type
-  let bytes = handler
-    .socket
-    .recv_bytes()
-    .await
-    .context("Failed to receive login type indicator")?;
+impl PeripheryConnection {
+  /// Custom Core -> Periphery side only login wrapper
+  /// to implement passkey support for backward compatibility
+  async fn client_login(
+    &self,
+    socket: &mut TungsteniteWebsocket,
+    identifiers: ConnectionIdentifiers<'_>,
+    // for legacy auth
+    passkey: &str,
+  ) -> anyhow::Result<()> {
+    // Get the required auth type
+    let bytes = socket
+      .recv_bytes()
+      .await
+      .context("Failed to receive login type indicator")?;
 
-  match bytes.iter().as_slice() {
-    // Noise auth
-    &[0] => handler.login::<ClientLoginFlow>().await,
-    // Passkey auth
-    &[1] => handle_passkey_login(handler, passkey).await,
-    other => {
-      Err(anyhow!(
+    match bytes.iter().as_slice() {
+      // Noise auth
+      &[0] => {
+        self
+          .handle_login::<_, ClientLoginFlow>(socket, identifiers)
+          .await
+      }
+      // Passkey auth
+      &[1] => handle_passkey_login(socket, passkey).await,
+      other => Err(anyhow!(
         "Receieved invalid login type pattern: {other:?}"
-      ))
+      )),
     }
   }
 }
 
 async fn handle_passkey_login(
-  handler: &mut super::WebsocketHandler<'_, TungsteniteWebsocket>,
+  socket: &mut TungsteniteWebsocket,
   // for legacy auth
   passkey: &str,
 ) -> anyhow::Result<()> {
@@ -138,15 +144,13 @@ async fn handle_passkey_login(
     };
     passkey.push(MessageState::Successful.as_byte());
 
-    handler
-      .socket
+    socket
       .send(passkey.into())
       .await
       .context("Failed to send passkey")?;
 
     // Receive login state message and return based on value
-    let state_msg = handler
-      .socket
+    let state_msg = socket
       .recv_bytes()
       .await
       .context("Failed to receive authentication state message")?;
@@ -164,8 +168,7 @@ async fn handle_passkey_login(
   if let Err(e) = res {
     let mut bytes = serialize_error_bytes(&e);
     bytes.push(MessageState::Failed.as_byte());
-    if let Err(e) = handler
-      .socket
+    if let Err(e) = socket
       .send(bytes.into())
       .await
       .context("Failed to send login failed to client")
@@ -174,7 +177,7 @@ async fn handle_passkey_login(
       warn!("{e:#}");
     }
     // Close socket
-    let _ = handler.socket.close(None).await;
+    let _ = socket.close(None).await;
     // Return the original error
     Err(e)
   } else {

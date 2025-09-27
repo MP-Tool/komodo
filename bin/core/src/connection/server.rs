@@ -56,7 +56,7 @@ pub async fn handler(
     );
   }
 
-  let (connection, mut write_receiver) = periphery_connections()
+  let (connection, mut receiver) = periphery_connections()
     .insert(
       server.id.clone(),
       PeripheryConnectionArgs {
@@ -69,17 +69,18 @@ pub async fn handler(
 
   Ok(ws.on_upgrade(|socket| async move {
     let query = format!("server={}", urlencoding::encode(&_server));
-    let mut handler = super::WebsocketHandler {
-      socket: AxumWebsocket(socket),
-      connection_identifiers: identifiers.build(query.as_bytes()),
-      write_receiver: &mut write_receiver,
-      connection: &connection,
-    };
+    let mut socket = AxumWebsocket(socket);
 
-    if let Err(e) = handler.login::<ServerLoginFlow>().await {
+    if let Err(e) = connection
+      .handle_login::<_, ServerLoginFlow>(
+        &mut socket,
+        identifiers.build(query.as_bytes()),
+      )
+      .await
+    {
       connection.set_error(e).await;
     }
 
-    handler.handle().await
+    connection.handle_socket(socket, &mut receiver).await
   }))
 }

@@ -87,7 +87,8 @@ async fn handler(
 
   let args = Arc::new(Args { core });
 
-  let channel = core_channels().get_or_insert_default(&args.core).await;
+  let channel =
+    core_channels().get_or_insert_default(&args.core).await;
 
   // Ensure the receiver is free before upgrading connection.
   // Due to ownership, it needs to be re-locked inside the ws handler,
@@ -146,7 +147,13 @@ async fn handler(
       }
     };
 
-    super::handle(socket, &args, &channel.sender, &mut receiver).await
+    super::handle_socket(
+      socket,
+      &args,
+      &channel.sender,
+      &mut receiver,
+    )
+    .await
   }))
 }
 
@@ -165,7 +172,8 @@ async fn handle_login(
         .send(Bytes::from_owner([0]))
         .await
         .context("Failed to send login type indicator")?;
-      super::login::<_, ServerLoginFlow>(socket, identifiers).await
+      super::handle_login::<_, ServerLoginFlow>(socket, identifiers)
+        .await
     }
     (None, Some(passkeys)) => {
       handle_passkey_login(socket, passkeys).await
