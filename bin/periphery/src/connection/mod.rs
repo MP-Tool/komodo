@@ -10,7 +10,6 @@ use resolver_api::Resolve;
 use response::JsonBytes;
 use serror::serialize_error_bytes;
 use tokio::sync::{Mutex, MutexGuard, mpsc::Sender};
-use tokio_util::sync::CancellationToken;
 use transport::{
   MessageState,
   auth::{ConnectionIdentifiers, LoginFlow, PublicKeyValidator},
@@ -29,7 +28,6 @@ use uuid::Uuid;
 use crate::{
   api::{Args, PeripheryRequest},
   config::periphery_config,
-  terminal::{ResizeDimensions, StdinMsg},
 };
 
 pub mod client;
@@ -62,11 +60,11 @@ impl Channel {
 }
 
 // Core Address / Host -> Channel
-pub type Channels = CloneCache<String, Arc<Channel>>;
+pub type CoreChannels = CloneCache<String, Arc<Channel>>;
 
-pub fn channels() -> &'static Channels {
-  static CHANNELS: OnceLock<Channels> = OnceLock::new();
-  CHANNELS.get_or_init(Default::default)
+pub fn core_channels() -> &'static CoreChannels {
+  static CORE_CHANNELS: OnceLock<CoreChannels> = OnceLock::new();
+  CORE_CHANNELS.get_or_init(Default::default)
 }
 
 pub struct CorePublicKeyValidator;
@@ -176,11 +174,9 @@ async fn handle_incoming_bytes(
   sender: &Sender<Bytes>,
   bytes: Bytes,
 ) {
-  // Maybe wrap all of this on tokio spawn
   let (id, state) = match id_state_from_transport_bytes(&bytes) {
     Ok(res) => res,
     Err(e) => {
-      // TODO: handle:
       warn!("Failed to parse transport bytes | {e:#}");
       return;
     }
@@ -190,7 +186,7 @@ async fn handle_incoming_bytes(
       handle_request(args.clone(), sender.clone(), id, bytes)
     }
     MessageState::Terminal => {
-      handle_terminal_message(id, bytes).await
+      crate::terminal::handle_incoming_message(id, bytes).await
     }
     // Shouldn't be received by Periphery
     MessageState::InProgress => {}
@@ -265,44 +261,4 @@ fn handle_request(
       _ = ping_in_progress => {},
     }
   });
-}
-
-pub type TerminalChannels =
-  CloneCache<Uuid, (Sender<StdinMsg>, CancellationToken)>;
-
-pub fn terminal_channels() -> &'static TerminalChannels {
-  static TERMINAL_CHANNELS: OnceLock<TerminalChannels> =
-    OnceLock::new();
-  TERMINAL_CHANNELS.get_or_init(Default::default)
-}
-
-async fn handle_terminal_message(id: Uuid, bytes: Bytes) {
-  let Some((channel, _)) = terminal_channels().get(&id).await else {
-    warn!("No terminal channel for {id}");
-    return;
-  };
-  let Ok(data) = data_from_transport_bytes(bytes) else {
-    warn!("Got terminal message with no data for {id}");
-    return;
-  };
-  let msg = match data.first() {
-    Some(&0x00) => {
-      StdinMsg::Bytes(Bytes::copy_from_slice(&data[1..]))
-    }
-    Some(&0xFF) => {
-      if let Ok(dimensions) =
-        serde_json::from_slice::<ResizeDimensions>(&data[1..])
-      {
-        StdinMsg::Resize(dimensions)
-      } else {
-        return;
-      }
-    }
-    Some(_) => StdinMsg::Bytes(data),
-    // No data
-    None => return,
-  };
-  if let Err(e) = channel.send(msg).await {
-    warn!("No receiver for {id} | {e:?}");
-  };
 }

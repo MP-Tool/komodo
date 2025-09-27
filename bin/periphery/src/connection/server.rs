@@ -33,7 +33,7 @@ use transport::{
 };
 
 use crate::{
-  api::Args, config::periphery_config, connection::channels,
+  api::Args, config::periphery_config, connection::core_channels,
 };
 
 pub async fn run() -> anyhow::Result<()> {
@@ -87,7 +87,7 @@ async fn handler(
 
   let args = Arc::new(Args { core });
 
-  let channel = channels().get_or_insert_default(&args.core).await;
+  let channel = core_channels().get_or_insert_default(&args.core).await;
 
   // Ensure the receiver is free before upgrading connection.
   // Due to ownership, it needs to be re-locked inside the ws handler,

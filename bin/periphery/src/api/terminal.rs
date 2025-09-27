@@ -17,9 +17,7 @@ use transport::{MessageState, bytes::to_transport_bytes};
 use uuid::Uuid;
 
 use crate::{
-  config::periphery_config,
-  connection::{channels, terminal_channels},
-  terminal::*,
+  config::periphery_config, connection::core_channels, terminal::*,
 };
 
 //
@@ -86,7 +84,7 @@ impl Resolve<super::Args> for ConnectTerminal {
     }
 
     let channel =
-      channels().get(&args.core).await.with_context(|| {
+      core_channels().get(&args.core).await.with_context(|| {
         format!("Failed to find channel for {}", args.core)
       })?;
 
@@ -117,7 +115,7 @@ impl Resolve<super::Args> for ConnectContainerExec {
     }
 
     let channel =
-      channels().get(&args.core).await.with_context(|| {
+      core_channels().get(&args.core).await.with_context(|| {
         format!("Failed to find channel for {}", args.core)
       })?;
 
@@ -178,7 +176,7 @@ impl Resolve<super::Args> for ExecuteTerminal {
     }
 
     let channel =
-      channels().get(&args.core).await.with_context(|| {
+      core_channels().get(&args.core).await.with_context(|| {
         format!("Failed to find channel for {}", args.core)
       })?;
 
@@ -248,7 +246,7 @@ impl Resolve<super::Args> for ExecuteContainerExec {
     let id = Uuid::new_v4();
 
     let channel =
-      channels().get(&args.core).await.with_context(|| {
+      core_channels().get(&args.core).await.with_context(|| {
         format!("Failed to find channel for {}", args.core)
       })?;
 
@@ -461,12 +459,6 @@ async fn forward_execute_command_on_terminal_response(
       None => {
         clean_up_terminals().await;
         break;
-        // return Err(
-        //   anyhow!(
-        //     "Stdout stream terminated before start sentinel received"
-        //   )
-        //   .into(),
-        // );
       }
     }
   }

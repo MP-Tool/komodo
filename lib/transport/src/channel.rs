@@ -28,12 +28,12 @@ impl<T: Deref> BufferedReceiver<T> {
     }
   }
 
-  /// - If 'next: Some(bytes)':
-  ///   - Immediately returns borrow of next.
+  /// - If 'buffer: Some(bytes)':
+  ///   - Immediately returns borrow of buffer.
   /// - Else:
-  ///   - Wait for next item
-  ///   - store in 'next'
-  ///   - return borrow of next.
+  ///   - Wait for next item.
+  ///   - store in buffer.
+  ///   - return borrow of buffer.
   pub async fn recv(&mut self) -> Option<&<T as Deref>::Target> {
     if self.buffer.is_none() {
       self.buffer = Some(self.receiver.recv().await?);

@@ -9,7 +9,7 @@ use transport::{
   websocket::tungstenite::TungsteniteWebsocket,
 };
 
-use crate::{api::Args, connection::channels};
+use crate::{api::Args, connection::core_channels};
 
 pub async fn handler(
   address: &str,
@@ -29,7 +29,8 @@ pub async fn handler(
     core: identifiers.host().to_string(),
   });
 
-  let channel = channels().get_or_insert_default(&args.core).await;
+  let channel =
+    core_channels().get_or_insert_default(&args.core).await;
 
   let mut receiver = channel.receiver()?;
 

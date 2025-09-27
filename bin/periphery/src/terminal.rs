@@ -6,12 +6,55 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
+use cache::CloneCache;
 use komodo_client::{
   api::write::TerminalRecreateMode, entities::server::TerminalInfo,
 };
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use tokio::sync::{broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
+use transport::bytes::data_from_transport_bytes;
+use uuid::Uuid;
+
+pub type TerminalChannels =
+  CloneCache<Uuid, (mpsc::Sender<StdinMsg>, CancellationToken)>;
+
+pub fn terminal_channels() -> &'static TerminalChannels {
+  static TERMINAL_CHANNELS: OnceLock<TerminalChannels> =
+    OnceLock::new();
+  TERMINAL_CHANNELS.get_or_init(Default::default)
+}
+
+pub async fn handle_incoming_message(id: Uuid, bytes: Bytes) {
+  let Some((channel, _)) = terminal_channels().get(&id).await else {
+    warn!("No terminal channel for {id}");
+    return;
+  };
+  let Ok(data) = data_from_transport_bytes(bytes) else {
+    warn!("Got terminal message with no data for {id}");
+    return;
+  };
+  let msg = match data.first() {
+    Some(&0x00) => {
+      StdinMsg::Bytes(Bytes::copy_from_slice(&data[1..]))
+    }
+    Some(&0xFF) => {
+      if let Ok(dimensions) =
+        serde_json::from_slice::<ResizeDimensions>(&data[1..])
+      {
+        StdinMsg::Resize(dimensions)
+      } else {
+        return;
+      }
+    }
+    Some(_) => StdinMsg::Bytes(data),
+    // No data
+    None => return,
+  };
+  if let Err(e) = channel.send(msg).await {
+    warn!("No receiver for {id} | {e:?}");
+  };
+}
 
 type PtyName = String;
 type PtyMap = tokio::sync::RwLock<HashMap<PtyName, Arc<Terminal>>>;
