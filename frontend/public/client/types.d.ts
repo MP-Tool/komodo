@@ -2160,6 +2160,13 @@ export interface ServerConfig {
      */
     periphery_public_key?: string;
     /**
+     * Deprecated. Use private / public keys instead.
+     * An optional override passkey to use
+     * to authenticate with periphery agent.
+     * If this is empty, will use passkey in core config.
+     */
+    passkey?: string;
+    /**
      * Sometimes the system stats reports a mount path that is not desired.
      * Use this field to filter it out from the report.
      */
@@ -2524,6 +2531,8 @@ export interface SystemInformation {
     container_exec_disabled: boolean;
     /** The public key of the Periphery agent */
     public_key: string;
+    /** The version of the Periphery agent */
+    version: string;
 }
 export type GetSystemInformationResponse = SystemInformation;
 export interface SystemLoadAverage {
@@ -7998,6 +8007,13 @@ export interface UrlBuilderConfig {
      * If empty, doesn't validate Periphery public key.
      */
     periphery_public_key?: string;
+    /**
+     * Deprecated. Use private / public keys instead.
+     * An optional override passkey to use
+     * to authenticate with periphery agent.
+     * If this is empty, will use passkey in core config.
+     */
+    passkey?: string;
 }
 /** Update dockerfile contents in Files on Server or Git Repo mode. Response: [Update]. */
 export interface WriteBuildFileContents {
