@@ -137,6 +137,10 @@ pub fn optional_string(string: impl Into<String>) -> Option<String> {
   }
 }
 
+pub fn optional_str(str: &str) -> Option<&str> {
+  if str.is_empty() { None } else { Some(str) }
+}
+
 pub fn to_general_name(name: &str) -> String {
   name.trim().replace('\n', "_").to_string()
 }

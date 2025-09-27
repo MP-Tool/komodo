@@ -25,7 +25,6 @@ use resolver_api::Resolve;
 use tokio::fs;
 
 use crate::{
-  build::{parse_build_args, parse_secret_args, write_dockerfile},
   config::periphery_config,
   docker::docker_login,
   helpers::{format_extra_args, format_labels},
