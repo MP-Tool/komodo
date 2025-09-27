@@ -268,7 +268,7 @@ impl Resolve<super::Args> for WriteCommitComposeContents {
   )]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> serror::Result<RepoExecutionResponse> {
     let WriteCommitComposeContents {
       stack,
@@ -280,7 +280,8 @@ impl Resolve<super::Args> for WriteCommitComposeContents {
     } = self;
 
     let root =
-      pull_or_clone_stack(&stack, repo.as_ref(), git_token).await?;
+      pull_or_clone_stack(&stack, repo.as_ref(), git_token, args)
+        .await?;
 
     let file_path = stack
       .config
@@ -320,7 +321,7 @@ impl Resolve<super::Args> for ComposePull {
   )]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> serror::Result<ComposePullResponse> {
     let ComposePull {
       mut stack,
@@ -348,6 +349,7 @@ impl Resolve<super::Args> for ComposePull {
       git_token,
       replacers.clone(),
       &mut res,
+      args,
     )
     .await
     {
@@ -434,7 +436,7 @@ impl Resolve<super::Args> for ComposeUp {
   )]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> serror::Result<ComposeUpResponse> {
     let ComposeUp {
       mut stack,
@@ -462,6 +464,7 @@ impl Resolve<super::Args> for ComposeUp {
       git_token,
       replacers.clone(),
       &mut res,
+      args,
     )
     .await
     {
@@ -709,7 +712,7 @@ impl Resolve<super::Args> for ComposeExecution {
 
 impl Resolve<super::Args> for ComposeRun {
   #[instrument(name = "ComposeRun", level = "debug", skip_all, fields(stack = &self.stack.name, service = &self.service))]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, args: &super::Args) -> serror::Result<Log> {
     let ComposeRun {
       mut stack,
       repo,
@@ -743,6 +746,7 @@ impl Resolve<super::Args> for ComposeRun {
       git_token,
       replacers.clone(),
       &mut res,
+      args,
     )
     .await
     {

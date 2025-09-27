@@ -89,7 +89,8 @@ impl Resolve<ReadArgs> for GetStackLog {
       true,
     )
     .await?;
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(GetComposeLog {
         project: stack.project_name(false),
         services,
@@ -122,7 +123,8 @@ impl Resolve<ReadArgs> for SearchStackLog {
       true,
     )
     .await?;
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(GetComposeLogSearch {
         project: stack.project_name(false),
         services,
@@ -184,7 +186,8 @@ impl Resolve<ReadArgs> for InspectStackContainer {
         "No service found matching '{service}'. Was the stack last deployed manually?"
       ).into());
     };
-    let res = periphery_client(&server).await?
+    let res = periphery_client(&server)
+      .await?
       .request(InspectContainer { name })
       .await?;
     Ok(res)

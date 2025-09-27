@@ -118,6 +118,7 @@ pub async fn pull_or_clone_stack(
   stack: &Stack,
   repo: Option<&Repo>,
   git_token: Option<String>,
+  req_args: &Args,
 ) -> anyhow::Result<PathBuf> {
   if stack.config.files_on_host {
     return Err(anyhow!(
@@ -151,7 +152,6 @@ pub async fn pull_or_clone_stack(
 
   let git_token = crate::helpers::git_token(git_token, &args)?;
 
-  let req_args = Args;
   PullOrCloneRepo {
     args,
     git_token,
@@ -165,7 +165,7 @@ pub async fn pull_or_clone_stack(
     skip_secret_interp: Default::default(),
     replacers: Default::default(),
   }
-  .resolve(&req_args)
+  .resolve(req_args)
   .await
   .map_err(|e| e.error)?;
 

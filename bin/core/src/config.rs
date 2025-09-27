@@ -25,6 +25,22 @@ pub fn core_public_key() -> &'static String {
   })
 }
 
+pub fn core_connection_query() -> &'static String {
+  static CORE_HOSTNAME: OnceLock<String> = OnceLock::new();
+  CORE_HOSTNAME.get_or_init(|| {
+    let host = url::Url::parse(&core_config().host)
+      .context("Failed to parse config field 'host' as URL")
+      .unwrap()
+      .host()
+      .context(
+        "Failed to parse config field 'host' | missing host part",
+      )
+      .unwrap()
+      .to_string();
+    format!("core={}", urlencoding::encode(&host))
+  })
+}
+
 pub fn core_config() -> &'static CoreConfig {
   static CORE_CONFIG: OnceLock<CoreConfig> = OnceLock::new();
   CORE_CONFIG.get_or_init(|| {

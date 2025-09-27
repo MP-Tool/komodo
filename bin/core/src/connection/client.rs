@@ -14,8 +14,10 @@ use transport::{
 };
 
 use crate::{
-  config::core_config, connection::PeripheryConnectionArgs,
-  periphery::ConnectionChannels, state::periphery_connections,
+  config::{core_config, core_connection_query},
+  connection::PeripheryConnectionArgs,
+  periphery::ConnectionChannels,
+  state::periphery_connections,
 };
 
 impl PeripheryConnectionArgs<'_> {
@@ -31,9 +33,9 @@ impl PeripheryConnectionArgs<'_> {
     }
 
     let address = fix_ws_address(self.address);
-
     let identifiers =
       AddressConnectionIdentifiers::extract(&address)?;
+    let endpoint = format!("{address}/?{}", core_connection_query());
 
     let (connection, mut write_receiver) =
       periphery_connections().insert(server_id, self).await;
@@ -43,10 +45,10 @@ impl PeripheryConnectionArgs<'_> {
     tokio::spawn(async move {
       loop {
         let ws = tokio::select! {
+          ws = connect_websocket(&endpoint) => ws,
           _ = connection.cancel.cancelled() => {
             break
           }
-          ws = connect_websocket(&address) => ws,
         };
 
         let (socket, accept) = match ws {
@@ -63,8 +65,10 @@ impl PeripheryConnectionArgs<'_> {
 
         let mut handler = super::WebsocketHandler {
           socket,
-          connection_identifiers: identifiers
-            .build(accept.as_bytes(), &[]),
+          connection_identifiers: identifiers.build(
+            accept.as_bytes(),
+            core_connection_query().as_bytes(),
+          ),
           write_receiver: &mut write_receiver,
           connection: &connection,
         };
@@ -109,9 +113,9 @@ async fn handle_login(
     // Passkey auth
     &[1] => handle_passkey_login(handler, passkey).await,
     other => {
-      return Err(anyhow!(
+      Err(anyhow!(
         "Receieved invalid login type pattern: {other:?}"
-      ));
+      ))
     }
   }
 }

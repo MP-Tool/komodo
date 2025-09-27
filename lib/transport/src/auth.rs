@@ -282,7 +282,7 @@ pub struct AddressConnectionIdentifiers {
 
 impl AddressConnectionIdentifiers {
   pub fn extract(address: &str) -> anyhow::Result<Self> {
-    let url = ::url::Url::parse(&address)
+    let url = ::url::Url::parse(address)
       .context("Failed to parse server address")?;
     let mut host = url.host().context("url has no host")?.to_string();
     if let Some(port) = url.port() {
@@ -290,6 +290,10 @@ impl AddressConnectionIdentifiers {
       host.push_str(&port.to_string());
     };
     Ok(Self { host })
+  }
+
+  pub fn host(&self) -> &String {
+    &self.host
   }
 
   pub fn build<'a>(
@@ -325,6 +329,14 @@ impl HeaderConnectionIdentifiers {
       .context("Headers do not contain Sec-Websocket-Key")?;
     let accept = compute_accept(key.as_bytes());
     Ok(HeaderConnectionIdentifiers { host, accept })
+  }
+
+  pub fn host(&self) -> anyhow::Result<String> {
+    self
+      .host
+      .to_str()
+      .map(str::to_string)
+      .context("Failed to parse header host to string")
   }
 
   pub fn build<'a>(

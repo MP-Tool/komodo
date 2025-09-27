@@ -1,5 +1,5 @@
 use ::bytes::Bytes;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 pub mod auth;
 pub mod bytes;
@@ -28,7 +28,13 @@ pub trait TransportHandler {
   ) -> impl Future<Output = ()> + Send;
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
+pub struct CoreConnectionQuery {
+  /// Core host (eg demo.komo.do)
+  pub core: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct PeripheryConnectionQuery {
   /// Server Id or name
   pub server: String,

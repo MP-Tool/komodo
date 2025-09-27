@@ -41,7 +41,10 @@ async fn prune_images() -> anyhow::Result<()> {
   .map(|server| async move {
     (
       async {
-        periphery_client(&server).await?.request(PruneImages {}).await
+        periphery_client(&server)
+          .await?
+          .request(PruneImages {})
+          .await
       }
       .await,
       server,

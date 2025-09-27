@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Context;
 use axum::http::HeaderValue;
@@ -9,7 +9,7 @@ use transport::{
   websocket::tungstenite::TungsteniteWebsocket,
 };
 
-use crate::connection::ws_receiver;
+use crate::{api::Args, connection::channels};
 
 pub async fn handler(
   address: &str,
@@ -22,10 +22,6 @@ pub async fn handler(
     std::process::exit(1);
   };
 
-  let mut write_receiver = ws_receiver()
-    .try_lock()
-    .context("Websocket handler called more than once.")?;
-
   let address = fix_ws_address(address);
   let identifiers = AddressConnectionIdentifiers::extract(&address)?;
   let query = format!("server={}", urlencoding::encode(connect_as));
@@ -36,24 +32,33 @@ pub async fn handler(
   let mut already_logged_connection_error = false;
   let mut already_logged_login_error = false;
 
+  let args = Arc::new(Args {
+    core: identifiers.host().to_string(),
+  });
+
+  let channel = channels().get_or_insert_default(&args.core).await;
+
+  let mut receiver = channel.receiver()?;
+
   loop {
-    let (socket, accept) = match connect_websocket(&endpoint).await {
-      Ok(res) => res,
-      Err(e) => {
-        if !already_logged_connection_error {
-          warn!("{e:#}");
-          already_logged_connection_error = true;
-          // If error transitions from login to connection,
-          // set to false to see login error after reconnect.
-          already_logged_login_error = false;
+    let (mut socket, accept) =
+      match connect_websocket(&endpoint).await {
+        Ok(res) => res,
+        Err(e) => {
+          if !already_logged_connection_error {
+            warn!("{e:#}");
+            already_logged_connection_error = true;
+            // If error transitions from login to connection,
+            // set to false to see login error after reconnect.
+            already_logged_login_error = false;
+          }
+          tokio::time::sleep(Duration::from_secs(
+            CONNECTION_RETRY_SECONDS,
+          ))
+          .await;
+          continue;
         }
-        tokio::time::sleep(Duration::from_secs(
-          CONNECTION_RETRY_SECONDS,
-        ))
-        .await;
-        continue;
-      }
-    };
+      };
 
     already_logged_connection_error = false;
 
@@ -61,14 +66,12 @@ pub async fn handler(
       info!("Connected to core connection websocket");
     }
 
-    let mut handler = super::WebsocketHandler {
-      socket,
-      connection_identifiers: identifiers
-        .build(accept.as_bytes(), query.as_bytes()),
-      write_receiver: &mut write_receiver,
-    };
-
-    if let Err(e) = handler.login::<ClientLoginFlow>().await {
+    if let Err(e) = super::login::<_, ClientLoginFlow>(
+      &mut socket,
+      identifiers.build(accept.as_bytes(), query.as_bytes()),
+    )
+    .await
+    {
       if !already_logged_login_error {
         warn!("Failed to login | {e:#}");
         already_logged_login_error = true;
@@ -82,7 +85,7 @@ pub async fn handler(
 
     already_logged_login_error = false;
 
-    handler.handle().await
+    super::handle(socket, &args, &channel.sender, &mut receiver).await
   }
 }
 

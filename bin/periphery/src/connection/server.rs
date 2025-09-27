@@ -2,7 +2,7 @@ use std::{
   net::{IpAddr, SocketAddr},
   str::FromStr,
   sync::{
-    OnceLock,
+    Arc, OnceLock,
     atomic::{self, AtomicBool},
   },
 };
@@ -11,7 +11,7 @@ use anyhow::{Context, anyhow};
 use axum::{
   Router,
   body::Body,
-  extract::{ConnectInfo, WebSocketUpgrade},
+  extract::{ConnectInfo, Query, WebSocketUpgrade},
   http::{HeaderMap, Request, StatusCode},
   middleware::{self, Next},
   response::Response,
@@ -24,14 +24,16 @@ use serror::{
   serialize_error_bytes,
 };
 use transport::{
-  MessageState,
-  auth::{HeaderConnectionIdentifiers, ServerLoginFlow},
+  CoreConnectionQuery, MessageState,
+  auth::{
+    ConnectionIdentifiers, HeaderConnectionIdentifiers,
+    ServerLoginFlow,
+  },
   websocket::{Websocket, axum::AxumWebsocket},
 };
 
 use crate::{
-  config::periphery_config,
-  connection::{WebsocketHandler, ws_receiver},
+  api::Args, config::periphery_config, connection::channels,
 };
 
 pub async fn run() -> anyhow::Result<()> {
@@ -78,26 +80,27 @@ fn already_logged_login_error() -> &'static AtomicBool {
 }
 
 async fn handler(
+  Query(CoreConnectionQuery { core }): Query<CoreConnectionQuery>,
   mut headers: HeaderMap,
   ws: WebSocketUpgrade,
 ) -> serror::Result<Response> {
-  // Limits to only one active websocket connection.
-  let mut write_receiver = ws_receiver()
-    .try_lock()
-    .status_code(StatusCode::FORBIDDEN)?;
-
   let identifiers =
     HeaderConnectionIdentifiers::extract(&mut headers)
       .status_code(StatusCode::UNAUTHORIZED)?;
 
-  Ok(ws.on_upgrade(|socket| async move {
-    let mut handler = super::WebsocketHandler {
-      socket: AxumWebsocket(socket),
-      connection_identifiers: identifiers.build(&[]),
-      write_receiver: &mut write_receiver,
-    };
+  let args = Arc::new(Args { core });
 
-    if let Err(e) = handle_login(&mut handler).await {
+  let channel = channels().get_or_insert_default(&args.core).await;
+
+  Ok(ws.on_upgrade(|socket| async move {
+    let mut socket = AxumWebsocket(socket);
+
+    let query = format!("core={}", urlencoding::encode(&args.core));
+
+    if let Err(e) =
+      handle_login(&mut socket, identifiers.build(query.as_bytes()))
+        .await
+    {
       let already_logged = already_logged_login_error();
       if !already_logged.load(atomic::Ordering::Relaxed) {
         warn!("Core failed to login to connection | {e:#}");
@@ -110,35 +113,59 @@ async fn handler(
     already_logged_login_error()
       .store(false, atomic::Ordering::Relaxed);
 
-    handler.handle().await
+    let mut receiver = match channel.receiver() {
+      Ok(receiver) => receiver,
+      Err(e) => {
+        warn!("Failed to forward connection | {e:#}");
+
+        let mut bytes = serialize_error_bytes(&e);
+        bytes.push(MessageState::Failed.as_byte());
+
+        if let Err(e) = socket
+          .send(bytes.into())
+          .await
+          .context("Failed to send forward failed to client")
+        {
+          // Log additional error
+          warn!("{e:#}");
+        }
+
+        // Close socket
+        let _ = socket.close(None).await;
+
+        return;
+      }
+    };
+
+    super::handle(socket, &args, &channel.sender, &mut receiver).await
   }))
 }
 
 /// Custom Core -> Periphery side only login wrapper
 /// to implement passkey support for backward compatibility
 async fn handle_login(
-  handler: &mut WebsocketHandler<'_, AxumWebsocket>,
+  socket: &mut AxumWebsocket,
+  identifiers: ConnectionIdentifiers<'_>,
 ) -> anyhow::Result<()> {
   let config = periphery_config();
 
   match (&config.core_public_key, &config.passkeys) {
     (Some(_), _) | (_, None) => {
       // Send login type [0] (Noise auth)
-      handler
-        .socket
+      socket
         .send(Bytes::from_owner([0]))
         .await
         .context("Failed to send login type indicator")?;
-      handler.login::<ServerLoginFlow>().await
+      super::login::<_, ServerLoginFlow>(socket, identifiers).await
     }
     (None, Some(passkeys)) => {
-      handle_passkey_login(handler, passkeys).await
+      handle_passkey_login(socket, passkeys).await
     }
   }
 }
 
 async fn handle_passkey_login(
-  handler: &mut WebsocketHandler<'_, AxumWebsocket>,
+  socket: &mut AxumWebsocket,
   passkeys: &[String],
 ) -> anyhow::Result<()> {
   warn!(
@@ -146,16 +173,14 @@ async fn handle_passkey_login(
   );
   let res = async {
     // Send login type
-    handler
-      .socket
+    socket
       // Passkey auth: [1]
       .send(Bytes::from_owner([1]))
       .await
       .context("Failed to send login type indicator")?;
 
     // Receieve passkey
-    let bytes = handler
-      .socket
+    let bytes = socket
       .recv_bytes()
       .await
       .context("Failed to receive passkey from Core")?;
@@ -174,8 +199,7 @@ async fn handle_passkey_login(
       .iter()
       .any(|expected_passkey| expected_passkey.as_bytes() == passkey)
     {
-      handler
-        .socket
+      socket
         .send(MessageState::Successful.into())
         .await
         .context("Failed to send login type indicator")?;
@@ -184,8 +208,7 @@ async fn handle_passkey_login(
       let e = anyhow!("Invalid passkey");
       let mut bytes = serialize_error_bytes(&e);
       bytes.push(MessageState::Failed.as_byte());
-      if let Err(e) = handler
-        .socket
+      if let Err(e) = socket
         .send(bytes.into())
         .await
         .context("Failed to send login failed")
@@ -193,7 +216,7 @@ async fn handle_passkey_login(
         // Log additional error
         warn!("{e:#}");
         // Close socket
-        let _ = handler.socket.close(None).await;
+        let _ = socket.close(None).await;
       }
       // Return the original error
       Err(e)
@@ -203,8 +226,7 @@ async fn handle_passkey_login(
   if let Err(e) = res {
     let mut bytes = serialize_error_bytes(&e);
     bytes.push(MessageState::Failed.as_byte());
-    if let Err(e) = handler
-      .socket
+    if let Err(e) = socket
       .send(bytes.into())
       .await
       .context("Failed to send login failed to client")
@@ -213,7 +235,7 @@ async fn handle_passkey_login(
       warn!("{e:#}");
     }
     // Close socket
-    let _ = handler.socket.close(None).await;
+    let _ = socket.close(None).await;
     // Return the original error
     Err(e)
   } else {

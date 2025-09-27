@@ -3416,6 +3416,7 @@ dependencies = [
  "tracing",
  "transport",
  "typeshare",
+ "url",
  "urlencoding",
  "uuid",
  "wildcard",

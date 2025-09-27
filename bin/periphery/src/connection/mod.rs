@@ -1,12 +1,15 @@
-use std::{sync::OnceLock, time::Duration};
+use std::{
+  sync::{Arc, OnceLock},
+  time::Duration,
+};
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use bytes::Bytes;
 use cache::CloneCache;
 use resolver_api::Resolve;
 use response::JsonBytes;
 use serror::serialize_error_bytes;
-use tokio::sync::{Mutex, mpsc::Sender};
+use tokio::sync::{Mutex, MutexGuard, mpsc::Sender};
 use tokio_util::sync::CancellationToken;
 use transport::{
   MessageState,
@@ -32,115 +35,42 @@ use crate::{
 pub mod client;
 pub mod server;
 
-static WS_SENDER: OnceLock<Sender<Bytes>> = OnceLock::new();
-pub fn ws_sender() -> &'static Sender<Bytes> {
-  WS_SENDER
-    .get()
-    .expect("response_sender accessed before initialized")
+pub struct Channel {
+  pub sender: Sender<Bytes>,
+  pub receiver: Mutex<BufferedReceiver<Bytes>>,
 }
 
-static WS_RECEIVER: OnceLock<Mutex<BufferedReceiver<Bytes>>> =
-  OnceLock::new();
-fn ws_receiver() -> &'static Mutex<BufferedReceiver<Bytes>> {
-  WS_RECEIVER
-    .get()
-    .expect("response_receiver accessed before initialized")
-}
-
-/// Must call in startup sequence
-pub fn init_response_channel() {
-  let (sender, receiver) = buffered_channel();
-  WS_SENDER
-    .set(sender)
-    .expect("response_sender initialized more than once");
-  WS_RECEIVER
-    .set(Mutex::new(receiver))
-    .expect("response_receiver initialized more than once");
-}
-
-pub struct WebsocketHandler<'a, W> {
-  pub socket: W,
-  pub connection_identifiers: ConnectionIdentifiers<'a>,
-  pub write_receiver: &'a mut BufferedReceiver<Bytes>,
-}
-
-impl<W: Websocket> WebsocketHandler<'_, W> {
-  async fn login<L: LoginFlow>(&mut self) -> anyhow::Result<()> {
-    L::login(
-      &mut self.socket,
-      self.connection_identifiers,
-      &periphery_config().private_key,
-      &CorePublicKeyValidator,
-    )
-    .await
-  }
-
-  async fn handle(self) {
-    let config = periphery_config();
-    info!(
-      "Logged in to Core connection websocket{}",
-      if config.core_address.is_some()
-        && let Some(connect_as) = &config.connect_as
-      {
-        format!(" as Server {connect_as}")
-      } else {
-        String::new()
-      }
-    );
-
-    let (mut ws_write, mut ws_read) = self.socket.split();
-
-    let forward_writes = async {
-      loop {
-        let msg = match self.write_receiver.recv().await {
-          // Sender Dropped (shouldn't happen, it is static).
-          None => break,
-          // This has to copy the bytes to follow ownership rules.
-          Some(msg) => Bytes::copy_from_slice(msg),
-        };
-        match ws_write.send(msg).await {
-          // Clears the stored message from receiver buffer.
-          // TODO: Move after response ack.
-          Ok(_) => self.write_receiver.clear_buffer(),
-          Err(e) => {
-            warn!("Failed to send response | {e:?}");
-            let _ = ws_write.close(None).await;
-            break;
-          }
-        }
-      }
-    };
-
-    let handle_reads = async {
-      loop {
-        match ws_read.recv().await {
-          Ok(WebsocketMessage::Binary(bytes)) => {
-            handle_incoming_bytes(bytes).await
-          }
-          Ok(WebsocketMessage::Close(frame)) => {
-            warn!("Connection closed with frame: {frame:?}");
-            break;
-          }
-          Ok(WebsocketMessage::Closed) => {
-            warn!("Connection already closed");
-            break;
-          }
-          Err(e) => {
-            warn!("Failed to read websocket message | {e:?}");
-            break;
-          }
-        };
-      }
-    };
-
-    tokio::select! {
-      _ = forward_writes => {},
-      _ = handle_reads => {},
+impl Default for Channel {
+  fn default() -> Self {
+    let (sender, receiver) = buffered_channel();
+    Channel {
+      sender,
+      receiver: receiver.into(),
     }
   }
 }
 
+impl Channel {
+  pub fn receiver(
+    &self,
+  ) -> anyhow::Result<MutexGuard<'_, BufferedReceiver<Bytes>>> {
+    self
+      .receiver
+      .try_lock()
+      .context("Receiver is already locked")
+  }
+}
+
+// Core Address / Host -> Channel
+pub type Channels = CloneCache<String, Arc<Channel>>;
+
+pub fn channels() -> &'static Channels {
+  static CHANNELS: OnceLock<Channels> = OnceLock::new();
+  CHANNELS.get_or_init(Default::default)
+}
+
 pub struct CorePublicKeyValidator;
+
 impl PublicKeyValidator for CorePublicKeyValidator {
   fn validate(&self, public_key: String) -> anyhow::Result<()> {
     if let Some(expected_public_key) =
@@ -158,7 +88,94 @@ impl PublicKeyValidator for CorePublicKeyValidator {
   }
 }
 
-async fn handle_incoming_bytes(bytes: Bytes) {
+async fn login<W: Websocket, L: LoginFlow>(
+  socket: &mut W,
+  identifiers: ConnectionIdentifiers<'_>,
+) -> anyhow::Result<()> {
+  L::login(
+    socket,
+    identifiers,
+    &periphery_config().private_key,
+    &CorePublicKeyValidator,
+  )
+  .await
+}
+
+async fn handle<W: Websocket>(
+  socket: W,
+  args: &Arc<Args>,
+  sender: &Sender<Bytes>,
+  receiver: &mut BufferedReceiver<Bytes>,
+) {
+  let config = periphery_config();
+  info!(
+    "Logged in to Komodo Core {} websocket{}",
+    args.core,
+    if config.core_address.is_some()
+      && let Some(connect_as) = &config.connect_as
+    {
+      format!(" as Server {connect_as}")
+    } else {
+      String::new()
+    }
+  );
+
+  let (mut ws_write, mut ws_read) = socket.split();
+
+  let forward_writes = async {
+    loop {
+      let msg = match receiver.recv().await {
+        // Sender Dropped (shouldn't happen, it is static).
+        None => break,
+        // This has to copy the bytes to follow ownership rules.
+        Some(msg) => Bytes::copy_from_slice(msg),
+      };
+      match ws_write.send(msg).await {
+        // Clears the stored message from receiver buffer.
+        // TODO: Move after response ack.
+        Ok(_) => receiver.clear_buffer(),
+        Err(e) => {
+          warn!("Failed to send response | {e:?}");
+          let _ = ws_write.close(None).await;
+          break;
+        }
+      }
+    }
+  };
+
+  let handle_reads = async {
+    loop {
+      match ws_read.recv().await {
+        Ok(WebsocketMessage::Binary(bytes)) => {
+          handle_incoming_bytes(args, sender, bytes).await
+        }
+        Ok(WebsocketMessage::Close(frame)) => {
+          warn!("Connection closed with frame: {frame:?}");
+          break;
+        }
+        Ok(WebsocketMessage::Closed) => {
+          warn!("Connection already closed");
+          break;
+        }
+        Err(e) => {
+          warn!("Failed to read websocket message | {e:?}");
+          break;
+        }
+      };
+    }
+  };
+
+  tokio::select! {
+    _ = forward_writes => {},
+    _ = handle_reads => {},
+  }
+}
+
+async fn handle_incoming_bytes(
+  args: &Arc<Args>,
+  sender: &Sender<Bytes>,
+  bytes: Bytes,
+) {
   // Maybe wrap all of this on tokio spawn
   let (id, state) = match id_state_from_transport_bytes(&bytes) {
     Ok(res) => res,
@@ -169,7 +186,9 @@ async fn handle_incoming_bytes(bytes: Bytes) {
     }
   };
   match state {
-    MessageState::Request => handle_request(id, bytes),
+    MessageState::Request => {
+      handle_request(args.clone(), sender.clone(), id, bytes)
+    }
     MessageState::Terminal => {
       handle_terminal_message(id, bytes).await
     }
@@ -180,7 +199,12 @@ async fn handle_incoming_bytes(bytes: Bytes) {
   }
 }
 
-fn handle_request(req_id: Uuid, bytes: Bytes) {
+fn handle_request(
+  args: Arc<Args>,
+  sender: Sender<Bytes>,
+  req_id: Uuid,
+  bytes: Bytes,
+) {
   tokio::spawn(async move {
     let request = match data_from_transport_bytes(bytes) {
       Ok(req) if !req.is_empty() => req,
@@ -200,7 +224,7 @@ fn handle_request(req_id: Uuid, bytes: Bytes) {
       };
 
     let resolve_response = async {
-      let (state, data) = match request.resolve(&Args).await {
+      let (state, data) = match request.resolve(&args).await {
         Ok(JsonBytes::Ok(res)) => (MessageState::Successful, res),
         Ok(JsonBytes::Err(e)) => (
           MessageState::Failed,
@@ -213,9 +237,8 @@ fn handle_request(req_id: Uuid, bytes: Bytes) {
           (MessageState::Failed, serialize_error_bytes(&e.error))
         }
       };
-      if let Err(e) = ws_sender()
-        .send(to_transport_bytes(data, req_id, state))
-        .await
+      if let Err(e) =
+        sender.send(to_transport_bytes(data, req_id, state)).await
       {
         error!("Failed to send response over channel | {e:?}");
       }
@@ -224,7 +247,7 @@ fn handle_request(req_id: Uuid, bytes: Bytes) {
     let ping_in_progress = async {
       loop {
         tokio::time::sleep(Duration::from_secs(5)).await;
-        if let Err(e) = ws_sender()
+        if let Err(e) = sender
           .send(to_transport_bytes(
             Vec::new(),
             req_id,

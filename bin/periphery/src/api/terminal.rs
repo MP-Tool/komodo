@@ -11,13 +11,14 @@ use komodo_client::{
 use periphery_client::api::terminal::*;
 use resolver_api::Resolve;
 use serror::AddStatusCodeError;
+use tokio::sync::mpsc::Sender;
 use tokio_util::{codec::LinesCodecError, sync::CancellationToken};
 use transport::{MessageState, bytes::to_transport_bytes};
 use uuid::Uuid;
 
 use crate::{
   config::periphery_config,
-  connection::{terminal_channels, ws_sender},
+  connection::{channels, terminal_channels},
   terminal::*,
 };
 
@@ -76,7 +77,7 @@ impl Resolve<super::Args> for DeleteAllTerminals {
 
 impl Resolve<super::Args> for ConnectTerminal {
   #[instrument(name = "ConnectTerminal", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Uuid> {
+  async fn resolve(self, args: &super::Args) -> serror::Result<Uuid> {
     if periphery_config().disable_terminals {
       return Err(
         anyhow!("Terminals are disabled in the periphery config")
@@ -84,12 +85,20 @@ impl Resolve<super::Args> for ConnectTerminal {
       );
     }
 
+    let channel =
+      channels().get(&args.core).await.with_context(|| {
+        format!("Failed to find channel for {}", args.core)
+      })?;
+
     clean_up_terminals().await;
+
     let terminal = get_terminal(&self.terminal).await?;
 
     let id = Uuid::new_v4();
 
-    tokio::spawn(handle_terminal_forwarding(id, terminal));
+    tokio::spawn(async move {
+      handle_terminal_forwarding(&channel.sender, id, terminal).await
+    });
 
     Ok(id)
   }
@@ -107,6 +116,11 @@ impl Resolve<super::Args> for ConnectContainerExec {
       );
     }
 
+    let channel =
+      channels().get(&args.core).await.with_context(|| {
+        format!("Failed to find channel for {}", args.core)
+      })?;
+
     let ConnectContainerExec { container, shell } = self;
 
     if container.contains("&&") || shell.contains("&&") {
@@ -117,6 +131,7 @@ impl Resolve<super::Args> for ConnectContainerExec {
         .into(),
       );
     }
+
     // Create (recreate if shell changed)
     let terminal = create_terminal(
       container.clone(),
@@ -128,7 +143,9 @@ impl Resolve<super::Args> for ConnectContainerExec {
 
     let id = Uuid::new_v4();
 
-    tokio::spawn(handle_terminal_forwarding(id, terminal));
+    tokio::spawn(async move {
+      handle_terminal_forwarding(&channel.sender, id, terminal).await
+    });
 
     Ok(id)
   }
@@ -152,13 +169,18 @@ impl Resolve<super::Args> for DisconnectTerminal {
 
 impl Resolve<super::Args> for ExecuteTerminal {
   #[instrument(name = "ExecuteTerminal", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Uuid> {
+  async fn resolve(self, args: &super::Args) -> serror::Result<Uuid> {
     if periphery_config().disable_terminals {
       return Err(
         anyhow!("Terminals are disabled in the periphery config")
           .status_code(StatusCode::FORBIDDEN),
       );
     }
+
+    let channel =
+      channels().get(&args.core).await.with_context(|| {
+        format!("Failed to find channel for {}", args.core)
+      })?;
 
     let terminal = get_terminal(&self.terminal).await?;
 
@@ -168,9 +190,14 @@ impl Resolve<super::Args> for ExecuteTerminal {
 
     let id = Uuid::new_v4();
 
-    tokio::spawn(forward_execute_command_on_terminal_response(
-      id, stdout,
-    ));
+    tokio::spawn(async move {
+      forward_execute_command_on_terminal_response(
+        &channel.sender,
+        id,
+        stdout,
+      )
+      .await
+    });
 
     Ok(id)
   }
@@ -180,7 +207,7 @@ impl Resolve<super::Args> for ExecuteTerminal {
 
 impl Resolve<super::Args> for ExecuteContainerExec {
   #[instrument(name = "ExecuteContainerExec", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Uuid> {
+  async fn resolve(self, args: &super::Args) -> serror::Result<Uuid> {
     if periphery_config().disable_container_exec {
       return Err(
         anyhow!("Container exec is disabled in the periphery config")
@@ -220,19 +247,29 @@ impl Resolve<super::Args> for ExecuteContainerExec {
 
     let id = Uuid::new_v4();
 
-    tokio::spawn(forward_execute_command_on_terminal_response(
-      id, stdout,
-    ));
+    let channel =
+      channels().get(&args.core).await.with_context(|| {
+        format!("Failed to find channel for {}", args.core)
+      })?;
+
+    tokio::spawn(async move {
+      forward_execute_command_on_terminal_response(
+        &channel.sender,
+        id,
+        stdout,
+      )
+      .await
+    });
 
     Ok(id)
   }
 }
 
 async fn handle_terminal_forwarding(
+  sender: &Sender<Bytes>,
   id: Uuid,
   terminal: Arc<Terminal>,
 ) {
-  let ws_sender = ws_sender();
   let cancel = CancellationToken::new();
 
   terminal_channels()
@@ -242,7 +279,7 @@ async fn handle_terminal_forwarding(
   let init_res = async {
     let (a, b) = terminal.history.bytes_parts();
     if !a.is_empty() {
-      ws_sender
+      sender
         .send(to_transport_bytes(
           a.into(),
           id,
@@ -252,7 +289,7 @@ async fn handle_terminal_forwarding(
         .context("Failed to send history part a")?;
     }
     if !b.is_empty() {
-      ws_sender
+      sender
         .send(to_transport_bytes(
           b.into(),
           id,
@@ -295,7 +332,7 @@ async fn handle_terminal_forwarding(
     };
     match res {
       Ok(bytes) => {
-        if let Err(e) = ws_sender
+        if let Err(e) = sender
           .send(to_transport_bytes(
             bytes.into(),
             id,
@@ -310,7 +347,7 @@ async fn handle_terminal_forwarding(
       }
       Err(e) => {
         debug!("PTY -> WS channel read error: {e:?}");
-        let _ = ws_sender
+        let _ = sender
           .send(to_transport_bytes(
             format!("ERROR: {e:#}").into(),
             id,
@@ -325,7 +362,7 @@ async fn handle_terminal_forwarding(
 
   // Clean up
   if let Some((_, cancel)) = terminal_channels().remove(&id).await {
-    info!("Cancel called for {id}");
+    trace!("Cancel called for {id}");
     cancel.cancel();
   }
   clean_up_terminals().await;
@@ -385,14 +422,14 @@ async fn setup_execute_command_on_terminal(
 }
 
 async fn forward_execute_command_on_terminal_response(
+  sender: &Sender<Bytes>,
   id: Uuid,
   mut stdout: impl Stream<Item = Result<String, LinesCodecError>> + Unpin,
 ) {
-  let ws_sender = ws_sender();
   loop {
     match stdout.next().await {
       Some(Ok(line)) if line.as_str() == END_OF_OUTPUT => {
-        if let Err(e) = ws_sender
+        if let Err(e) = sender
           .send(to_transport_bytes(
             line.into(),
             id,
@@ -405,7 +442,7 @@ async fn forward_execute_command_on_terminal_response(
         break;
       }
       Some(Ok(line)) => {
-        if let Err(e) = ws_sender
+        if let Err(e) = sender
           .send(to_transport_bytes(
             (line + "\n").into(),
             id,

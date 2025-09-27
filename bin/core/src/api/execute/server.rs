@@ -387,7 +387,8 @@ impl Resolve<ExecuteArgs> for StartAllContainers {
 
     update_update(update.clone()).await?;
 
-    let logs = periphery_client(&server).await?
+    let logs = periphery_client(&server)
+      .await?
       .request(api::container::StartAllContainers {})
       .await
       .context("failed to start all containers on host")?;
@@ -437,7 +438,8 @@ impl Resolve<ExecuteArgs> for RestartAllContainers {
 
     update_update(update.clone()).await?;
 
-    let logs = periphery_client(&server).await?
+    let logs = periphery_client(&server)
+      .await?
       .request(api::container::RestartAllContainers {})
       .await
       .context("failed to restart all containers on host")?;
@@ -489,7 +491,8 @@ impl Resolve<ExecuteArgs> for PauseAllContainers {
 
     update_update(update.clone()).await?;
 
-    let logs = periphery_client(&server).await?
+    let logs = periphery_client(&server)
+      .await?
       .request(api::container::PauseAllContainers {})
       .await
       .context("failed to pause all containers on host")?;
@@ -539,7 +542,8 @@ impl Resolve<ExecuteArgs> for UnpauseAllContainers {
 
     update_update(update.clone()).await?;
 
-    let logs = periphery_client(&server).await?
+    let logs = periphery_client(&server)
+      .await?
       .request(api::container::UnpauseAllContainers {})
       .await
       .context("failed to unpause all containers on host")?;
@@ -591,7 +595,8 @@ impl Resolve<ExecuteArgs> for StopAllContainers {
 
     update_update(update.clone()).await?;
 
-    let logs = periphery_client(&server).await?
+    let logs = periphery_client(&server)
+      .await?
       .request(api::container::StopAllContainers {})
       .await
       .context("failed to stop all containers on host")?;

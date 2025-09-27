@@ -60,6 +60,7 @@ pub async fn stack<'a>(
   git_token: Option<String>,
   replacers: Vec<(String, String)>,
   res: impl WriteStackRes,
+  req_args: &Args,
 ) -> anyhow::Result<(
   // run_directory
   PathBuf,
@@ -69,10 +70,12 @@ pub async fn stack<'a>(
   if stack.config.files_on_host {
     write_stack_files_on_host(stack, res).await
   } else if let Some(repo) = repo {
-    write_stack_linked_repo(stack, repo, git_token, replacers, res)
-      .await
+    write_stack_linked_repo(
+      stack, repo, git_token, replacers, res, req_args,
+    )
+    .await
   } else if !stack.config.repo.is_empty() {
-    write_stack_inline_repo(stack, git_token, res).await
+    write_stack_inline_repo(stack, git_token, res, req_args).await
   } else {
     write_stack_ui_defined(stack, res).await
   }
@@ -120,6 +123,7 @@ async fn write_stack_linked_repo<'a>(
   git_token: Option<String>,
   replacers: Vec<(String, String)>,
   mut res: impl WriteStackRes,
+  req_args: &Args,
 ) -> anyhow::Result<(
   // run_directory
   PathBuf,
@@ -151,7 +155,6 @@ async fn write_stack_linked_repo<'a>(
   let on_pull = (!repo.config.on_pull.is_none())
     .then_some(repo.config.on_pull.clone());
 
-  let req_args = Args;
   let clone_res = if stack.config.reclone {
     CloneRepo {
       args,
@@ -163,7 +166,7 @@ async fn write_stack_linked_repo<'a>(
       skip_secret_interp: repo.config.skip_secret_interp,
       replacers,
     }
-    .resolve(&req_args)
+    .resolve(req_args)
     .await
     .map_err(|e| e.error)?
   } else {
@@ -177,7 +180,7 @@ async fn write_stack_linked_repo<'a>(
       skip_secret_interp: repo.config.skip_secret_interp,
       replacers,
     }
-    .resolve(&req_args)
+    .resolve(req_args)
     .await
     .map_err(|e| e.error)?
   };
@@ -214,15 +217,16 @@ async fn write_stack_linked_repo<'a>(
   ))
 }
 
-async fn write_stack_inline_repo(
-  stack: &Stack,
+async fn write_stack_inline_repo<'a>(
+  stack: &'a Stack,
   git_token: Option<String>,
   mut res: impl WriteStackRes,
+  req_args: &Args,
 ) -> anyhow::Result<(
   // run_directory
   PathBuf,
   // env_file_path
-  Option<&str>,
+  Option<&'a str>,
 )> {
   let root = periphery_config()
     .stack_dir()
@@ -237,7 +241,6 @@ async fn write_stack_inline_repo(
 
   let git_token = stack_git_token(git_token, &args, &mut res)?;
 
-  let req_args = Args;
   let clone_res = if stack.config.reclone {
     CloneRepo {
       args,
@@ -249,7 +252,7 @@ async fn write_stack_inline_repo(
       skip_secret_interp: Default::default(),
       replacers: Default::default(),
     }
-    .resolve(&req_args)
+    .resolve(req_args)
     .await
     .map_err(|e| e.error)?
   } else {
@@ -263,7 +266,7 @@ async fn write_stack_inline_repo(
       skip_secret_interp: Default::default(),
       replacers: Default::default(),
     }
-    .resolve(&req_args)
+    .resolve(req_args)
     .await
     .map_err(|e| e.error)?
   };

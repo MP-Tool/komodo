@@ -30,7 +30,9 @@ mod stats;
 mod volume;
 
 #[derive(Debug)]
-pub struct Args;
+pub struct Args {
+  pub core: String,
+}
 
 #[derive(
   Serialize, Deserialize, Debug, Clone, Resolve, EnumVariants,
