@@ -73,13 +73,13 @@ pub struct CorePublicKeyValidator;
 
 impl PublicKeyValidator for CorePublicKeyValidator {
   fn validate(&self, public_key: String) -> anyhow::Result<()> {
-    if let Some(expected_public_key) =
-      periphery_config().core_public_key.as_ref()
-      && &public_key != expected_public_key
+    if let Some(public_keys) =
+      periphery_config().core_public_keys.as_ref()
+      && public_keys.iter().all(|expected| &public_key != expected)
     {
       Err(
         anyhow!("Got invalid public key: {public_key}")
-          .context("Ensure public key matches 'core_public_key' in periphery config (PERIPHERY_CORE_PUBLIC_KEY)")
+          .context("Ensure public key matches one of the 'core_public_keys' in periphery config (PERIPHERY_CORE_PUBLIC_KEYS)")
           .context("Periphery failed to validate Core public key"),
       )
     } else {

@@ -18,7 +18,7 @@ use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
-  deserializers::ForgivingVec,
+  deserializers::{ForgivingVec, option_string_list_deserializer},
   entities::{
     Timelength,
     logger::{LogConfig, LogLevel, StdioLogMode},
@@ -125,8 +125,9 @@ pub struct Env {
   pub periphery_private_key: Option<String>,
   /// Override `private_key` from file
   pub periphery_private_key_file: Option<PathBuf>,
-  /// Override `core_public_key`
-  pub periphery_core_public_key: Option<String>,
+  /// Override `core_public_keys`
+  #[serde(alias = "periphery_core_public_key")]
+  pub periphery_core_public_keys: Option<Vec<String>>,
   /// Override `passkeys`
   pub periphery_passkeys: Option<Vec<String>>,
   /// Override `passkeys` from file
@@ -200,8 +201,12 @@ pub struct PeripheryConfig {
   pub private_key: String,
   /// Optionally pin a specific Core public key
   /// for additional trust.
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub core_public_key: Option<String>,
+  #[serde(
+    alias = "core_public_key",
+    deserialize_with = "option_string_list_deserializer",
+    skip_serializing_if = "Option::is_none"
+  )]
+  pub core_public_keys: Option<Vec<String>>,
   /// Deprecated. Legacy v1 compatibility.
   /// Users should upgrade to private / public key authentication.
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -382,7 +387,7 @@ impl Default for PeripheryConfig {
   fn default() -> Self {
     Self {
       private_key: default_private_key(),
-      core_public_key: None,
+      core_public_keys: None,
       passkeys: None,
       core_address: None,
       connect_as: None,
@@ -417,7 +422,7 @@ impl PeripheryConfig {
   pub fn sanitized(&self) -> PeripheryConfig {
     PeripheryConfig {
       private_key: empty_or_redacted(&self.private_key),
-      core_public_key: self.core_public_key.clone(),
+      core_public_keys: self.core_public_keys.clone(),
       passkeys: self.passkeys.as_ref().map(|passkeys| {
         passkeys.iter().map(|p| empty_or_redacted(p)).collect()
       }),

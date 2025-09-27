@@ -73,9 +73,9 @@ pub fn periphery_config() -> &'static PeripheryConfig {
         env.periphery_private_key,
       )
       .unwrap_or(config.private_key),
-      core_public_key: env
-        .periphery_core_public_key
-        .or(config.core_public_key),
+      core_public_keys: env
+        .periphery_core_public_keys
+        .or(config.core_public_keys),
       passkeys: maybe_read_list_from_file(
         env.periphery_passkeys_file,
         env.periphery_passkeys,

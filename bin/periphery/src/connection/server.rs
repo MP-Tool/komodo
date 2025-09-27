@@ -149,7 +149,7 @@ async fn handle_login(
 ) -> anyhow::Result<()> {
   let config = periphery_config();
 
-  match (&config.core_public_key, &config.passkeys) {
+  match (&config.core_public_keys, &config.passkeys) {
     (Some(_), _) | (_, None) => {
       // Send login type [0] (Noise auth)
       socket
