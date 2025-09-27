@@ -60,6 +60,12 @@ connect_as = "server-name"
 # INBOUND MODE #
 ################
 
+## Enable the inbound connection server for
+## Core -> Periphery connection.
+## Env: PERIHERY_SERVER_ENABLED
+## Default: true
+server_enabled = true
+
 ## Optional. The port the server runs on.
 ## Env: PERIPHERY_PORT
 ## Default: 8120
