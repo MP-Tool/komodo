@@ -198,11 +198,15 @@ async fn open_alert_cleanup() {
 /// Ensures a default server / builder exists with the defined address
 async fn ensure_first_server_and_builder() {
   let config = core_config();
-  let Some(address) = config.first_server.clone() else {
+  if config.first_server.is_none()
+    && config.first_server_name.is_none()
+  {
+    // If neither defined, early return
     return;
-  };
+  }
   let db = db_client();
-  let Ok(server) = db
+  // If any server exists, exit early.
+  let Ok(None) = db
     .servers
     .find_one(Document::new())
     .await
@@ -210,39 +214,37 @@ async fn ensure_first_server_and_builder() {
   else {
     return;
   };
-  let server = if let Some(server) = server {
-    server
-  } else {
-    match (CreateServer {
-      name: config.first_server_name.clone(),
-      config: PartialServerConfig {
-        address: Some(address),
-        enabled: Some(true),
-        ..Default::default()
-      },
-    })
-    .resolve(&WriteArgs {
-      user: system_user().to_owned(),
-    })
-    .await
-    {
-      Ok(server) => server,
-      Err(e) => {
-        error!(
-          "Failed to initialize 'first_server'. Failed to CreateServer. {:#}",
-          e.error
-        );
-        return;
-      }
+  let name = config.first_server_name.as_deref().unwrap_or("Local");
+  let server = match (CreateServer {
+    name: name.to_string(),
+    config: PartialServerConfig {
+      address: config.first_server.clone(),
+      enabled: Some(true),
+      ..Default::default()
+    },
+  })
+  .resolve(&WriteArgs {
+    user: system_user().to_owned(),
+  })
+  .await
+  {
+    Ok(server) => server,
+    Err(e) => {
+      error!(
+        "Failed to initialize 'first_server'. Failed to CreateServer. {:#}",
+        e.error
+      );
+      return;
     }
   };
+  // If any builder exists, exit early.
   let Ok(None) = db.builders
     .find_one(Document::new()).await
     .inspect_err(|e| error!("Failed to initialize 'first_builder' | Failed to query db | {e:?}")) else {
       return;
     };
   if let Err(e) = (CreateBuilder {
-    name: config.first_server_name.clone(),
+    name: name.to_string(),
     config: PartialBuilderConfig::Server(
       PartialServerBuilderConfig {
         server_id: Some(server.id),

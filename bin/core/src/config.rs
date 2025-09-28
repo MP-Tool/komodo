@@ -205,7 +205,7 @@ pub fn core_config() -> &'static CoreConfig {
       bind_ip: env.komodo_bind_ip.unwrap_or(config.bind_ip),
       timezone: env.komodo_timezone.unwrap_or(config.timezone),
       first_server: env.komodo_first_server.or(config.first_server),
-      first_server_name: env.komodo_first_server_name.unwrap_or(config.first_server_name),
+      first_server_name: env.komodo_first_server_name.or(config.first_server_name),
       frontend_path: env.komodo_frontend_path.unwrap_or(config.frontend_path),
       jwt_ttl: env
         .komodo_jwt_ttl

@@ -370,14 +370,15 @@ pub struct CoreConfig {
   pub enable_fancy_toml: bool,
 
   /// If defined, ensure an enabled first server exists at this address.
-  /// Example: `http://periphery:8120`
+  /// Example: `wss://periphery:8120`
   #[serde(skip_serializing_if = "Option::is_none")]
   pub first_server: Option<String>,
 
   /// Give the first server this name.
-  /// Default: `Local`
-  #[serde(default = "default_first_server_name")]
-  pub first_server_name: String,
+  /// If None and "first_server" is defined, will default to "Local".
+  /// Default: None
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub first_server_name: Option<String>,
 
   /// The path to the built frontend folder.
   #[serde(default = "default_frontend_path")]
@@ -667,10 +668,6 @@ fn default_frontend_path() -> String {
   "/app/frontend".to_string()
 }
 
-fn default_first_server_name() -> String {
-  String::from("Local")
-}
-
 fn default_jwt_ttl() -> Timelength {
   Timelength::OneDay
 }
@@ -732,7 +729,7 @@ impl Default for CoreConfig {
       disable_init_resources: Default::default(),
       enable_fancy_toml: Default::default(),
       first_server: Default::default(),
-      first_server_name: default_first_server_name(),
+      first_server_name: Default::default(),
       frontend_path: default_frontend_path(),
       database: Default::default(),
       local_auth: Default::default(),
