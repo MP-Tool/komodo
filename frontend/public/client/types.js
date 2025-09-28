@@ -269,15 +269,6 @@ export var SeverityLevel;
      */
     SeverityLevel["Critical"] = "CRITICAL";
 })(SeverityLevel || (SeverityLevel = {}));
-export var StackFileRequires;
-(function (StackFileRequires) {
-    /** Diff requires service redeploy. */
-    StackFileRequires["Redeploy"] = "Redeploy";
-    /** Diff requires service restart */
-    StackFileRequires["Restart"] = "Restart";
-    /** Diff requires no action. Default. */
-    StackFileRequires["None"] = "None";
-})(StackFileRequires || (StackFileRequires = {}));
 export var Timelength;
 (function (Timelength) {
     /** `1-sec` */
@@ -323,6 +314,15 @@ export var Timelength;
     /** `30-day` */
     Timelength["ThirtyDays"] = "30-day";
 })(Timelength || (Timelength = {}));
+export var StackFileRequires;
+(function (StackFileRequires) {
+    /** Diff requires service redeploy. */
+    StackFileRequires["Redeploy"] = "Redeploy";
+    /** Diff requires service restart */
+    StackFileRequires["Restart"] = "Restart";
+    /** Diff requires no action. Default. */
+    StackFileRequires["None"] = "None";
+})(StackFileRequires || (StackFileRequires = {}));
 export var TagColor;
 (function (TagColor) {
     TagColor["LightSlate"] = "LightSlate";

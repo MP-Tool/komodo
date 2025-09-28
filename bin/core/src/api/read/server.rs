@@ -79,10 +79,10 @@ impl Resolve<ReadArgs> for GetServersSummary {
       match server.info.state {
         ServerState::Ok => {
           // Check for version mismatch
-          let has_version_mismatch = !server.info.version.is_empty()
-            && server.info.version != "Unknown"
-            && server.info.version != core_version;
-
+          let has_version_mismatch = match &server.info.version {
+            Some(version) if version != core_version => true,
+            _ => false,
+          };
           if has_version_mismatch {
             res.warning += 1;
           } else {
@@ -98,26 +98,6 @@ impl Resolve<ReadArgs> for GetServersSummary {
       }
     }
     Ok(res)
-  }
-}
-
-impl Resolve<ReadArgs> for GetPeripheryVersion {
-  async fn resolve(
-    self,
-    ReadArgs { user }: &ReadArgs,
-  ) -> serror::Result<GetPeripheryVersionResponse> {
-    let server = get_check_permissions::<Server>(
-      &self.server,
-      user,
-      PermissionLevel::Read.into(),
-    )
-    .await?;
-    let version = server_status_cache()
-      .get(&server.id)
-      .await
-      .map(|s| s.version.clone())
-      .unwrap_or(String::from("unknown"));
-    Ok(GetPeripheryVersionResponse { version })
   }
 }
 
@@ -224,6 +204,29 @@ impl Resolve<ReadArgs> for GetServerActionState {
   }
 }
 
+impl Resolve<ReadArgs> for GetPeripheryInformation {
+  async fn resolve(
+    self,
+    ReadArgs { user }: &ReadArgs,
+  ) -> serror::Result<GetPeripheryInformationResponse> {
+    let server = get_check_permissions::<Server>(
+      &self.server,
+      user,
+      PermissionLevel::Read.into(),
+    )
+    .await?;
+    server_status_cache()
+      .get(&server.id)
+      .await
+      .context("Missing server status")?
+      .periphery_info
+      .as_ref()
+      .cloned()
+      .context("Server status missing Periphery Info. The Server may be disconnected.")
+      .status_code(StatusCode::INTERNAL_SERVER_ERROR)
+  }
+}
+
 impl Resolve<ReadArgs> for GetSystemInformation {
   async fn resolve(
     self,
@@ -236,14 +239,15 @@ impl Resolve<ReadArgs> for GetSystemInformation {
     )
     .await
     .status_code(StatusCode::BAD_REQUEST)?;
-    let info = server_status_cache()
+    server_status_cache()
       .get(&server.id)
       .await
-      .context("No status found for server")?
-      .info
-      .clone()
-      .context("No info found for server")?;
-    Ok(info)
+      .context("Missing server status")?
+      .system_info
+      .as_ref()
+      .cloned()
+      .context("Server status missing system Info. The Server may be disconnected.")
+      .status_code(StatusCode::INTERNAL_SERVER_ERROR)
   }
 }
 
@@ -258,15 +262,15 @@ impl Resolve<ReadArgs> for GetSystemStats {
       PermissionLevel::Read.into(),
     )
     .await?;
-    let status =
-      server_status_cache().get(&server.id).await.with_context(
-        || format!("did not find status for server at {}", server.id),
-      )?;
-    let stats = status
-      .stats
+    server_status_cache()
+      .get(&server.id)
+      .await
+      .context("Missing server status")?
+      .system_stats
       .as_ref()
-      .context("server stats not available")?;
-    Ok(stats.clone())
+      .cloned()
+      .context("Server status missing system stats. The Server may be disconnected.")
+      .status_code(StatusCode::INTERNAL_SERVER_ERROR)
   }
 }
 

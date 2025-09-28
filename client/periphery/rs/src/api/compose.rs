@@ -2,24 +2,14 @@ use komodo_client::entities::{
   FileContents, RepoExecutionResponse, SearchCombinator,
   repo::Repo,
   stack::{
-    ComposeProject, Stack, StackFileDependency,
-    StackRemoteFileContents, StackServiceNames,
+    Stack, StackFileDependency, StackRemoteFileContents,
+    StackServiceNames,
   },
   update::Log,
 };
 use resolver_api::Resolve;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-/// List the compose project names that are on the host.
-/// List running `docker compose ls`
-///
-/// Incoming from docker like:
-/// [{"Name":"project_name","Status":"running(1)","ConfigFiles":"/root/compose/compose.yaml,/root/compose/compose2.yaml"}]
-#[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
-#[response(Vec<ComposeProject>)]
-#[error(serror::Error)]
-pub struct ListComposeProjects {}
 
 //
 

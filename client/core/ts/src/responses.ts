@@ -57,14 +57,22 @@ export type ReadResponses = {
   GetServersSummary: Types.GetServersSummaryResponse;
   GetServer: Types.GetServerResponse;
   GetServerState: Types.GetServerStateResponse;
-  GetPeripheryVersion: Types.GetPeripheryVersionResponse;
+  GetPeripheryInformation: Types.GetPeripheryInformationResponse;
+  GetServerActionState: Types.GetServerActionStateResponse;
+  GetHistoricalServerStats: Types.GetHistoricalServerStatsResponse;
+  ListServers: Types.ListServersResponse;
+  ListFullServers: Types.ListFullServersResponse;
+  ListTerminals: Types.ListTerminalsResponse;
+
+  // ==== DOCKER ====
   GetDockerContainersSummary: Types.GetDockerContainersSummaryResponse;
-  ListDockerContainers: Types.ListDockerContainersResponse;
   ListAllDockerContainers: Types.ListAllDockerContainersResponse;
+  ListDockerContainers: Types.ListDockerContainersResponse;
   InspectDockerContainer: Types.InspectDockerContainerResponse;
   GetResourceMatchingContainer: Types.GetResourceMatchingContainerResponse;
   GetContainerLog: Types.GetContainerLogResponse;
   SearchContainerLog: Types.SearchContainerLogResponse;
+  ListComposeProjects: Types.ListComposeProjectsResponse;
   ListDockerNetworks: Types.ListDockerNetworksResponse;
   InspectDockerNetwork: Types.InspectDockerNetworkResponse;
   ListDockerImages: Types.ListDockerImagesResponse;
@@ -72,12 +80,6 @@ export type ReadResponses = {
   ListDockerImageHistory: Types.ListDockerImageHistoryResponse;
   ListDockerVolumes: Types.ListDockerVolumesResponse;
   InspectDockerVolume: Types.InspectDockerVolumeResponse;
-  ListComposeProjects: Types.ListComposeProjectsResponse;
-  GetServerActionState: Types.GetServerActionStateResponse;
-  GetHistoricalServerStats: Types.GetHistoricalServerStatsResponse;
-  ListServers: Types.ListServersResponse;
-  ListFullServers: Types.ListFullServersResponse;
-  ListTerminals: Types.ListTerminalsResponse;
 
   // ==== STACK ====
   GetStacksSummary: Types.GetStacksSummaryResponse;

@@ -1,10 +1,10 @@
-use anyhow::Context;
 use command::run_komodo_command;
 use derive_variants::EnumVariants;
-use futures::TryFutureExt;
+use futures::FutureExt;
 use komodo_client::entities::{
-  SystemCommand,
   config::{DockerRegistry, GitProvider},
+  server::PeripheryInformation,
+  stats::SystemProcess,
   update::Log,
 };
 use periphery_client::api::{
@@ -15,7 +15,12 @@ use resolver_api::Resolve;
 use response::JsonBytes;
 use serde::{Deserialize, Serialize};
 
-use crate::{config::periphery_config, docker::docker_client};
+use crate::{
+  api::compose::list_compose_projects,
+  config::{periphery_config, periphery_public_key},
+  docker::docker_client,
+  stats::stats_client,
+};
 
 pub mod terminal;
 
@@ -26,7 +31,6 @@ mod deploy;
 mod git;
 mod image;
 mod network;
-mod stats;
 mod volume;
 
 #[derive(Debug)]
@@ -44,22 +48,17 @@ pub struct Args {
 #[serde(tag = "type", content = "params")]
 #[allow(clippy::enum_variant_names, clippy::large_enum_variant)]
 pub enum PeripheryRequest {
-  GetVersion(GetVersion),
+  // Stats / Info (Read)
+  PollStatus(PollStatus),
   GetHealth(GetHealth),
+  GetVersion(GetVersion),
+  GetSystemProcesses(GetSystemProcesses),
+  GetLatestCommit(GetLatestCommit),
 
   // Config (Read)
   ListGitProviders(ListGitProviders),
   ListDockerRegistries(ListDockerRegistries),
   ListSecrets(ListSecrets),
-
-  // Stats / Info (Read)
-  GetSystemInformation(GetSystemInformation),
-  GetSystemStats(GetSystemStats),
-  GetSystemProcesses(GetSystemProcesses),
-  GetLatestCommit(GetLatestCommit),
-
-  // Generic shell execution
-  RunCommand(RunCommand),
 
   // Repo (Write)
   CloneRepo(CloneRepo),
@@ -136,9 +135,6 @@ pub enum PeripheryRequest {
   DeleteVolume(DeleteVolume),
   PruneVolumes(PruneVolumes),
 
-  // All in one (Read)
-  GetDockerLists(GetDockerLists),
-
   // All in one (Write)
   PruneSystem(PruneSystem),
 
@@ -182,6 +178,84 @@ impl Resolve<Args> for GetVersion {
 
 //
 
+impl Resolve<Args> for PollStatus {
+  async fn resolve(
+    self,
+    _: &Args,
+  ) -> serror::Result<PollStatusResponse> {
+    // Docker lists
+    let docker_lists = async {
+      let docker = docker_client();
+      let containers =
+        docker.list_containers().await.unwrap_or_default();
+      // Todo: handle errors better
+      (
+        tokio::join!(
+          docker
+            .list_networks(&containers)
+            .map(Result::unwrap_or_default),
+          docker
+            .list_images(&containers)
+            .map(Result::unwrap_or_default),
+          docker
+            .list_volumes(&containers)
+            .map(Result::unwrap_or_default)
+        ),
+        containers,
+      )
+    };
+
+    let (
+      ((networks, images, volumes), containers),
+      projects,
+      stats_client,
+    ) = tokio::join!(
+      docker_lists,
+      list_compose_projects().map(Result::unwrap_or_default),
+      stats_client().read(),
+    );
+
+    let system_stats = if self.include_stats {
+      Some(stats_client.stats.clone())
+    } else {
+      None
+    };
+
+    let config = periphery_config();
+
+    Ok(PollStatusResponse {
+      periphery_info: PeripheryInformation {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        public_key: periphery_public_key().to_string(),
+        terminals_disabled: config.disable_terminals,
+        container_exec_disabled: config.disable_container_exec,
+        stats_polling_rate: config.stats_polling_rate,
+      },
+      system_info: stats_client.info.clone(),
+      system_stats,
+      containers,
+      networks,
+      images,
+      volumes,
+      projects,
+    })
+  }
+}
+
+//
+
+impl Resolve<Args> for GetSystemProcesses {
+  #[instrument(name = "GetSystemProcesses", level = "debug")]
+  async fn resolve(
+    self,
+    _: &Args,
+  ) -> serror::Result<Vec<SystemProcess>> {
+    Ok(stats_client().read().await.get_processes())
+  }
+}
+
+//
+
 impl Resolve<Args> for ListGitProviders {
   #[instrument(name = "ListGitProviders", level = "debug", skip_all)]
   async fn resolve(
@@ -218,58 +292,6 @@ impl Resolve<Args> for ListSecrets {
         .cloned()
         .collect::<Vec<_>>(),
     )
-  }
-}
-
-impl Resolve<Args> for GetDockerLists {
-  #[instrument(name = "GetDockerLists", level = "debug", skip_all)]
-  async fn resolve(
-    self,
-    args: &Args,
-  ) -> serror::Result<GetDockerListsResponse> {
-    let docker = docker_client();
-    let containers =
-      docker.list_containers().await.map_err(Into::into);
-    // Should still try to retrieve other docker lists, but "in_use" will be false for images, networks, volumes
-    let _containers = match &containers {
-      Ok(containers) => containers.as_slice(),
-      Err(_) => &[],
-    };
-    let (networks, images, volumes, projects) = tokio::join!(
-      docker.list_networks(_containers).map_err(Into::into),
-      docker.list_images(_containers).map_err(Into::into),
-      docker.list_volumes(_containers).map_err(Into::into),
-      ListComposeProjects {}
-        .resolve(args)
-        .map_err(|e| e.error.into())
-    );
-    Ok(GetDockerListsResponse {
-      containers,
-      networks,
-      images,
-      volumes,
-      projects,
-    })
-  }
-}
-
-impl Resolve<Args> for RunCommand {
-  #[instrument(name = "RunCommand")]
-  async fn resolve(self, _: &Args) -> serror::Result<Log> {
-    let RunCommand {
-      command: SystemCommand { path, command },
-    } = self;
-    let res = tokio::spawn(async move {
-      let command = if path.is_empty() {
-        command
-      } else {
-        format!("cd {path} && {command}")
-      };
-      run_komodo_command("run command", None, command).await
-    })
-    .await
-    .context("failure in spawned task")?;
-    Ok(res)
   }
 }
 

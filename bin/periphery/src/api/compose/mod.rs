@@ -39,53 +39,44 @@ fn docker_compose() -> &'static str {
   }
 }
 
-impl Resolve<super::Args> for ListComposeProjects {
-  #[instrument(name = "ComposeInfo", level = "debug", skip_all)]
-  async fn resolve(
-    self,
-    _: &super::Args,
-  ) -> serror::Result<Vec<ComposeProject>> {
-    let docker_compose = docker_compose();
-    let res = run_komodo_command(
-      "List Projects",
-      None,
-      format!("{docker_compose} ls --all --format json"),
-    )
-    .await;
+pub async fn list_compose_projects()
+-> anyhow::Result<Vec<ComposeProject>> {
+  let docker_compose = docker_compose();
+  let res = run_komodo_command(
+    "List Projects",
+    None,
+    format!("{docker_compose} ls --all --format json"),
+  )
+  .await;
 
-    if !res.success {
-      return Err(
-        anyhow!("{}", res.combined())
-          .context(format!(
-            "failed to list compose projects using {docker_compose} ls"
-          ))
-          .into(),
-      );
-    }
-
-    let res =
-      serde_json::from_str::<Vec<DockerComposeLsItem>>(&res.stdout)
-        .with_context(|| res.stdout.clone())
-        .with_context(|| {
-          format!(
-            "failed to parse '{docker_compose} ls' response to json"
-          )
-        })?
-        .into_iter()
-        .filter(|item| !item.name.is_empty())
-        .map(|item| ComposeProject {
-          name: item.name,
-          status: item.status,
-          compose_files: item
-            .config_files
-            .split(',')
-            .map(str::to_string)
-            .collect(),
-        })
-        .collect();
-
-    Ok(res)
+  if !res.success {
+    return Err(anyhow!("{}", res.combined()).context(format!(
+      "failed to list compose projects using {docker_compose} ls"
+    )));
   }
+
+  let res =
+    serde_json::from_str::<Vec<DockerComposeLsItem>>(&res.stdout)
+      .with_context(|| res.stdout.clone())
+      .with_context(|| {
+        format!(
+          "failed to parse '{docker_compose} ls' response to json"
+        )
+      })?
+      .into_iter()
+      .filter(|item| !item.name.is_empty())
+      .map(|item| ComposeProject {
+        name: item.name,
+        status: item.status,
+        compose_files: item
+          .config_files
+          .split(',')
+          .map(str::to_string)
+          .collect(),
+      })
+      .collect();
+
+  Ok(res)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

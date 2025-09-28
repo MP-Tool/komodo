@@ -3,8 +3,8 @@
 		"scope": "rust",
 		"prefix": "resolve",
 		"body": [
-			"impl Resolve<${1}, User> for State {",
-			"\tasync fn resolve(&self, ${1} { ${0} }: ${1}, _: User) -> anyhow::Result<${2}> {",
+			"impl Resolve<${2}> for ${1} {",
+			"\tasync fn resolve(self, _: &${2}) -> serror::Result<${0}> {",
 			"\t\ttodo!()",
 			"\t}",
 			"}"

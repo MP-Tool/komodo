@@ -1,16 +1,16 @@
 use komodo_client::entities::{
-  SystemCommand,
   config::{DockerRegistry, GitProvider},
   docker::{
     container::ContainerListItem, image::ImageListItem,
     network::NetworkListItem, volume::VolumeListItem,
   },
+  server::PeripheryInformation,
   stack::ComposeProject,
+  stats::{SystemInformation, SystemStats},
   update::Log,
 };
 use resolver_api::Resolve;
 use serde::{Deserialize, Serialize};
-use serror::Serror;
 
 pub mod build;
 pub mod compose;
@@ -44,19 +44,31 @@ pub struct GetVersionResponse {
   pub version: String,
 }
 
-/// Returns all containers, networks, images, compose projects
+//
+
+/// This is the data Core uses to update all Server-related status caches.
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
-#[response(GetDockerListsResponse)]
+#[response(PollStatusResponse)]
 #[error(serror::Error)]
-pub struct GetDockerLists {}
+pub struct PollStatus {
+  /// Some servers have stats monitoring disabled.
+  pub include_stats: bool,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetDockerListsResponse {
-  pub containers: Result<Vec<ContainerListItem>, Serror>,
-  pub networks: Result<Vec<NetworkListItem>, Serror>,
-  pub images: Result<Vec<ImageListItem>, Serror>,
-  pub volumes: Result<Vec<VolumeListItem>, Serror>,
-  pub projects: Result<Vec<ComposeProject>, Serror>,
+pub struct PollStatusResponse {
+  pub periphery_info: PeripheryInformation,
+  /// Basic system information
+  pub system_info: SystemInformation,
+  /// Current System Stats (Cpu, Mem, Disk)
+  pub system_stats: Option<SystemStats>,
+
+  // Docker lists
+  pub containers: Vec<ContainerListItem>,
+  pub networks: Vec<NetworkListItem>,
+  pub images: Vec<ImageListItem>,
+  pub volumes: Vec<VolumeListItem>,
+  pub projects: Vec<ComposeProject>,
 }
 
 //
@@ -90,12 +102,3 @@ pub struct ListSecrets {}
 #[response(Log)]
 #[error(serror::Error)]
 pub struct PruneSystem {}
-
-//
-
-#[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
-#[response(Log)]
-#[error(serror::Error)]
-pub struct RunCommand {
-  pub command: SystemCommand,
-}

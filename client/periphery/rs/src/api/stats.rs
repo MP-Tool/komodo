@@ -1,22 +1,6 @@
-use komodo_client::entities::stats::{
-  SystemInformation, SystemProcess, SystemStats,
-};
+use komodo_client::entities::stats::SystemProcess;
 use resolver_api::Resolve;
 use serde::{Deserialize, Serialize};
-
-//
-
-#[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
-#[response(SystemInformation)]
-#[error(serror::Error)]
-pub struct GetSystemInformation {}
-
-//
-
-#[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
-#[response(SystemStats)]
-#[error(serror::Error)]
-pub struct GetSystemStats {}
 
 //
 

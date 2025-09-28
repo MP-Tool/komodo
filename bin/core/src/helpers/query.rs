@@ -77,7 +77,10 @@ pub async fn get_server_state(server: &Server) -> ServerState {
   let Ok(periphery) = super::periphery_client(server).await else {
     return ServerState::NotOk;
   };
-  match periphery.request(periphery_client::api::GetHealth {}).await {
+  match periphery
+    .request(periphery_client::api::GetVersion {})
+    .await
+  {
     Ok(_) => ServerState::Ok,
     Err(_) => ServerState::NotOk,
   }

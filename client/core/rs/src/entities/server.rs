@@ -10,7 +10,7 @@ use crate::{
   deserializers::{
     option_string_list_deserializer, string_list_deserializer,
   },
-  entities::MaintenanceWindow,
+  entities::{MaintenanceWindow, Timelength},
 };
 
 use super::{
@@ -31,15 +31,12 @@ pub struct ServerListItemInfo {
   pub state: ServerState,
   /// Region of the server.
   pub region: String,
-  /// Address of the server.
-  pub address: String,
+  /// Address of the server, or null if empty.
+  pub address: Option<String>,
   /// External address of the server (reachable by users).
   /// Used with links.
-  #[serde(default)] // API backward compat
-  pub external_address: String,
-  /// The Komodo Periphery version of the server.
-  pub version: String,
-  /// Whether server is configured to send unreachable alerts.
+  pub external_address: Option<String>,
+  /// Whether server is configured to send disconnected alerts.
   pub send_unreachable_alerts: bool,
   /// Whether server is configured to send cpu alerts.
   pub send_cpu_alerts: bool,
@@ -49,6 +46,11 @@ pub struct ServerListItemInfo {
   pub send_disk_alerts: bool,
   /// Whether server is configured to send version mismatch alerts.
   pub send_version_mismatch_alerts: bool,
+  /// The Komodo Periphery version.
+  pub version: Option<String>,
+  /// The public key of Periphery
+  pub public_key: Option<String>,
+  /// Whether server is configured to send unreachable alerts.
   /// Whether terminals are disabled for this Server.
   pub terminals_disabled: bool,
   /// Whether container exec is disabled for this Server.
@@ -309,6 +311,22 @@ pub struct ServerHealth {
   pub cpu: ServerHealthState,
   pub mem: ServerHealthState,
   pub disks: HashMap<PathBuf, ServerHealthState>,
+}
+
+/// Info about Periphery configuration
+#[typeshare]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+pub struct PeripheryInformation {
+  /// The Periphery version.
+  pub version: String,
+  /// The public key of Periphery
+  pub public_key: String,
+  /// Whether terminals are disabled on this Periphery server
+  pub terminals_disabled: bool,
+  /// Whether container exec is disabled on this Periphery server
+  pub container_exec_disabled: bool,
+  /// The rate the system stats are being polled from the system
+  pub stats_polling_rate: Timelength,
 }
 
 /// Info about an active terminal on a server.

@@ -401,15 +401,7 @@ export const ServerComponents: RequiredResourceComponents = {
 
   Info: {
     Pubkey: ({ id }) => {
-      const isServerAvailable = useIsServerAvailable(id);
-      const public_key = useRead(
-        "GetSystemInformation",
-        { server: id },
-        {
-          enabled: isServerAvailable,
-          refetchInterval: 5000,
-        }
-      ).data?.public_key;
+      const public_key = useServer(id)?.info.public_key;
       return (
         <HoverCard>
           <HoverCardTrigger>

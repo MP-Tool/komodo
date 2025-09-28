@@ -7,8 +7,8 @@ use komodo_client::entities::{
   },
   repo::Repo,
   server::{
-    Server, ServerConfig, ServerHealth, ServerHealthState,
-    ServerState,
+    PeripheryInformation, Server, ServerConfig, ServerHealth,
+    ServerHealthState, ServerState,
   },
   stack::{ComposeProject, Stack, StackState},
   stats::{SingleDiskUsage, SystemInformation, SystemStats},
@@ -103,22 +103,23 @@ type DockerLists = (
 pub async fn insert_server_status(
   server: &Server,
   state: ServerState,
-  version: String,
-  info: Option<SystemInformation>,
-  stats: Option<SystemStats>,
+  periphery_info: Option<PeripheryInformation>,
+  system_info: Option<SystemInformation>,
+  system_stats: Option<SystemStats>,
   (containers, networks, images, volumes, projects): DockerLists,
   err: impl Into<Option<Serror>>,
 ) {
-  let health = stats.as_ref().map(|s| get_server_health(server, s));
+  let health =
+    system_stats.as_ref().map(|s| get_server_health(server, s));
   server_status_cache()
     .insert(
       server.id.clone(),
       CachedServerStatus {
         id: server.id.clone(),
         state,
-        version,
-        info,
-        stats,
+        periphery_info,
+        system_info,
+        system_stats,
         health,
         containers,
         networks,

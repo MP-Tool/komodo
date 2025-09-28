@@ -6,17 +6,21 @@ use database::mungos::{find::find_collect, mongodb::bson::doc};
 use futures::future::join_all;
 use helpers::insert_stacks_status_unknown;
 use komodo_client::entities::{
-  deployment::DeploymentState,
+  build::Build,
+  deployment::{Deployment, DeploymentState},
   docker::{
     container::ContainerListItem, image::ImageListItem,
     network::NetworkListItem, volume::VolumeListItem,
   },
   komodo_timestamp, optional_string,
-  server::{Server, ServerHealth, ServerState},
-  stack::{ComposeProject, StackService, StackState},
+  repo::Repo,
+  server::{PeripheryInformation, Server, ServerHealth, ServerState},
+  stack::{ComposeProject, Stack, StackService, StackState},
   stats::{SystemInformation, SystemStats},
 };
-use periphery_client::api::{self, git::GetLatestCommit};
+use periphery_client::api::{
+  self, PollStatusResponse, git::GetLatestCommit,
+};
 use serror::Serror;
 use tokio::sync::Mutex;
 
@@ -34,7 +38,6 @@ use self::helpers::{
 
 mod alert;
 mod helpers;
-mod lists;
 mod record;
 mod resources;
 
@@ -48,10 +51,10 @@ pub struct History<Curr: Default, Prev> {
 pub struct CachedServerStatus {
   pub id: String,
   pub state: ServerState,
-  pub version: String,
   pub health: Option<ServerHealth>,
-  pub info: Option<SystemInformation>,
-  pub stats: Option<SystemStats>,
+  pub periphery_info: Option<PeripheryInformation>,
+  pub system_info: Option<SystemInformation>,
+  pub system_stats: Option<SystemStats>,
   pub containers: Option<Vec<ContainerListItem>>,
   pub networks: Option<Vec<NetworkListItem>>,
   pub images: Option<Vec<ImageListItem>>,
@@ -156,39 +159,15 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
 
   *lock = now;
 
-  let (deployments, builds, repos, stacks) = tokio::join!(
-    find_collect(
-      &db_client().deployments,
-      doc! { "config.server_id": &server.id },
-      None,
-    ),
-    find_collect(&db_client().builds, doc! {}, None,),
-    find_collect(
-      &db_client().repos,
-      doc! { "config.server_id": &server.id },
-      None,
-    ),
-    find_collect(
-      &db_client().stacks,
-      doc! { "config.server_id": &server.id },
-      None,
-    )
-  );
-
-  let deployments =  deployments.inspect_err(|e| error!("failed to get deployments list from db (update status cache) | server : {} | {e:#}", server.name)).unwrap_or_default();
-  let builds =  builds.inspect_err(|e| error!("failed to get builds list from db (update status cache) | server : {} | {e:#}", server.name)).unwrap_or_default();
-  let repos = repos.inspect_err(|e|  error!("failed to get repos list from db (update status cache) | server: {} | {e:#}", server.name)).unwrap_or_default();
-  let stacks = stacks.inspect_err(|e|  error!("failed to get stacks list from db (update status cache) | server: {} | {e:#}", server.name)).unwrap_or_default();
+  let resources = UpdateCacheResources::load(server).await;
 
   // Handle server disabled
   if !server.config.enabled {
-    insert_deployments_status_unknown(deployments).await;
-    insert_stacks_status_unknown(stacks).await;
-    insert_repos_status_unknown(repos).await;
+    resources.insert_status_unknown().await;
     insert_server_status(
       server,
       ServerState::Disabled,
-      String::from("Unknown"),
+      None,
       None,
       None,
       (None, None, None, None, None),
@@ -198,23 +177,14 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
     return;
   }
 
-  let Ok(periphery) = periphery_client(server).await else {
-    return;
-  };
-
-  let info = match periphery
-    .request(api::stats::GetSystemInformation {})
-    .await
-  {
-    Ok(info) => info,
+  let periphery = match periphery_client(server).await {
+    Ok(periphery) => periphery,
     Err(e) => {
-      insert_deployments_status_unknown(deployments).await;
-      insert_stacks_status_unknown(stacks).await;
-      insert_repos_status_unknown(repos).await;
+      resources.insert_status_unknown().await;
       insert_server_status(
         server,
         ServerState::NotOk,
-        String::from("Unknown"),
+        None,
         None,
         None,
         (None, None, None, None, None),
@@ -225,85 +195,75 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
     }
   };
 
-  let stats = if server.config.stats_monitoring {
-    match periphery.request(api::stats::GetSystemStats {}).await {
-      Ok(stats) => Some(filter_volumes(server, stats)),
-      Err(e) => {
-        insert_deployments_status_unknown(deployments).await;
-        insert_stacks_status_unknown(stacks).await;
-        insert_repos_status_unknown(repos).await;
-        insert_server_status(
-          server,
-          ServerState::NotOk,
-          info.version.clone(),
-          Some(info),
-          None,
-          (None, None, None, None, None),
-          Serror::from(&e),
-        )
-        .await;
-        return;
-      }
+  let PollStatusResponse {
+    periphery_info,
+    system_info,
+    system_stats,
+    mut containers,
+    networks,
+    images,
+    volumes,
+    projects,
+  } = match periphery
+    .request(api::PollStatus {
+      include_stats: server.config.stats_monitoring,
+    })
+    .await
+  {
+    Ok(info) => info,
+    Err(e) => {
+      resources.insert_status_unknown().await;
+      insert_server_status(
+        server,
+        ServerState::NotOk,
+        None,
+        None,
+        None,
+        (None, None, None, None, None),
+        Serror::from(&e),
+      )
+      .await;
+      return;
     }
-  } else {
-    None
   };
 
-  match lists::get_docker_lists(&periphery).await {
-    Ok((mut containers, networks, images, volumes, projects)) => {
-      containers.iter_mut().for_each(|container| {
-        container.server_id = Some(server.id.clone())
-      });
-      tokio::join!(
-        resources::update_deployment_cache(
-          server.name.clone(),
-          deployments,
-          &containers,
-          &images,
-          &builds,
-        ),
-        resources::update_stack_cache(
-          server.name.clone(),
-          stacks,
-          &containers,
-          &images
-        ),
-      );
-      insert_server_status(
-        server,
-        ServerState::Ok,
-        info.version.clone(),
-        Some(info),
-        stats,
-        (
-          Some(containers.clone()),
-          Some(networks),
-          Some(images),
-          Some(volumes),
-          Some(projects),
-        ),
-        None,
-      )
-      .await;
-    }
-    Err(e) => {
-      insert_deployments_status_unknown(deployments).await;
-      insert_stacks_status_unknown(stacks).await;
-      insert_server_status(
-        server,
-        ServerState::Ok,
-        info.version.clone(),
-        Some(info),
-        stats,
-        (None, None, None, None, None),
-        Some(e.into()),
-      )
-      .await;
-    }
-  }
+  containers.iter_mut().for_each(|container| {
+    container.server_id = Some(server.id.clone())
+  });
+  tokio::join!(
+    resources::update_deployment_cache(
+      server.name.clone(),
+      resources.deployments,
+      &containers,
+      &images,
+      &resources.builds,
+    ),
+    resources::update_stack_cache(
+      server.name.clone(),
+      resources.stacks,
+      &containers,
+      &images
+    ),
+  );
+  insert_server_status(
+    server,
+    ServerState::Ok,
+    Some(periphery_info),
+    Some(system_info),
+    system_stats.map(|stats| filter_volumes(server, stats)),
+    (
+      Some(containers.clone()),
+      Some(networks),
+      Some(images),
+      Some(volumes),
+      Some(projects),
+    ),
+    None,
+  )
+  .await;
 
   let status_cache = repo_status_cache();
-  for repo in repos {
+  for repo in resources.repos {
     let (latest_hash, latest_message) = periphery
       .request(GetLatestCommit {
         name: repo.name.clone(),
@@ -324,6 +284,54 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
         .into(),
       )
       .await;
+  }
+}
+
+struct UpdateCacheResources {
+  stacks: Vec<Stack>,
+  deployments: Vec<Deployment>,
+  builds: Vec<Build>,
+  repos: Vec<Repo>,
+}
+
+impl UpdateCacheResources {
+  pub async fn load(server: &Server) -> Self {
+    let (stacks, deployments, builds, repos) = tokio::join!(
+      find_collect(
+        &db_client().stacks,
+        doc! { "config.server_id": &server.id },
+        None,
+      ),
+      find_collect(
+        &db_client().deployments,
+        doc! { "config.server_id": &server.id },
+        None,
+      ),
+      find_collect(&db_client().builds, doc! {}, None,),
+      find_collect(
+        &db_client().repos,
+        doc! { "config.server_id": &server.id },
+        None,
+      ),
+    );
+
+    let stacks = stacks.inspect_err(|e|  error!("failed to get stacks list from db (update status cache) | server: {} | {e:#}", server.name)).unwrap_or_default();
+    let deployments =  deployments.inspect_err(|e| error!("failed to get deployments list from db (update status cache) | server : {} | {e:#}", server.name)).unwrap_or_default();
+    let builds =  builds.inspect_err(|e| error!("failed to get builds list from db (update status cache) | server : {} | {e:#}", server.name)).unwrap_or_default();
+    let repos = repos.inspect_err(|e|  error!("failed to get repos list from db (update status cache) | server: {} | {e:#}", server.name)).unwrap_or_default();
+
+    Self {
+      stacks,
+      deployments,
+      builds,
+      repos,
+    }
+  }
+
+  pub async fn insert_status_unknown(self) {
+    insert_stacks_status_unknown(self.stacks).await;
+    insert_deployments_status_unknown(self.deployments).await;
+    insert_repos_status_unknown(self.repos).await;
   }
 }
 

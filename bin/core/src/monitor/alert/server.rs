@@ -182,17 +182,24 @@ pub async fn alert_servers(
     // SERVER VERSION MISMATCH
     // ===================
     let core_version = env!("CARGO_PKG_VERSION");
-    let has_version_mismatch = server_status.state == ServerState::Ok
-      && !server_status.version.is_empty()
-      && server_status.version != "Unknown"
-      && server_status.version != core_version;
+    let mismatched_server_version =
+      if server_status.state != ServerState::Ok {
+        None
+      } else if let Some(version) =
+        server_status.periphery_info.as_ref().map(|i| &i.version)
+        && version != core_version
+      {
+        Some(version)
+      } else {
+        None
+      };
 
     let version_alert = server_alerts.as_ref().and_then(|alerts| {
       alerts.get(&AlertDataVariant::ServerVersionMismatch)
     });
 
-    match (has_version_mismatch, version_alert) {
-      (true, None) => {
+    match (mismatched_server_version, version_alert) {
+      (Some(version), None) => {
         // Only open version mismatch alert if not in maintenance and buffer is ready
         if !in_maintenance
           && buffer.ready_to_open(
@@ -211,7 +218,7 @@ pub async fn alert_servers(
               id: server_status.id.clone(),
               name: server.name.clone(),
               region: optional_string(&server.config.region),
-              server_version: server_status.version.clone(),
+              server_version: version.clone(),
               core_version: core_version.to_string(),
             },
           };
@@ -220,27 +227,27 @@ pub async fn alert_servers(
             .push((alert, server.config.send_version_mismatch_alerts))
         }
       }
-      (true, Some(alert)) => {
+      (Some(version), Some(alert)) => {
         // Update existing alert with current version info
         let mut alert = alert.clone();
         alert.data = AlertData::ServerVersionMismatch {
           id: server_status.id.clone(),
           name: server.name.clone(),
           region: optional_string(&server.config.region),
-          server_version: server_status.version.clone(),
+          server_version: version.clone(),
           core_version: core_version.to_string(),
         };
         // Don't send notification for updates
         alerts_to_update.push((alert, false));
       }
-      (false, Some(alert)) => {
+      (None, Some(alert)) => {
         // Version is now correct, close the alert
         alert_ids_to_close.push((
           alert.clone(),
           server.config.send_version_mismatch_alerts,
         ));
       }
-      (false, None) => {
+      (None, None) => {
         // Reset buffer state when no mismatch and no alert
         buffer.reset(
           server_status.id.clone(),
@@ -282,7 +289,7 @@ pub async fn alert_servers(
               name: server.name.clone(),
               region: optional_string(&server.config.region),
               percentage: server_status
-                .stats
+                .system_stats
                 .as_ref()
                 .map(|s| s.cpu_perc as f64)
                 .unwrap_or(0.0),
@@ -304,7 +311,7 @@ pub async fn alert_servers(
             name: server.name.clone(),
             region: optional_string(&server.config.region),
             percentage: server_status
-              .stats
+              .system_stats
               .as_ref()
               .map(|s| s.cpu_perc as f64)
               .unwrap_or(0.0),
@@ -320,7 +327,7 @@ pub async fn alert_servers(
           name: server.name.clone(),
           region: optional_string(&server.config.region),
           percentage: server_status
-            .stats
+            .system_stats
             .as_ref()
             .map(|s| s.cpu_perc as f64)
             .unwrap_or(0.0),
@@ -361,12 +368,12 @@ pub async fn alert_servers(
               name: server.name.clone(),
               region: optional_string(&server.config.region),
               total_gb: server_status
-                .stats
+                .system_stats
                 .as_ref()
                 .map(|s| s.mem_total_gb)
                 .unwrap_or(0.0),
               used_gb: server_status
-                .stats
+                .system_stats
                 .as_ref()
                 .map(|s| s.mem_used_gb)
                 .unwrap_or(0.0),
@@ -388,12 +395,12 @@ pub async fn alert_servers(
             name: server.name.clone(),
             region: optional_string(&server.config.region),
             total_gb: server_status
-              .stats
+              .system_stats
               .as_ref()
               .map(|s| s.mem_total_gb)
               .unwrap_or(0.0),
             used_gb: server_status
-              .stats
+              .system_stats
               .as_ref()
               .map(|s| s.mem_used_gb)
               .unwrap_or(0.0),
@@ -409,12 +416,12 @@ pub async fn alert_servers(
           name: server.name.clone(),
           region: optional_string(&server.config.region),
           total_gb: server_status
-            .stats
+            .system_stats
             .as_ref()
             .map(|s| s.mem_total_gb)
             .unwrap_or(0.0),
           used_gb: server_status
-            .stats
+            .system_stats
             .as_ref()
             .map(|s| s.mem_used_gb)
             .unwrap_or(0.0),
@@ -452,7 +459,7 @@ pub async fn alert_servers(
             )
           {
             let disk =
-              server_status.stats.as_ref().and_then(|stats| {
+              server_status.system_stats.as_ref().and_then(|stats| {
                 stats.disks.iter().find(|disk| disk.mount == *path)
               });
             let alert = Alert {
@@ -487,7 +494,7 @@ pub async fn alert_servers(
           // modify alert level only if it has increased and not in maintenance
           if !in_maintenance && health.level < alert.level {
             let disk =
-              server_status.stats.as_ref().and_then(|stats| {
+              server_status.system_stats.as_ref().and_then(|stats| {
                 stats.disks.iter().find(|disk| disk.mount == *path)
               });
             alert.level = health.level;
@@ -505,9 +512,10 @@ pub async fn alert_servers(
         }
         (SeverityLevel::Ok, Some(alert), true) => {
           let mut alert = alert.clone();
-          let disk = server_status.stats.as_ref().and_then(|stats| {
-            stats.disks.iter().find(|disk| disk.mount == *path)
-          });
+          let disk =
+            server_status.system_stats.as_ref().and_then(|stats| {
+              stats.disks.iter().find(|disk| disk.mount == *path)
+            });
           alert.level = health.level;
           alert.data = AlertData::ServerDisk {
             id: server_status.id.clone(),

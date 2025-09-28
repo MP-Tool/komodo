@@ -10,7 +10,7 @@ pub async fn record_server_stats(ts: i64) {
   let records = status
     .into_iter()
     .filter_map(|status| {
-      let stats = status.stats.as_ref()?;
+      let stats = status.system_stats.as_ref()?;
 
       let TotalDiskUsage {
         used_gb: disk_used_gb,

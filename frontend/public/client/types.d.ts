@@ -1832,6 +1832,64 @@ export interface ContainerStats {
 export type GetDeploymentStatsResponse = ContainerStats;
 export type GetDockerRegistryAccountResponse = DockerRegistryAccount;
 export type GetGitProviderAccountResponse = GitProviderAccount;
+export declare enum Timelength {
+    /** `1-sec` */
+    OneSecond = "1-sec",
+    /** `5-sec` */
+    FiveSeconds = "5-sec",
+    /** `10-sec` */
+    TenSeconds = "10-sec",
+    /** `15-sec` */
+    FifteenSeconds = "15-sec",
+    /** `30-sec` */
+    ThirtySeconds = "30-sec",
+    /** `1-min` */
+    OneMinute = "1-min",
+    /** `2-min` */
+    TwoMinutes = "2-min",
+    /** `5-min` */
+    FiveMinutes = "5-min",
+    /** `10-min` */
+    TenMinutes = "10-min",
+    /** `15-min` */
+    FifteenMinutes = "15-min",
+    /** `30-min` */
+    ThirtyMinutes = "30-min",
+    /** `1-hr` */
+    OneHour = "1-hr",
+    /** `2-hr` */
+    TwoHours = "2-hr",
+    /** `6-hr` */
+    SixHours = "6-hr",
+    /** `8-hr` */
+    EightHours = "8-hr",
+    /** `12-hr` */
+    TwelveHours = "12-hr",
+    /** `1-day` */
+    OneDay = "1-day",
+    /** `3-day` */
+    ThreeDay = "3-day",
+    /** `1-wk` */
+    OneWeek = "1-wk",
+    /** `2-wk` */
+    TwoWeeks = "2-wk",
+    /** `30-day` */
+    ThirtyDays = "30-day"
+}
+/** Info about Periphery configuration */
+export interface PeripheryInformation {
+    /** The Periphery version. */
+    version: string;
+    /** The public key of Periphery */
+    public_key: string;
+    /** Whether terminals are disabled on this Periphery server */
+    terminals_disabled: boolean;
+    /** Whether container exec is disabled on this Periphery server */
+    container_exec_disabled: boolean;
+    /** The rate the system stats are being polled from the system */
+    stats_polling_rate: Timelength;
+}
+export type GetPeripheryInformationResponse = PeripheryInformation;
 export type GetPermissionResponse = PermissionLevelAndSpecifics;
 export interface ProcedureActionState {
     running: boolean;
@@ -2525,14 +2583,6 @@ export interface SystemInformation {
     host_name?: string;
     /** The CPU's brand */
     cpu_brand: string;
-    /** Whether terminals are disabled on this Periphery server */
-    terminals_disabled: boolean;
-    /** Whether container exec is disabled on this Periphery server */
-    container_exec_disabled: boolean;
-    /** The public key of the Periphery agent */
-    public_key: string;
-    /** The version of the Periphery agent */
-    version: string;
 }
 export type GetSystemInformationResponse = SystemInformation;
 export interface SystemLoadAverage {
@@ -2553,50 +2603,6 @@ export interface SingleDiskUsage {
     used_gb: number;
     /** Total size of the disk in GB */
     total_gb: number;
-}
-export declare enum Timelength {
-    /** `1-sec` */
-    OneSecond = "1-sec",
-    /** `5-sec` */
-    FiveSeconds = "5-sec",
-    /** `10-sec` */
-    TenSeconds = "10-sec",
-    /** `15-sec` */
-    FifteenSeconds = "15-sec",
-    /** `30-sec` */
-    ThirtySeconds = "30-sec",
-    /** `1-min` */
-    OneMinute = "1-min",
-    /** `2-min` */
-    TwoMinutes = "2-min",
-    /** `5-min` */
-    FiveMinutes = "5-min",
-    /** `10-min` */
-    TenMinutes = "10-min",
-    /** `15-min` */
-    FifteenMinutes = "15-min",
-    /** `30-min` */
-    ThirtyMinutes = "30-min",
-    /** `1-hr` */
-    OneHour = "1-hr",
-    /** `2-hr` */
-    TwoHours = "2-hr",
-    /** `6-hr` */
-    SixHours = "6-hr",
-    /** `8-hr` */
-    EightHours = "8-hr",
-    /** `12-hr` */
-    TwelveHours = "12-hr",
-    /** `1-day` */
-    OneDay = "1-day",
-    /** `3-day` */
-    ThreeDay = "3-day",
-    /** `1-wk` */
-    OneWeek = "1-wk",
-    /** `2-wk` */
-    TwoWeeks = "2-wk",
-    /** `30-day` */
-    ThirtyDays = "30-day"
 }
 /** Realtime system stats data. */
 export interface SystemStats {
@@ -3843,16 +3849,14 @@ export interface ServerListItemInfo {
     state: ServerState;
     /** Region of the server. */
     region: string;
-    /** Address of the server. */
-    address: string;
+    /** Address of the server, or null if empty. */
+    address?: string;
     /**
      * External address of the server (reachable by users).
      * Used with links.
      */
     external_address?: string;
-    /** The Komodo Periphery version of the server. */
-    version: string;
-    /** Whether server is configured to send unreachable alerts. */
+    /** Whether server is configured to send disconnected alerts. */
     send_unreachable_alerts: boolean;
     /** Whether server is configured to send cpu alerts. */
     send_cpu_alerts: boolean;
@@ -3862,7 +3866,14 @@ export interface ServerListItemInfo {
     send_disk_alerts: boolean;
     /** Whether server is configured to send version mismatch alerts. */
     send_version_mismatch_alerts: boolean;
-    /** Whether terminals are disabled for this Server. */
+    /** The Komodo Periphery version. */
+    version?: string;
+    /** The public key of Periphery */
+    public_key?: string;
+    /**
+     * Whether server is configured to send unreachable alerts.
+     * Whether terminals are disabled for this Server.
+     */
     terminals_disabled: boolean;
     /** Whether container exec is disabled for this Server. */
     container_exec_disabled: boolean;
@@ -5937,17 +5948,13 @@ export interface GetLoginOptionsResponse {
     registration_disabled: boolean;
 }
 /**
- * Get the version of the Komodo Periphery agent on the target server.
- * Response: [GetPeripheryVersionResponse].
+ * Get the Periphery information of the target server,
+ * including the Periphery version and public key.
+ * Response: [PeripheryInformation].
  */
-export interface GetPeripheryVersion {
+export interface GetPeripheryInformation {
     /** Id or name */
     server: string;
-}
-/** Response for [GetPeripheryVersion]. */
-export interface GetPeripheryVersionResponse {
-    /** The version of periphery. */
-    version: string;
 }
 /**
  * Gets the calling user's permission level on a specific resource.
@@ -6408,7 +6415,7 @@ export interface ListAlertsResponse {
     next_page?: I64;
 }
 /**
- * List all docker containers on the target server.
+ * List all docker containers on the target servers.
  * Response: [ListDockerContainersResponse].
  */
 export interface ListAllDockerContainers {
@@ -8443,8 +8450,8 @@ export type ReadRequest = {
     type: "GetServerState";
     params: GetServerState;
 } | {
-    type: "GetPeripheryVersion";
-    params: GetPeripheryVersion;
+    type: "GetPeripheryInformation";
+    params: GetPeripheryInformation;
 } | {
     type: "GetServerActionState";
     params: GetServerActionState;
@@ -8458,6 +8465,18 @@ export type ReadRequest = {
     type: "ListFullServers";
     params: ListFullServers;
 } | {
+    type: "ListTerminals";
+    params: ListTerminals;
+} | {
+    type: "GetDockerContainersSummary";
+    params: GetDockerContainersSummary;
+} | {
+    type: "ListAllDockerContainers";
+    params: ListAllDockerContainers;
+} | {
+    type: "ListDockerContainers";
+    params: ListDockerContainers;
+} | {
     type: "InspectDockerContainer";
     params: InspectDockerContainer;
 } | {
@@ -8470,8 +8489,17 @@ export type ReadRequest = {
     type: "SearchContainerLog";
     params: SearchContainerLog;
 } | {
+    type: "ListComposeProjects";
+    params: ListComposeProjects;
+} | {
+    type: "ListDockerNetworks";
+    params: ListDockerNetworks;
+} | {
     type: "InspectDockerNetwork";
     params: InspectDockerNetwork;
+} | {
+    type: "ListDockerImages";
+    params: ListDockerImages;
 } | {
     type: "InspectDockerImage";
     params: InspectDockerImage;
@@ -8479,32 +8507,11 @@ export type ReadRequest = {
     type: "ListDockerImageHistory";
     params: ListDockerImageHistory;
 } | {
-    type: "InspectDockerVolume";
-    params: InspectDockerVolume;
-} | {
-    type: "GetDockerContainersSummary";
-    params: GetDockerContainersSummary;
-} | {
-    type: "ListAllDockerContainers";
-    params: ListAllDockerContainers;
-} | {
-    type: "ListDockerContainers";
-    params: ListDockerContainers;
-} | {
-    type: "ListDockerNetworks";
-    params: ListDockerNetworks;
-} | {
-    type: "ListDockerImages";
-    params: ListDockerImages;
-} | {
     type: "ListDockerVolumes";
     params: ListDockerVolumes;
 } | {
-    type: "ListComposeProjects";
-    params: ListComposeProjects;
-} | {
-    type: "ListTerminals";
-    params: ListTerminals;
+    type: "InspectDockerVolume";
+    params: InspectDockerVolume;
 } | {
     type: "GetSystemInformation";
     params: GetSystemInformation;

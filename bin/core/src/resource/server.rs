@@ -3,6 +3,7 @@ use database::mungos::mongodb::{Collection, bson::doc};
 use indexmap::IndexSet;
 use komodo_client::entities::{
   Operation, ResourceTarget, ResourceTargetVariant, komodo_timestamp,
+  optional_string,
   permission::SpecificPermission,
   resource::Resource,
   server::{
@@ -61,14 +62,21 @@ impl super::KomodoResource for Server {
     server: Resource<Self::Config, Self::Info>,
   ) -> Self::ListItem {
     let status = server_status_cache().get(&server.id).await;
-    let (terminals_disabled, container_exec_disabled) = status
-      .as_ref()
-      .and_then(|s| {
-        s.info
-          .as_ref()
-          .map(|i| (i.terminals_disabled, i.container_exec_disabled))
-      })
-      .unwrap_or((true, true));
+    let (
+      version,
+      public_key,
+      terminals_disabled,
+      container_exec_disabled,
+    ) = match status.as_ref().and_then(|s| s.periphery_info.as_ref())
+    {
+      Some(info) => (
+        Some(info.version.clone()),
+        Some(info.public_key.clone()),
+        info.terminals_disabled,
+        info.container_exec_disabled,
+      ),
+      None => (None, None, true, true),
+    };
     ServerListItem {
       name: server.name,
       id: server.id,
@@ -77,12 +85,11 @@ impl super::KomodoResource for Server {
       resource_type: ResourceTargetVariant::Server,
       info: ServerListItemInfo {
         state: status.as_ref().map(|s| s.state).unwrap_or_default(),
-        version: status
-          .map(|s| s.version.clone())
-          .unwrap_or(String::from("Unknown")),
         region: server.config.region,
-        address: server.config.address,
-        external_address: server.config.external_address,
+        address: optional_string(server.config.address),
+        external_address: optional_string(
+          server.config.external_address,
+        ),
         send_unreachable_alerts: server
           .config
           .send_unreachable_alerts,
@@ -92,6 +99,8 @@ impl super::KomodoResource for Server {
         send_version_mismatch_alerts: server
           .config
           .send_version_mismatch_alerts,
+        version,
+        public_key,
         terminals_disabled,
         container_exec_disabled,
       },

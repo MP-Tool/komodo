@@ -1218,7 +1218,10 @@ export const useServerAddress = (
   const server = useServer(server_id);
 
   if (!server) return null;
+
   const base = server.info.external_address || server.info.address;
+
+  if (!base) return null;
 
   const parsed = (() => {
     try {
