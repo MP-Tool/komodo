@@ -28,7 +28,10 @@ async fn app() -> anyhow::Result<()> {
     info!("{:?}", config.sanitized());
   }
 
-  install_crypto_provider();
+  rustls::crypto::aws_lc_rs::default_provider()
+    .install_default()
+    .expect("Failed to install default crypto provider");
+
   stats::spawn_polling_thread();
   docker::stats::spawn_polling_thread();
 
@@ -89,13 +92,4 @@ async fn main() -> anyhow::Result<()> {
   }
 
   Ok(())
-}
-
-fn install_crypto_provider() {
-  if let Err(e) =
-    rustls::crypto::aws_lc_rs::default_provider().install_default()
-  {
-    error!("Failed to install default crypto provider | {e:?}");
-    std::process::exit(1);
-  };
 }

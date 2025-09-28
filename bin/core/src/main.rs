@@ -40,12 +40,6 @@ async fn app() -> anyhow::Result<()> {
   dotenvy::dotenv().ok();
   let config = core_config();
   logger::init(&config.logging)?;
-  if let Err(e) =
-    rustls::crypto::aws_lc_rs::default_provider().install_default()
-  {
-    error!("Failed to install default crypto provider | {e:?}");
-    std::process::exit(1);
-  };
 
   info!("Komodo Core version: v{}", env!("CARGO_PKG_VERSION"));
   // Init public key to crash on failure
@@ -60,6 +54,10 @@ async fn app() -> anyhow::Result<()> {
     (false, true) => info!("{:?}", config),
     (false, false) => info!("{:?}", config.sanitized()),
   }
+
+  rustls::crypto::aws_lc_rs::default_provider()
+    .install_default()
+    .expect("Failed to install default crypto provider");
 
   // Init jwt client to crash on failure
   state::jwt_client();
