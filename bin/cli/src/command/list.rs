@@ -794,7 +794,7 @@ impl PrintTable for ResourceListItem<ServerListItemInfo> {
       Cell::new(self.info.state.to_string())
         .fg(color)
         .add_attribute(Attribute::Bold),
-      Cell::new(self.info.address),
+      Cell::new(self.info.address.as_deref().unwrap_or("inbound")),
       Cell::new(self.tags.join(", ")),
     ];
     if links {
