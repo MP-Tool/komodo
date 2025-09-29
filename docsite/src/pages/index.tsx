@@ -3,9 +3,9 @@ import Link from "@docusaurus/Link";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import HomepageFeatures from "@site/src/components/HomepageFeatures";
-
 import styles from "./index.module.css";
 import KomodoLogo from "../components/KomodoLogo";
+import { JSX } from "react";
 
 function HomepageHeader() {
   const { siteConfig } = useDocusaurusContext();

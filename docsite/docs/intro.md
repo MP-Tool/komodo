@@ -16,7 +16,8 @@ With Komodo you can:
  - Manage all your configuration / environment variables, with shared global variable and secret interpolation.
  - Keep a record of all the actions that are performed and by whom.
 
-There is no limit to the number of servers you can connect, and there will never be. There is no limit to what API you can use for automation, and there never will be. No "business edition" here.
+There is no limit to the number of servers you can connect, and there will never be.
+There is no limit to what API you can use for automation, and there never will be.
 
 ## Docker
 
@@ -29,13 +30,14 @@ For Stack / docker compose support with podman, check out [**podman-compose**](h
 
 ## Architecture and Components
 
-Komodo is composed of a single core and any amount of connected servers running the periphery application. 
+Komodo is composed of a single Core and any amount of connected servers running the Periphery agent. 
 
 ### Core
 Komodo Core is a web server hosting the Core API and browser UI. All user interaction with the connected servers flow through the Core.
 
 ### Periphery
-Komodo Periphery is a small stateless web server that runs on all connected servers. It exposes an API called by Komodo Core to perform actions on the server, get system usage, and container status / logs. It is only intended to be reached from the core, and has an address whitelist to limit the IPs allowed to call this API.
+Komodo Periphery is a small stateless agent that runs on all connected servers. It exposes an API called by Komodo Core to perform actions on the server, get system usage, and container status / logs.
+In order to communicate with Core, it can be configured to both initiate outbound connections or accept inbound ones, whichever is simplest for your environment.
 
 ## Core API
 
@@ -45,4 +47,4 @@ Komodo exposes powerful functionality over the Core's REST and Websocket API, en
 
 Komodo is a system designed to be used by many users, whether they are developers, operations personnel, or administrators. The ability to affect an applications state is very powerful, so Komodo has a granular permissioning system to only provide this functionality to the intended users. The permissioning system is explained in detail in the [permissioning](/docs/resources/permissioning) section. 
 
-User sign-on is possible using username / password, or with Oauth (Github and Google). See [Core Setup](./setup/index.mdx).
+User sign-on is possible using username / password, or with Oauth (Github, Google, and generic OIDC). See [Core Setup](./setup/index.mdx).
