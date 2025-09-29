@@ -3,7 +3,7 @@
 {
 	"name": "Komodo",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	//"image": "mcr.microsoft.com/devcontainers/rust:1-1-trixie",
+	//"image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye",
 	"dockerComposeFile": ["dev.compose.yaml"],
 	"workspaceFolder": "/workspace",
   	"service": "dev",

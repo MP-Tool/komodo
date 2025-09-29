@@ -1,7 +1,7 @@
 ## All in one, multi stage compile + runtime Docker build for your architecture.
 
 # Build Core
-FROM rust:1.90.0-trixie AS core-builder
+FROM rust:1.90.0-bullseye AS core-builder
 RUN cargo install cargo-strip
 
 WORKDIR /builder
@@ -26,7 +26,7 @@ RUN cd client && yarn && yarn build && yarn link
 RUN cd frontend && yarn link komodo_client && yarn && yarn build
 
 # Final Image
-FROM debian:trixie-slim
+FROM debian:bullseye-slim
 
 COPY ./bin/core/starship.toml /starship.toml
 COPY ./bin/core/debian-deps.sh .
