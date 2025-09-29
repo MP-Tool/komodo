@@ -79,11 +79,8 @@ impl Resolve<ReadArgs> for GetServersSummary {
       match server.info.state {
         ServerState::Ok => {
           // Check for version mismatch
-          let has_version_mismatch = match &server.info.version {
-            Some(version) if version != core_version => true,
-            _ => false,
-          };
-          if has_version_mismatch {
+          if matches!(&server.info.version, Some(version) if version != core_version)
+          {
             res.warning += 1;
           } else {
             res.healthy += 1;
