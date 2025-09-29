@@ -1,7 +1,7 @@
 ## Builds the Komodo Core, Periphery, and Util binaries
 ## for a specific architecture.
 
-FROM rust:1.89.0-bullseye AS builder
+FROM rust:1.90.0-trixie AS builder
 RUN cargo install cargo-strip
 
 WORKDIR /builder

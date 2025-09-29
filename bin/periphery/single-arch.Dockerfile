@@ -6,7 +6,7 @@ ARG BINARIES_IMAGE=ghcr.io/moghtech/komodo-binaries:latest
 # This is required to work with COPY --from
 FROM ${BINARIES_IMAGE} AS binaries
 
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 COPY ./bin/periphery/starship.toml /starship.toml
 COPY ./bin/periphery/debian-deps.sh .

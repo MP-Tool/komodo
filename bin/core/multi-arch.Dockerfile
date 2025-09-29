@@ -13,7 +13,7 @@ FROM ${AARCH64_BINARIES} AS aarch64
 FROM ${FRONTEND_IMAGE} AS frontend
 
 # Final Image
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 COPY ./bin/core/starship.toml /starship.toml
 COPY ./bin/core/debian-deps.sh .

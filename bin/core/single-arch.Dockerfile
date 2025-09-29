@@ -14,7 +14,7 @@ COPY ./client/core/ts ./client
 RUN cd client && yarn && yarn build && yarn link
 RUN cd frontend && yarn link komodo_client && yarn && yarn build
 
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 COPY ./bin/core/starship.toml /starship.toml
 COPY ./bin/core/debian-deps.sh .
