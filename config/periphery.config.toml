@@ -54,7 +54,7 @@ private_key = "default-periphery-pk"
 ## Must match an existing Server name or id.
 ## Env: PERIPHERY_CONNECT_AS
 ## Default: None
-connect_as = "server-name"
+# connect_as = "server-name"
 
 ################
 # INBOUND MODE #
