@@ -13,14 +13,37 @@ services:
     restart: unless-stopped
     ## https://komo.do/docs/connect-servers#configuration
     environment:
+      ### ==============================
+      ###  CORE -> PERIPHERY CONNECTION
+      ### ==============================
+      ## List of accepted Core public keys
+      PERIPHERY_CORE_PUBLIC_KEYS: sFIibtOSCFLQelO4b4x6VoYIddkRn9Tj1Nas2eR1ME0=
+      ### ==============================
+      ###  PERIPHERY -> CORE CONNECTION
+      ### ==============================
+      ## The address of Komodo Core to connect to.
+      # PERIPHERY_CORE_ADDRESS: komodo.example.com
+      ## The name of the Komodo Server to connect as.
+      ## Must match existing server.
+      # PERIPHERY_CONNECT_AS: server-name
+      ## Core must have matching public key configured to authenticate.
+      ## Compute then public key using `km key compute <private-key>`.
+      # PERIPHERY_PRIVATE_KEY: default-periphery-pk
+      ## Disable the inbound connection server.
+      # PERIPHERY_SERVER_ENABLED: false
+      ### ================
+      ###  GENERAL CONFIG
+      ### ================
+      ## Specify the root directory used by Periphery agent.
+      ## All your compose files and repos need to be inside this directory
+      ## for Periphery to interact with them.
       PERIPHERY_ROOT_DIRECTORY: ${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}
-      ## Pass the same passkey as used by the Komodo Core connecting to this Periphery agent.
-      PERIPHERY_PASSKEYS: abc123
-      ## Make server run over https
-      PERIPHERY_SSL_ENABLED: true
       ## Specify whether to disable the terminals feature
       ## and disallow remote shell access (inside the Periphery container).
       PERIPHERY_DISABLE_TERMINALS: false
+      ## Specify whether to disable the container exec feature
+      ## and disallow remote container shell access.
+      PERIPHERY_DISABLE_CONTAINER_EXEC: false
       ## If the disk size is overreporting, can use one of these to 
       ## whitelist / blacklist the disks to filter them, whichever is easier.
       ## Accepts comma separated list of paths.

@@ -29,11 +29,11 @@
 ## Default: Random 32 bytes in memory. Changes every restart.
 private_key = "default-periphery-pk"
 
-## Accepted public key to allow Core to connect.
+## Accepted public keys to allow Core(s) to connect.
 ## Periphery gains knowledge of the Core public key through the noise handshake.
 ## If not provided, inbound connections will not be authenticated.
-## Env: PERIPHERY_CORE_PUBLIC_KEY
-# core_public_key = "sFIibtOSCFLQelO4b4x6VoYIddkRn9Tj1Nas2eR1ME0="
+## Env: PERIPHERY_CORE_PUBLIC_KEYS
+# core_public_keys = "sFIibtOSCFLQelO4b4x6VoYIddkRn9Tj1Nas2eR1ME0="
 
 ## Deprecated. Legacy v1 compatibility.
 ## Users should upgrade to private / public key authentication.

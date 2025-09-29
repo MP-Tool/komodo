@@ -4,21 +4,15 @@
 import RemoteCodeFile from "@site/src/components/RemoteCodeFile";
 ```
 
-Connecting a server to Komodo has 2 steps:
+Connecting a server to Komodo has 3 steps:
 
-1.  Install the Periphery agent on the server (either binary or container).
-2.  Add the server to Komodo via the Core API / UI.
+1.  Add the Server to Komodo via the Core API / UI.
+2.  Install and configure the Periphery agent on the server.
+3.  Confirm the connection status is OK.
 
 ## Install Periphery
 
 You can install Periphery as a systemd managed process, run it as a [docker container](https://github.com/moghtech/komodo/pkgs/container/komodo-periphery), or do whatever you want with the binary.
-
-:::warning
-Allowing unintended access to the Periphery agent API is a security risk.
-Ensure to take appropriate measures to block access to the Periphery API, such as firewall rules on port `8120`.
-Additionally, you can whitelist your Komodo Core IP address in the [Periphery config](https://github.com/moghtech/komodo/blob/main/config/periphery.config.toml#L46),
-and configure it to [only accept requests including your Core passkey](https://github.com/moghtech/komodo/blob/main/config/periphery.config.toml#L51).
-:::
 
 ### Install the Periphery agent - systemd
 
@@ -79,13 +73,8 @@ Ensure that the user which periphery is run as has access to the docker group wi
 
 ### Example periphery start command
 
-```
-periphery \
-	--config-path /path/to/periphery.config.base.toml \
-	--config-path /other_path/to/override-periphery-config-directory \
-	--config-keyword periphery \
-	--config-keyword config \
-	--merge-nested-config true
+```sh
+periphery --config-path /path/to/periphery.config.toml
 ```
 
 :::info
@@ -95,6 +84,28 @@ You can run `periphery --help` to see the manual.
 When running periphery in docker, use [command](https://docs.docker.com/reference/compose-file/services/#command) to pass in additional arguments.
 ```
 command: periphery --config-path /path/in/container/to/periphery.config.base.toml
+```
+
+
+
+## Configuration
+
+The configuration can also be passed as **YAML** or **JSON**.
+You can use the it-tools to convert this TOML file to your preferred format:
+  - YAML: https://it-tools.tech/toml-to-yaml
+  - JSON: https://it-tools.tech/toml-to-json
+
+Quick download to `./komodo/periphery.config.toml`:
+```bash
+wget -P komodo https://raw.githubusercontent.com/moghtech/komodo/main/config/periphery.config.toml
+```
+
+```mdx-code-block
+<RemoteCodeFile
+	title="https://github.com/moghtech/komodo/blob/main/config/periphery.config.toml"
+	url="https://raw.githubusercontent.com/moghtech/komodo/main/config/periphery.config.toml"
+	language="toml"
+/>
 ```
 
 ### Passing config files
@@ -119,23 +130,3 @@ So if you pass `allowed_ips = []` in your override config, the final allowed_ips
 For example, with `--merge-nested-config true` you can specify an allowed ip in the base config, and another in the override config, they will both be present in the final config.
 
 Similarly, you can specify a base docker / github account pair, and extend them with additional accounts in the override config.
-
-## Configuration
-
-The configuration can also be passed as **YAML** or **JSON**.
-You can use the it-tools to convert this TOML file to your preferred format:
-  - YAML: https://it-tools.tech/toml-to-yaml
-  - JSON: https://it-tools.tech/toml-to-json
-
-Quick download to `./komodo/periphery.config.toml`:
-```bash
-wget -P komodo https://raw.githubusercontent.com/moghtech/komodo/main/config/periphery.config.toml
-```
-
-```mdx-code-block
-<RemoteCodeFile
-	title="https://github.com/moghtech/komodo/blob/main/config/periphery.config.toml"
-	url="https://raw.githubusercontent.com/moghtech/komodo/main/config/periphery.config.toml"
-	language="toml"
-/>
-```
