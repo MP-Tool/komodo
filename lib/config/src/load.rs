@@ -162,14 +162,12 @@ pub fn load_parse_config_file<T: DeserializeOwned>(
         e,
         path: file.to_path_buf(),
       })?,
-    Some("json") => {
-      serde_json::from_reader(file_handle).map_err(|e| {
-        Error::ParseJson {
-          e,
-          path: file.to_path_buf(),
-        }
-      })?
-    }
+    Some("json") => serde_json::from_str(&contents).map_err(|e| {
+      Error::ParseJson {
+        e,
+        path: file.to_path_buf(),
+      }
+    })?,
     Some(_) | None => {
       return Err(Error::UnsupportedFileType {
         path: file.to_path_buf(),
