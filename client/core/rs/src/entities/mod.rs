@@ -624,6 +624,14 @@ pub enum Timelength {
   #[serde(rename = "1-sec")]
   #[strum(serialize = "1-sec")]
   OneSecond,
+  /// `1-sec`
+  #[serde(rename = "2-sec")]
+  #[strum(serialize = "2-sec")]
+  TwoSeconds,
+  /// `1-sec`
+  #[serde(rename = "3-sec")]
+  #[strum(serialize = "3-sec")]
+  ThreeSeconds,
   /// `5-sec`
   #[serde(rename = "5-sec")]
   #[strum(serialize = "5-sec")]
@@ -649,6 +657,10 @@ pub enum Timelength {
   #[serde(rename = "2-min")]
   #[strum(serialize = "2-min")]
   TwoMinutes,
+  /// `3-min`
+  #[serde(rename = "3-min")]
+  #[strum(serialize = "3-min")]
+  ThreeMinutes,
   /// `5-min`
   #[serde(rename = "5-min")]
   #[strum(serialize = "5-min")]
@@ -673,6 +685,10 @@ pub enum Timelength {
   #[serde(rename = "2-hr")]
   #[strum(serialize = "2-hr")]
   TwoHours,
+  /// `3-hr`
+  #[serde(rename = "3-hr")]
+  #[strum(serialize = "3-hr")]
+  ThreeHours,
   /// `6-hr`
   #[serde(rename = "6-hr")]
   #[strum(serialize = "6-hr")]
@@ -689,10 +705,14 @@ pub enum Timelength {
   #[serde(rename = "1-day")]
   #[strum(serialize = "1-day")]
   OneDay,
+  /// `2-day`
+  #[serde(rename = "2-day")]
+  #[strum(serialize = "2-day")]
+  TwoDays,
   /// `3-day`
   #[serde(rename = "3-day")]
   #[strum(serialize = "3-day")]
-  ThreeDay,
+  ThreeDays,
   /// `1-wk`
   #[serde(rename = "1-wk")]
   #[strum(serialize = "1-wk")]
