@@ -1,6 +1,7 @@
 use futures::{StreamExt, stream::FuturesUnordered};
+use komodo_client::entities::config::periphery::Command;
 
-use crate::config::periphery_public_key;
+use crate::config::{periphery_args, periphery_public_key};
 
 #[macro_use]
 extern crate tracing;
@@ -14,7 +15,6 @@ mod stats;
 mod terminal;
 
 async fn app() -> anyhow::Result<()> {
-  dotenvy::dotenv().ok();
   let config = config::periphery_config();
   logger::init(&config.logging)?;
 
@@ -77,6 +77,13 @@ async fn app() -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+  // Handle `periphery key gen` and `periphery key compute <private-key>`
+  if let Some(Command::Key { command }) = &periphery_args().command {
+    return keygen::handle_key_command(command).await;
+  }
+
+  dotenvy::dotenv().ok();
+
   let mut term_signal = tokio::signal::unix::signal(
     tokio::signal::unix::SignalKind::terminate(),
   )?;

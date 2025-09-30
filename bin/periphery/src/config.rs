@@ -20,16 +20,26 @@ pub fn periphery_public_key() -> &'static String {
   })
 }
 
+pub fn periphery_args() -> &'static CliArgs {
+  static PERIPHERY_ARGS: OnceLock<CliArgs> = OnceLock::new();
+  PERIPHERY_ARGS.get_or_init(CliArgs::parse)
+}
+
 pub fn periphery_config() -> &'static PeripheryConfig {
   static PERIPHERY_CONFIG: OnceLock<PeripheryConfig> =
     OnceLock::new();
   PERIPHERY_CONFIG.get_or_init(|| {
     let env: Env = envy::from_env()
       .expect("failed to parse periphery environment");
-    let args = CliArgs::parse();
-    let config_paths =
-      args.config_path.unwrap_or(env.periphery_config_paths);
+    let args = periphery_args();
+
+    let config_paths = args
+      .config_path
+      .as_ref()
+      .unwrap_or(&env.periphery_config_paths);
+
     println!("{config_paths:?}");
+
     let config = if config_paths.is_empty() {
       println!(
         "{}: No config paths found, using default config",
@@ -44,7 +54,8 @@ pub fn periphery_config() -> &'static PeripheryConfig {
           .collect::<Vec<_>>(),
         match_wildcards: &args
           .config_keyword
-          .unwrap_or(env.periphery_config_keywords)
+          .as_ref()
+          .unwrap_or(&env.periphery_config_keywords)
           .iter()
           .map(String::as_str)
           .collect::<Vec<_>>(),

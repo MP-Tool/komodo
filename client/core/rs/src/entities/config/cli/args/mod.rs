@@ -6,7 +6,6 @@ use crate::api::execute::Execution;
 
 pub mod container;
 pub mod database;
-pub mod key;
 pub mod list;
 pub mod update;
 
@@ -52,11 +51,11 @@ pub enum Command {
     unsanitized: bool,
   },
 
-  /// Public-Private key utilities. (alias: `k`)
+  /// Private-Public key utilities. (alias: `k`)
   #[clap(alias = "k")]
   Key {
     #[command(subcommand)]
-    command: key::KeyCommand,
+    command: crate::entities::config::KeyCommand,
   },
 
   /// Database utilities. (alias: `db`)

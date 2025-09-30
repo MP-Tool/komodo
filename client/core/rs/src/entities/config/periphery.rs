@@ -50,6 +50,10 @@ use super::{
 #[derive(Parser)]
 #[command(name = "periphery", author, about, version)]
 pub struct CliArgs {
+  /// Additional utilities.
+  #[command(subcommand)]
+  pub command: Option<Command>,
+
   /// Sets the path of a config file or directory to use.
   /// Can use multiple times
   #[arg(long, short = 'c')]
@@ -78,6 +82,16 @@ pub struct CliArgs {
   /// If passed, will override any other log_level set.
   #[arg(long)]
   pub log_level: Option<tracing::Level>,
+}
+
+#[derive(Debug, Clone, clap::Subcommand)]
+pub enum Command {
+  /// Private-Public key utilities. (alias: `k`)
+  #[clap(alias = "k")]
+  Key {
+    #[command(subcommand)]
+    command: crate::entities::config::KeyCommand,
+  },
 }
 
 /// # Periphery Environment Variables

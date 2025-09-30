@@ -31,6 +31,7 @@ database = { path = "lib/database" }
 response = { path = "lib/response" }
 command = { path = "lib/command" }
 config = { path = "lib/config" }
+keygen = { path = "lib/keygen" }
 logger = { path = "lib/logger" }
 cache = { path = "lib/cache" }
 noise = { path = "lib/noise" }

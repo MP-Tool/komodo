@@ -1,10 +1,12 @@
 use anyhow::Context;
 use colored::Colorize;
-use komodo_client::entities::config::cli::args::key::{
+use komodo_client::entities::config::{
   KeyCommand, KeyOutputFormat, KeyPair,
 };
 
-pub async fn handle(command: &KeyCommand) -> anyhow::Result<()> {
+pub async fn handle_key_command(
+  command: &KeyCommand,
+) -> anyhow::Result<()> {
   match command {
     KeyCommand::Generate { format } => {
       let keys = noise::Base64KeyPair::generate()
@@ -14,11 +16,11 @@ pub async fn handle(command: &KeyCommand) -> anyhow::Result<()> {
           // Prefixed with 'base64:' so Core / Periphery know to parse
           // private key as base64.
           println!(
-            "Private Key: {}{}",
+            "\nPrivate Key: {}{}",
             "base64:".red().bold(),
             keys.private_key.red().bold()
           );
-          println!("\nPublic Key: {}", keys.public_key.bold());
+          println!("Public Key: {}", keys.public_key.bold());
         }
         KeyOutputFormat::Json => print_json(
           &format!("base64:{}", keys.private_key),

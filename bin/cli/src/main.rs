@@ -42,7 +42,7 @@ async fn app() -> anyhow::Result<()> {
       Ok(())
     }
     args::Command::Key { command } => {
-      command::key::handle(command).await
+      keygen::handle_key_command(command).await
     }
     args::Command::Database { command } => {
       command::database::handle(command).await
