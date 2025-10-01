@@ -16,12 +16,16 @@ use komodo_client::entities::{
   },
   logger::LogConfig,
 };
+use noise::key::SpkiPublicKey;
 
 /// Should call in startup to ensure Core errors without valid private key.
 pub fn core_public_key() -> &'static String {
   static CORE_PUBLIC_KEY: OnceLock<String> = OnceLock::new();
   CORE_PUBLIC_KEY.get_or_init(|| {
-    noise::compute_public_key(&core_config().private_key).unwrap()
+    SpkiPublicKey::from_private_key(&core_config().private_key)
+      .context("Got invalid private key")
+      .unwrap()
+      .into_inner()
   })
 }
 

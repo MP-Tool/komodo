@@ -1,22 +1,42 @@
-use std::{path::PathBuf, sync::OnceLock};
+use std::{fs::read_to_string, path::PathBuf, sync::OnceLock};
 
+use anyhow::Context;
 use clap::Parser;
 use colored::Colorize;
 use config::ConfigLoader;
-use environment_file::{
-  maybe_read_item_from_file, maybe_read_list_from_file,
-};
+use environment_file::maybe_read_list_from_file;
 use komodo_client::entities::{
   config::periphery::{CliArgs, Env, PeripheryConfig},
   logger::{LogConfig, LogLevel},
+  random_string,
 };
+use noise::key::SpkiPublicKey;
+
+/// Should call in startup to ensure Periphery errors without valid private key.
+pub fn periphery_private_key() -> &'static String {
+  static PERIPHERY_PRIVATE_KEY: OnceLock<String> = OnceLock::new();
+  PERIPHERY_PRIVATE_KEY.get_or_init(|| {
+    let config = periphery_config();
+    match (&config.private_key, &config.private_key_file) {
+      (Some(private_key), _) => private_key.clone(),
+      (None, Some(path)) => read_to_string(path)
+        .with_context(|| {
+          format!("Failed to read private key at {path:?}")
+        })
+        .unwrap(),
+      (None, None) => random_string(32),
+    }
+  })
+}
 
 /// Should call in startup to ensure Periphery errors without valid private key.
 pub fn periphery_public_key() -> &'static String {
   static PERIPHERY_PUBLIC_KEY: OnceLock<String> = OnceLock::new();
   PERIPHERY_PUBLIC_KEY.get_or_init(|| {
-    noise::compute_public_key(&periphery_config().private_key)
+    SpkiPublicKey::from_private_key(periphery_private_key())
+      .context("Got invalid private key")
       .unwrap()
+      .into_inner()
   })
 }
 
@@ -79,11 +99,10 @@ pub fn periphery_config() -> &'static PeripheryConfig {
     };
 
     PeripheryConfig {
-      private_key: maybe_read_item_from_file(
-        env.periphery_private_key_file,
-        env.periphery_private_key,
-      )
-      .unwrap_or(config.private_key),
+      private_key: env.periphery_private_key.or(config.private_key),
+      private_key_file: env
+        .periphery_private_key_file
+        .or(config.private_key_file),
       core_public_keys: env
         .periphery_core_public_keys
         .or(config.core_public_keys),

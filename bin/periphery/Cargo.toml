@@ -25,7 +25,6 @@ transport.workspace = true
 response.workspace = true
 command.workspace = true
 config.workspace = true
-keygen.workspace = true
 logger.workspace = true
 cache.workspace = true
 noise.workspace = true

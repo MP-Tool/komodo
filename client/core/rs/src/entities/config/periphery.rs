@@ -22,7 +22,6 @@ use crate::{
   entities::{
     Timelength,
     logger::{LogConfig, LogLevel, StdioLogMode},
-    random_string,
   },
 };
 
@@ -213,9 +212,13 @@ pub struct Env {
 #[derive(Debug, Clone, Deserialize)]
 pub struct PeripheryConfig {
   /// The private key used with noise handshake.
-  /// If not provided, will generate random default.
-  #[serde(default = "default_private_key")]
-  pub private_key: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub private_key: Option<String>,
+  /// The private key used with noise handshake.
+  /// Provide as file generated with
+  /// `openssl genpkey -algorithm X25519 -out komodo.key`
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub private_key_file: Option<PathBuf>,
   /// Optionally pin a specific Core public key
   /// for additional trust.
   #[serde(
@@ -383,10 +386,6 @@ pub struct PeripheryConfig {
   pub docker_registries: ForgivingVec<DockerRegistry>,
 }
 
-fn default_private_key() -> String {
-  random_string(32)
-}
-
 fn default_periphery_port() -> u16 {
   8120
 }
@@ -418,7 +417,8 @@ fn default_ssl_enabled() -> bool {
 impl Default for PeripheryConfig {
   fn default() -> Self {
     Self {
-      private_key: default_private_key(),
+      private_key: None,
+      private_key_file: None,
       core_public_keys: None,
       passkeys: None,
       core_addresses: None,
@@ -454,7 +454,11 @@ impl Default for PeripheryConfig {
 impl PeripheryConfig {
   pub fn sanitized(&self) -> PeripheryConfig {
     PeripheryConfig {
-      private_key: empty_or_redacted(&self.private_key),
+      private_key: self
+        .private_key
+        .as_ref()
+        .map(|pk| empty_or_redacted(pk)),
+      private_key_file: self.private_key_file.clone(),
       core_public_keys: self.core_public_keys.clone(),
       passkeys: self.passkeys.as_ref().map(|passkeys| {
         passkeys.iter().map(|p| empty_or_redacted(p)).collect()

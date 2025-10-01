@@ -4,12 +4,12 @@ use komodo_client::entities::config::{
   KeyCommand, KeyOutputFormat, KeyPair,
 };
 
-pub async fn handle_key_command(
-  command: &KeyCommand,
-) -> anyhow::Result<()> {
+use super::SpkiPublicKey;
+
+pub async fn handle(command: &KeyCommand) -> anyhow::Result<()> {
   match command {
     KeyCommand::Generate { format } => {
-      let keys = noise::Base64KeyPair::generate()
+      let keys = super::EncodedKeyPair::generate()
         .context("Failed to generate key pair")?;
       match format {
         KeyOutputFormat::Standard => {
@@ -18,17 +18,17 @@ pub async fn handle_key_command(
           println!(
             "\nPrivate Key: {}{}",
             "base64:".red().bold(),
-            keys.private_key.red().bold()
+            keys.private.red().bold()
           );
-          println!("Public Key: {}", keys.public_key.bold());
+          println!("Public Key: {}", keys.public.bold());
         }
         KeyOutputFormat::Json => print_json(
-          &format!("base64:{}", keys.private_key),
-          &keys.public_key,
+          &format!("base64:{}", keys.private),
+          &keys.public,
         )?,
         KeyOutputFormat::JsonPretty => print_json_pretty(
-          &format!("base64:{}", keys.private_key),
-          &keys.public_key,
+          &format!("base64:{}", keys.private),
+          &keys.public,
         )?,
       }
 
@@ -38,8 +38,9 @@ pub async fn handle_key_command(
       private_key,
       format,
     } => {
-      let public_key = noise::compute_public_key(private_key)
-        .context("Failed to compute public key")?;
+      let public_key = SpkiPublicKey::from_private_key(private_key)
+        .context("Failed to compute public key")?
+        .into_inner();
       match format {
         KeyOutputFormat::Standard => {
           println!("\nPublic Key: {}", public_key.bold());

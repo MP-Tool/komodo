@@ -27,7 +27,7 @@ use uuid::Uuid;
 
 use crate::{
   api::{Args, PeripheryRequest},
-  config::periphery_config,
+  config::{periphery_config, periphery_private_key},
 };
 
 pub mod client;
@@ -93,7 +93,7 @@ async fn handle_login<W: Websocket, L: LoginFlow>(
   L::login(
     socket,
     identifiers,
-    &periphery_config().private_key,
+    periphery_private_key(),
     &CorePublicKeyValidator,
   )
   .await

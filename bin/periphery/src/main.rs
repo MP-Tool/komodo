@@ -79,7 +79,7 @@ async fn app() -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
   // Handle `periphery key gen` and `periphery key compute <private-key>`
   if let Some(Command::Key { command }) = &periphery_args().command {
-    return keygen::handle_key_command(command).await;
+    return noise::key::command::handle(command).await;
   }
 
   dotenvy::dotenv().ok();

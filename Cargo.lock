@@ -2758,17 +2758,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "keygen"
-version = "2.0.0-dev-17"
-dependencies = [
- "anyhow",
- "colored",
- "komodo_client",
- "noise",
- "serde_json",
-]
-
-[[package]]
 name = "komodo_cli"
 version = "2.0.0-dev-17"
 dependencies = [
@@ -2783,9 +2772,9 @@ dependencies = [
  "environment_file",
  "envy",
  "futures-util",
- "keygen",
  "komodo_client",
  "logger",
+ "noise",
  "serde",
  "serde_json",
  "serde_qs",
@@ -2929,7 +2918,6 @@ dependencies = [
  "futures",
  "git",
  "interpolate",
- "keygen",
  "komodo_client",
  "logger",
  "noise",
@@ -3307,7 +3295,14 @@ version = "2.0.0-dev-17"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "colored",
+ "der",
+ "komodo_client",
+ "pem-rfc7468",
+ "pkcs8",
+ "serde_json",
  "snow",
+ "spki",
 ]
 
 [[package]]

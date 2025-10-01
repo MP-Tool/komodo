@@ -10,7 +10,7 @@ use anyhow::Context;
 use axum::http::{HeaderMap, HeaderValue};
 use base64::{Engine, prelude::BASE64_STANDARD};
 use bytes::Bytes;
-use noise::NoiseHandshake;
+use noise::{NoiseHandshake, key::SpkiPublicKey};
 use rand::RngCore;
 use serror::{deserialize_error_bytes, serialize_error_bytes};
 use sha2::{Digest, Sha256};
@@ -23,7 +23,6 @@ pub trait PublicKeyValidator {
 }
 
 pub trait LoginFlow {
-  /// Pass base64-encoded private key
   fn login(
     socket: &mut impl Websocket,
     connection_identifiers: ConnectionIdentifiers<'_>,
@@ -104,10 +103,12 @@ impl LoginFlow for ServerLoginFlow {
       }
 
       // Server now has client public key
-      public_key_validator
-        .validate(handshake.remote_public_key()?)?;
+      let public_key =
+        SpkiPublicKey::from_raw_bytes(handshake.remote_public_key()?)
+          .context("Invalid public key")?
+          .into_inner();
 
-      anyhow::Ok(())
+      public_key_validator.validate(public_key)
     }
     .await;
 
@@ -191,10 +192,13 @@ impl LoginFlow for ClientLoginFlow {
         }
       }
 
-      // Client now has server public key,
-      // can perform validation.
-      public_key_validator
-        .validate(handshake.remote_public_key()?)?;
+      // Client now has server public key.
+      // Perform validation before proceeding.
+      let public_key =
+        SpkiPublicKey::from_raw_bytes(handshake.remote_public_key()?)
+          .context("Invalid public key")?
+          .into_inner();
+      public_key_validator.validate(public_key)?;
 
       // Send handshake_m3
       let mut handshake_m3 = handshake
