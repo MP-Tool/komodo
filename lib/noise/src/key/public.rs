@@ -1,4 +1,4 @@
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use base64::{Engine as _, prelude::BASE64_STANDARD};
 use der::{Encode as _, asn1::BitStringRef};
 
@@ -31,20 +31,9 @@ impl SpkiPublicKey {
   }
 
   pub fn from_raw_bytes(public_key: &[u8]) -> anyhow::Result<Self> {
-    if public_key.len() > 32 {
-      return Err(anyhow!(
-        "Public key bytes too long, expected 32 or less."
-      ));
-    }
-
-    let mut buf = [0u8; 32];
-    buf[..public_key.len()].copy_from_slice(public_key);
-
-    let bs = BitStringRef::new(0, &buf)
+    let bs = BitStringRef::new(0, public_key)
       .map_err(anyhow::Error::msg)
-      .context(
-      "Failed to parse public key bytes into bit string",
-    )?;
+      .context("Failed to parse public key bytes into bit string")?;
 
     let spki = spki::SubjectPublicKeyInfo {
       algorithm: super::algorithm(),

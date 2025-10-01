@@ -13,23 +13,15 @@ pub async fn handle(command: &KeyCommand) -> anyhow::Result<()> {
         .context("Failed to generate key pair")?;
       match format {
         KeyOutputFormat::Standard => {
-          // Prefixed with 'base64:' so Core / Periphery know to parse
-          // private key as base64.
-          println!(
-            "\nPrivate Key: {}{}",
-            "base64:".red().bold(),
-            keys.private.red().bold()
-          );
-          println!("Public Key: {}", keys.public.bold());
+          println!("\nPrivate Key: {}", keys.private.red().bold());
+          println!("Public  Key: {}", keys.public.bold());
         }
-        KeyOutputFormat::Json => print_json(
-          &format!("base64:{}", keys.private),
-          &keys.public,
-        )?,
-        KeyOutputFormat::JsonPretty => print_json_pretty(
-          &format!("base64:{}", keys.private),
-          &keys.public,
-        )?,
+        KeyOutputFormat::Json => {
+          print_json(&keys.private, &keys.public)?
+        }
+        KeyOutputFormat::JsonPretty => {
+          print_json_pretty(&keys.private, &keys.public)?
+        }
       }
 
       Ok(())
