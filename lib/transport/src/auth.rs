@@ -6,6 +6,8 @@
 //! This is trivial for Periphery -> Core connection, but presents a challenge
 //! for Core -> Periphery, where untrusted TLS certs are being used.
 
+use std::time::Duration;
+
 use anyhow::Context;
 use axum::http::{HeaderMap, HeaderValue};
 use base64::{Engine, prelude::BASE64_STANDARD};
@@ -30,6 +32,8 @@ pub trait LoginFlow {
     public_key_validator: &impl PublicKeyValidator,
   ) -> impl Future<Output = anyhow::Result<()>>;
 }
+
+const AUTH_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub struct ServerLoginFlow;
 
@@ -58,7 +62,7 @@ impl LoginFlow for ServerLoginFlow {
 
       // Receive and read handshake_m1
       let handshake_m1 = socket
-        .recv_bytes()
+        .recv_bytes_with_timeout(AUTH_TIMEOUT)
         .await
         .context("Failed to get handshake_m1")?;
       match MessageState::from_byte(
@@ -86,7 +90,7 @@ impl LoginFlow for ServerLoginFlow {
 
       // Receive and read handshake_m3
       let handshake_m3 = socket
-        .recv_bytes()
+        .recv_bytes_with_timeout(AUTH_TIMEOUT)
         .await
         .context("Failed to get handshake_m3")?;
       match MessageState::from_byte(
@@ -152,7 +156,7 @@ impl LoginFlow for ClientLoginFlow {
     let res = async {
       // Receive nonce from server
       let nonce = socket
-        .recv_bytes()
+        .recv_bytes_with_timeout(AUTH_TIMEOUT)
         .await
         .context("Failed to receive connection nonce")?;
 
@@ -176,7 +180,7 @@ impl LoginFlow for ClientLoginFlow {
 
       // Receive and read handshake_m2
       let handshake_m2 = socket
-        .recv_bytes()
+        .recv_bytes_with_timeout(AUTH_TIMEOUT)
         .await
         .context("Failed to get handshake_m2")?;
       match MessageState::from_byte(
@@ -212,7 +216,7 @@ impl LoginFlow for ClientLoginFlow {
 
       // Receive login state message and return based on value
       let state_msg = socket
-        .recv_bytes()
+        .recv_bytes_with_timeout(AUTH_TIMEOUT)
         .await
         .context("Failed to receive authentication state message")?;
       let state = state_msg.last().context(

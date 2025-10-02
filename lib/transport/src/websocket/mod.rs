@@ -1,8 +1,11 @@
 //! Wrappers to normalize behavior of websockets between Tungstenite and Axum,
 //! as well as streamline process of handling socket messages.
 
-use anyhow::anyhow;
+use std::time::Duration;
+
+use anyhow::{Context, anyhow};
 use bytes::Bytes;
+use futures_util::FutureExt;
 
 pub mod axum;
 pub mod tungstenite;
@@ -34,8 +37,7 @@ pub trait Websocket {
     Output = Result<WebsocketMessage<Self::CloseFrame>, Self::Error>,
   >;
 
-  /// Looping receiver for websocket messages which only returns
-  /// on significant messages.
+  /// Looping receiver for websocket messages which only returns on bytes.
   fn recv_bytes(
     &mut self,
   ) -> impl Future<Output = Result<Bytes, anyhow::Error>> {
@@ -50,6 +52,16 @@ pub trait Websocket {
         }
       }
     }
+  }
+
+  /// Looping receiver for websocket messages which only returns on bytes.
+  /// Includes timeout.
+  fn recv_bytes_with_timeout(
+    &mut self,
+    timeout: Duration,
+  ) -> impl Future<Output = Result<Bytes, anyhow::Error>> {
+    tokio::time::timeout(timeout, self.recv_bytes())
+      .map(|res| res.context("Failed to receive bytes").flatten())
   }
 
   /// Streamlined sending on bytes
