@@ -76,7 +76,7 @@ impl PublicKeyValidator for CorePublicKeyValidator {
     if let Some(public_keys) = core_public_keys()
       && public_keys
         .iter()
-        .all(|expected| &public_key != expected.as_str())
+        .all(|expected| public_key != expected.as_str())
     {
       Err(
         anyhow!("Got invalid public key: {public_key}")

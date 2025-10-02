@@ -81,7 +81,7 @@ impl PublicKeyValidator for PeripheryPublicKeyValidator<'_> {
           periphery_public_keys().ok_or_else(invalid_error)?;
         if expected
           .iter()
-          .any(|expected| &public_key == expected.as_str())
+          .any(|expected| public_key == expected.as_str())
         {
           Ok(())
         } else {
