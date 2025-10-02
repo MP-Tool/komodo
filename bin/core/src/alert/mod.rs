@@ -1,4 +1,3 @@
-use ::slack::types::Block;
 use anyhow::{Context, anyhow};
 use database::mungos::{find::find_collect, mongodb::bson::doc};
 use derive_variants::ExtractVariant;

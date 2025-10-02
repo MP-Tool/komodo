@@ -1,3 +1,5 @@
+use ::slack::types::OwnedBlock as Block;
+
 use super::*;
 
 #[instrument(level = "debug")]
@@ -477,17 +479,20 @@ pub async fn send_alert(
     interpolator.interpolate_string(&mut url_interpolated)?;
 
     let slack = ::slack::Client::new(url_interpolated);
-    slack.send_message(text, blocks).await.map_err(|e| {
-      let replacers = interpolator
-        .secret_replacers
-        .into_iter()
-        .collect::<Vec<_>>();
-      let sanitized_error =
-        svi::replace_in_string(&format!("{e:?}"), &replacers);
-      anyhow::Error::msg(format!(
-        "Error with slack request: {sanitized_error}"
-      ))
-    })?;
+    slack
+      .send_owned_message_single(&text, blocks.as_deref())
+      .await
+      .map_err(|e| {
+        let replacers = interpolator
+          .secret_replacers
+          .into_iter()
+          .collect::<Vec<_>>();
+        let sanitized_error =
+          svi::replace_in_string(&format!("{e:?}"), &replacers);
+        anyhow::Error::msg(format!(
+          "Error with slack request: {sanitized_error}"
+        ))
+      })?;
   }
   Ok(())
 }

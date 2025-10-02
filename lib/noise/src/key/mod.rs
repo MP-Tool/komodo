@@ -54,6 +54,14 @@ pub fn load_maybe_generate_private_key(
       format!("Failed to read private key at {path:?}")
     })
   } else {
+    // Ensure the parent directory exists
+    if let Some(parent) = path.parent() {
+      std::fs::create_dir_all(parent).with_context(|| {
+        format!(
+          "Failed to create private key parent directory {parent:?}"
+        )
+      })?;
+    }
     // Generate and write pems to path
     let keys = EncodedKeyPair::generate()?;
     keys.private.write_pem(&path)?;
