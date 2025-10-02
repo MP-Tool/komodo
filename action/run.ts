@@ -1,6 +1,6 @@
 import * as TOML from "@std/toml";
 
-export const run = async (action: string) => {
+export const run = async (resource_name: string, resource_type = "action") => {
   const branch = await new Deno.Command("bash", {
     args: ["-c", "git rev-parse --abbrev-ref HEAD"],
   })
@@ -39,7 +39,7 @@ echo ""
 git push
 echo ""
 
-km run -y action ${action} "KOMODO_BRANCH=${branch}&KOMODO_VERSION=${version}&KOMODO_TAG=${tag}-${next_count}"
+km run -y ${resource_type} ${resource_name} "KOMODO_BRANCH=${branch}&KOMODO_VERSION=${version}&KOMODO_TAG=${tag}-${next_count}"
 `
     .split("\n")
     .map((line) => line.trim())
