@@ -43,7 +43,6 @@ impl EncodedKeyPair {
 pub fn load_maybe_generate_private_key(
   path: &str,
 ) -> anyhow::Result<String> {
-  let path = path.as_ref();
   let path = PathBuf::from_str(path)
     .with_context(|| format!("Invalid private key path: {path:?}"))?;
   if path
