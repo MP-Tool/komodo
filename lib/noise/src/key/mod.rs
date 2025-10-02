@@ -1,3 +1,5 @@
+use std::{path::PathBuf, str::FromStr};
+
 use anyhow::Context;
 use der::AnyRef;
 
@@ -21,9 +23,9 @@ fn algorithm() -> spki::AlgorithmIdentifier<AnyRef<'static>> {
 
 pub struct EncodedKeyPair {
   /// pkcs8 encoded private key
-  pub private: String,
+  pub private: Pkcs8PrivateKey,
   /// spki encoded public key
-  pub public: String,
+  pub public: SpkiPublicKey,
 }
 
 impl EncodedKeyPair {
@@ -32,10 +34,31 @@ impl EncodedKeyPair {
     let keypair = builder
       .generate_keypair()
       .context("Failed to generate keypair")?;
-    let private =
-      Pkcs8PrivateKey::from_raw_bytes(&keypair.private)?.into_inner();
-    let public =
-      SpkiPublicKey::from_raw_bytes(&keypair.public)?.into_inner();
+    let private = Pkcs8PrivateKey::from_raw_bytes(&keypair.private)?;
+    let public = SpkiPublicKey::from_raw_bytes(&keypair.public)?;
     Ok(EncodedKeyPair { private, public })
+  }
+}
+
+pub fn load_maybe_generate_private_key(
+  path: &str,
+) -> anyhow::Result<String> {
+  let path = path.as_ref();
+  let path = PathBuf::from_str(path)
+    .with_context(|| format!("Invalid private key path: {path:?}"))?;
+  if path
+    .try_exists()
+    .with_context(|| format!("Invalid private key path: {path:?}"))?
+  {
+    // Already exists, load it
+    std::fs::read_to_string(&path).with_context(|| {
+      format!("Failed to read private key at {path:?}")
+    })
+  } else {
+    // Generate and write pems to path
+    let keys = EncodedKeyPair::generate()?;
+    keys.private.write_pem(&path)?;
+    keys.public.write_pem(path.with_extension("pub"))?;
+    Ok(keys.private.into_inner())
   }
 }

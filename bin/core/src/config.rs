@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, path::PathBuf, sync::OnceLock};
+use std::{path::PathBuf, sync::OnceLock};
 
 use anyhow::Context;
 use colored::Colorize;
@@ -16,24 +16,17 @@ use komodo_client::entities::{
   },
   logger::LogConfig,
 };
-use noise::key::{EncodedKeyPair, SpkiPublicKey};
+use noise::key::{SpkiPublicKey, load_maybe_generate_private_key};
 
 /// Should call in startup to ensure Core errors without valid private key.
 pub fn core_private_key() -> &'static String {
   static CORE_PRIVATE_KEY: OnceLock<String> = OnceLock::new();
   CORE_PRIVATE_KEY.get_or_init(|| {
     let config = core_config();
-    let Some(private_key) = config.private_key.as_ref() else {
-      return EncodedKeyPair::generate().unwrap().private;
-    };
-    if let Some(path) = private_key.strip_prefix("file:") {
-      read_to_string(path)
-        .with_context(|| {
-          format!("Failed to read private key at {path:?}")
-        })
-        .unwrap()
+    if let Some(path) = config.private_key.strip_prefix("file:") {
+      load_maybe_generate_private_key(path).unwrap()
     } else {
-      private_key.clone()
+      config.private_key.clone()
     }
   })
 }
@@ -62,7 +55,7 @@ pub fn periphery_public_keys() -> Option<&'static [SpkiPublicKey]> {
               let maybe_pem = if let Some(path) =
                 public_key.strip_prefix("file:")
               {
-                read_to_string(path)
+                std::fs::read_to_string(path)
                   .with_context(|| {
                     format!("Failed to read public key at {path:?}")
                   })
@@ -167,7 +160,7 @@ pub fn core_config() -> &'static CoreConfig {
     CoreConfig {
       // Secret things overridden with file
       private_key: maybe_read_item_from_file(env.komodo_private_key_file, env.komodo_private_key)
-        .or(config.private_key),
+        .unwrap_or(config.private_key),
       passkey: maybe_read_item_from_file(env.komodo_passkey_file, env.komodo_passkey)
         .or(config.passkey),
       jwt_secret: maybe_read_item_from_file(env.komodo_jwt_secret_file, env.komodo_jwt_secret).unwrap_or(config.jwt_secret),

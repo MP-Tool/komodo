@@ -327,15 +327,19 @@ pub struct CoreConfig {
   #[serde(default)]
   pub internet_interface: String,
 
-  /// Default private key to use with Noise handshake to authenticate with Periphery agents.
-  /// If not provided, will use randomly generated one on startup.
+  /// Private key to use with Noise handshake to authenticate with Periphery agents.
   ///
   /// Supports openssl generated pem file, `openssl genpkey -algorithm X25519 -out private.key`.
-  /// To load from file, use `private_key = "file:/path/to/private.key"`
+  /// To load from file, use `private_key = "file:/path/to/private.key"`.
   ///
-  /// Note. The private key used can be overridden for individual Servers / Builders
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub private_key: Option<String>,
+  /// If a file is specified and does not exist, will try to generate one at the path
+  /// and use it going forward.
+  ///
+  /// Note. The private key used can be overridden for individual Servers / Builders.
+  ///
+  /// Default: file:/config/keys/core.key
+  #[serde(default = "default_private_key")]
+  pub private_key: String,
 
   /// Default accepted public keys to allow Periphery to connect.
   /// Core gains knowledge of the Periphery public key through the noise handshake.
@@ -679,6 +683,10 @@ fn default_core_bind_ip() -> String {
   "[::]".to_string()
 }
 
+fn default_private_key() -> String {
+  String::from("file:/config/keys/core.key")
+}
+
 fn default_frontend_path() -> String {
   "/app/frontend".to_string()
 }
@@ -798,13 +806,11 @@ impl CoreConfig {
       host: config.host,
       port: config.port,
       bind_ip: config.bind_ip,
-      private_key: self.private_key.as_ref().map(|private_key| {
-        if private_key.starts_with("file:") {
-          private_key.clone()
-        } else {
-          empty_or_redacted(private_key)
-        }
-      }),
+      private_key: if self.private_key.starts_with("file:") {
+        self.private_key.clone()
+      } else {
+        empty_or_redacted(&self.private_key)
+      },
       periphery_public_keys: config.periphery_public_keys,
       passkey: config.passkey.as_deref().map(empty_or_redacted),
       timezone: config.timezone,

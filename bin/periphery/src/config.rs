@@ -11,22 +11,19 @@ use komodo_client::entities::{
   config::periphery::{CliArgs, Env, PeripheryConfig},
   logger::{LogConfig, LogLevel},
 };
-use noise::key::{EncodedKeyPair, SpkiPublicKey};
+use noise::key::{SpkiPublicKey, load_maybe_generate_private_key};
 
 /// Should call in startup to ensure Periphery errors without valid private key.
 pub fn periphery_private_key() -> &'static String {
   static PERIPHERY_PRIVATE_KEY: OnceLock<String> = OnceLock::new();
   PERIPHERY_PRIVATE_KEY.get_or_init(|| {
     let config = periphery_config();
-    let Some(private_key) = config.private_key.as_ref() else {
-      return EncodedKeyPair::generate().unwrap().private;
-    };
+    let private_key = config.private_key.clone().unwrap_or(format!(
+      "file:{}/keys/periphery.key",
+      config.root_directory.display()
+    ));
     if let Some(path) = private_key.strip_prefix("file:") {
-      read_to_string(path)
-        .with_context(|| {
-          format!("Failed to read private key at {path:?}")
-        })
-        .unwrap()
+      load_maybe_generate_private_key(path).unwrap()
     } else {
       private_key.clone()
     }

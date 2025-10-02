@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use anyhow::{Context, anyhow};
 use base64::{Engine as _, prelude::BASE64_STANDARD};
 use der::{Decode as _, Encode as _, asn1::BitStringRef};
@@ -25,6 +27,26 @@ impl SpkiPublicKey {
 
   pub fn into_inner(self) -> String {
     self.0
+  }
+
+  pub fn as_pem(&self) -> String {
+    let public_key = &self.0;
+    format!(
+      r#"-----BEGIN PUBLIC KEY-----
+{public_key}
+-----END PUBLIC KEY-----
+"#
+    )
+  }
+
+  pub fn write_pem<P: AsRef<Path>>(
+    &self,
+    path: P,
+  ) -> anyhow::Result<()> {
+    let path = path.as_ref();
+    std::fs::write(path, self.as_pem()).with_context(|| {
+      format!("Failed to write private key pem to {path:?}")
+    })
   }
 
   /// Accepts pem rfc7468 (openssl) or base64 der (second line of rfc7468 pem).

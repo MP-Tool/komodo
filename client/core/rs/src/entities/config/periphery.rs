@@ -212,10 +212,14 @@ pub struct Env {
 #[derive(Debug, Clone, Deserialize)]
 pub struct PeripheryConfig {
   /// The private key used with noise handshake.
-  /// If not provided, uses randomly generated one on startup.
   ///
   /// Supports openssl generated pem file, `openssl genpkey -algorithm X25519 -out private.key`.
   /// To load from file, use `private_key = "file:/path/to/private.key"`
+  ///
+  /// If a file is specified and does not exist, will try to generate one at the path
+  /// and use it going forward.
+  ///
+  /// Default: ${root_directory}/keys/periphery.key
   #[serde(skip_serializing_if = "Option::is_none")]
   pub private_key: Option<String>,
   /// Optionally pin a specific Core public key for additional trust.

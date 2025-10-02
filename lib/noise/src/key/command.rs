@@ -13,15 +13,19 @@ pub async fn handle(command: &KeyCommand) -> anyhow::Result<()> {
         .context("Failed to generate key pair")?;
       match format {
         KeyOutputFormat::Standard => {
-          println!("\nPrivate Key: {}", keys.private.red().bold());
-          println!("Public  Key: {}", keys.public.bold());
+          println!(
+            "\nPrivate Key: {}",
+            keys.private.as_str().red().bold()
+          );
+          println!("Public  Key: {}", keys.public.as_str().bold());
         }
         KeyOutputFormat::Json => {
-          print_json(&keys.private, &keys.public)?
+          print_json(keys.private.as_str(), keys.public.as_str())?
         }
-        KeyOutputFormat::JsonPretty => {
-          print_json_pretty(&keys.private, &keys.public)?
-        }
+        KeyOutputFormat::JsonPretty => print_json_pretty(
+          keys.private.as_str(),
+          keys.public.as_str(),
+        )?,
       }
 
       Ok(())

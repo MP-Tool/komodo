@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use anyhow::{Context, anyhow};
 use base64::{Engine as _, prelude::BASE64_STANDARD};
 use der::{Decode as _, Encode as _, asn1::OctetStringRef};
@@ -24,6 +26,26 @@ impl Pkcs8PrivateKey {
 
   pub fn into_inner(self) -> String {
     self.0
+  }
+
+  pub fn as_pem(&self) -> String {
+    let private_key = &self.0;
+    format!(
+      r#"-----BEGIN PRIVATE KEY-----
+{private_key}
+-----END PRIVATE KEY-----
+"#
+    )
+  }
+
+  pub fn write_pem<P: AsRef<Path>>(
+    &self,
+    path: P,
+  ) -> anyhow::Result<()> {
+    let path = path.as_ref();
+    std::fs::write(path, self.as_pem()).with_context(|| {
+      format!("Failed to write private key pem to {path:?}")
+    })
   }
 
   pub fn from_raw_bytes(private_key: &[u8]) -> anyhow::Result<Self> {
@@ -65,6 +87,8 @@ impl Pkcs8PrivateKey {
     Self::raw_bytes(self.0.as_bytes())
   }
 
+  /// Converts pkcs8 base64 bytes
+  /// to raw private key
   pub fn raw_bytes(
     pkcs8_private_key: &[u8],
   ) -> anyhow::Result<Vec<u8>> {
@@ -74,21 +98,9 @@ impl Pkcs8PrivateKey {
     Self::raw_bytes_after_decode(&decoded)
   }
 
-  fn raw_bytes_after_decode(
-    decoded: &[u8],
-  ) -> anyhow::Result<Vec<u8>> {
-    let pki = pkcs8::PrivateKeyInfo::from_der(decoded)
-      .map_err(anyhow::Error::msg)
-      .context("Failed to parse pki from der")?;
-    if pki.algorithm.oid != super::OID_X25519 {
-      return Err(anyhow!("Private key is not X25519"));
-    }
-    let octet = OctetStringRef::from_der(pki.private_key)
-      .map_err(anyhow::Error::msg)
-      .context("Failed to get octet string ref from private key")?;
-    Ok(octet.as_bytes().to_vec())
-  }
-
+  /// - For raw bytes: clones and returns
+  /// - For pkcs8 base64: converts and returns
+  /// - For pkcs8 base64 pem: unwraps and returns
   pub fn maybe_raw_bytes(
     maybe_pkcs8_private_key: &str,
   ) -> anyhow::Result<Vec<u8>> {
@@ -111,6 +123,21 @@ impl Pkcs8PrivateKey {
         "Private key must be less than 32 characters, or pkcs8 encoded."
       ))
     }
+  }
+
+  fn raw_bytes_after_decode(
+    decoded: &[u8],
+  ) -> anyhow::Result<Vec<u8>> {
+    let pki = pkcs8::PrivateKeyInfo::from_der(decoded)
+      .map_err(anyhow::Error::msg)
+      .context("Failed to parse pki from der")?;
+    if pki.algorithm.oid != super::OID_X25519 {
+      return Err(anyhow!("Private key is not X25519"));
+    }
+    let octet = OctetStringRef::from_der(pki.private_key)
+      .map_err(anyhow::Error::msg)
+      .context("Failed to get octet string ref from private key")?;
+    Ok(octet.as_bytes().to_vec())
   }
 
   pub fn compute_public_key(
