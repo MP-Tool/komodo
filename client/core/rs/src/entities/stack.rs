@@ -57,8 +57,22 @@ impl Stack {
   }
 
   pub fn is_compose_file(&self, path: &str) -> bool {
+    // First make sure its not a config file, which *could* also include
+    // other compose files not directly treated as compose.
+    if self.is_config_file(path) {
+      return false;
+    }
     for compose_path in self.compose_file_paths() {
       if path.ends_with(compose_path) {
+        return true;
+      }
+    }
+    false
+  }
+
+  pub fn is_config_file(&self, path: &str) -> bool {
+    for file in &self.config.config_files {
+      if path.ends_with(&file.path) {
         return true;
       }
     }
