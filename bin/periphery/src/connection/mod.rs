@@ -27,7 +27,9 @@ use uuid::Uuid;
 
 use crate::{
   api::{Args, PeripheryRequest},
-  config::{periphery_config, periphery_private_key},
+  config::{
+    core_public_keys, periphery_config, periphery_private_key,
+  },
 };
 
 pub mod client;
@@ -71,9 +73,10 @@ pub struct CorePublicKeyValidator;
 
 impl PublicKeyValidator for CorePublicKeyValidator {
   fn validate(&self, public_key: String) -> anyhow::Result<()> {
-    if let Some(public_keys) =
-      periphery_config().core_public_keys.as_ref()
-      && public_keys.iter().all(|expected| &public_key != expected)
+    if let Some(public_keys) = core_public_keys()
+      && public_keys
+        .iter()
+        .all(|expected| &public_key != expected.as_str())
     {
       Err(
         anyhow!("Got invalid public key: {public_key}")

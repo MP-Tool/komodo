@@ -26,28 +26,77 @@ use transport::{
   },
 };
 
-use crate::{config::core_config, periphery::ConnectionChannels};
+use crate::{
+  config::{core_private_key, periphery_public_keys},
+  periphery::ConnectionChannels,
+};
 
 pub mod client;
 pub mod server;
 
-pub struct PeripheryPublicKeyValidator<'a> {
-  /// If None, ignore public key.
-  pub expected: Option<&'a str>,
+pub enum PeripheryPublicKeyValidator<'a> {
+  /// When Core connects to Periphery, it is mainly
+  /// Periphery authenticating the connection from Core.
+  /// If user doesn't pin a public key in config, the
+  /// Periphery public key is not validated.
+  CoreToPeriphery(Option<&'a str>),
+  /// When Periphery connects to Core, its public key
+  /// must be validated, otherwise any random Periphery
+  /// can connect. If one isn't provided here,
+  /// will fallback to the default accepted 'periphery_public_keys'
+  /// in the Core config.
+  PeripheryToCore(Option<&'a str>),
+}
+
+impl PeripheryPublicKeyValidator<'_> {
+  pub fn new<'a>(
+    address: &str,
+    configured_public_key: &'a str,
+  ) -> PeripheryPublicKeyValidator<'a> {
+    let public_key = optional_str(configured_public_key);
+    if address.is_empty() {
+      PeripheryPublicKeyValidator::PeripheryToCore(public_key)
+    } else {
+      PeripheryPublicKeyValidator::CoreToPeriphery(public_key)
+    }
+  }
 }
 
 impl PublicKeyValidator for PeripheryPublicKeyValidator<'_> {
   fn validate(&self, public_key: String) -> anyhow::Result<()> {
-    if let Some(expected) = self.expected
-      && public_key != expected
-    {
-      Err(
-        anyhow!("Got invalid public key: {public_key}")
-          .context("Ensure public key matches configured Periphery Public Key")
-          .context("Core failed to validate Periphery public key"),
-      )
-    } else {
-      Ok(())
+    use PeripheryPublicKeyValidator::*;
+    let invalid_error = || {
+      anyhow!("Got invalid public key: {public_key}")
+        .context(
+          "Ensure public key matches configured Periphery Public Key",
+        )
+        .context("Core failed to validate Periphery public key")
+    };
+    match self {
+      // No public key validation
+      CoreToPeriphery(None) => Ok(()),
+      // Core config public key authentication
+      PeripheryToCore(None) => {
+        let expected =
+          periphery_public_keys().ok_or_else(invalid_error)?;
+        if expected
+          .iter()
+          .any(|expected| &public_key == expected.as_str())
+        {
+          Ok(())
+        } else {
+          Err(invalid_error())
+        }
+      }
+      // Validate keys explicitly set in Server config.
+      CoreToPeriphery(Some(expected))
+      | PeripheryToCore(Some(expected)) => {
+        if &public_key == expected {
+          Ok(())
+        } else {
+          Err(invalid_error())
+        }
+      }
     }
   }
 }
@@ -174,27 +223,17 @@ impl PeripheryConnection {
     {
       private_key
     } else {
-      &core_config().private_key
+      core_private_key()
     };
-
-    let periphery_public_key =
-      optional_str(&self.periphery_public_key)
-        .or(core_config().periphery_public_key.as_deref());
-
-    // Periphery -> Core connection requires a public key pinned
-    if self.address.is_empty() && periphery_public_key.is_none() {
-      return Err(anyhow!(
-        "Must either configure Server 'Periphery Public Key' or set KOMODO_PERIPHERY_PUBLIC_KEY for Periphery -> Core connection."
-      ));
-    }
 
     L::login(
       socket,
       identifiers,
       core_private_key,
-      &PeripheryPublicKeyValidator {
-        expected: periphery_public_key,
-      },
+      &PeripheryPublicKeyValidator::new(
+        &self.address,
+        &self.periphery_public_key,
+      ),
     )
     .await
   }
@@ -280,7 +319,7 @@ impl PeripheryConnection {
     };
     let Some(channel) = self.channels.get(&id).await else {
       // TODO: handle better
-      warn!("Failed to send response | No response channel found");
+      debug!("Failed to send response | No response channel found");
       return;
     };
     if let Err(e) = channel.send(bytes).await {

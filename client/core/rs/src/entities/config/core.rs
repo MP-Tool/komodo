@@ -13,10 +13,13 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use serde::Deserialize;
 
-use crate::entities::{
-  Timelength,
-  config::DatabaseConfig,
-  logger::{LogConfig, LogLevel, StdioLogMode},
+use crate::{
+  deserializers::option_string_list_deserializer,
+  entities::{
+    Timelength,
+    config::DatabaseConfig,
+    logger::{LogConfig, LogLevel, StdioLogMode},
+  },
 };
 
 use super::{DockerRegistry, GitProvider, empty_or_redacted};
@@ -75,8 +78,9 @@ pub struct Env {
   pub komodo_private_key: Option<String>,
   /// Override `private_key` with file
   pub komodo_private_key_file: Option<PathBuf>,
-  /// Override `periphery_public_key`
-  pub komodo_periphery_public_key: Option<String>,
+  /// Override `periphery_public_keys`
+  #[serde(alias = "komodo_periphery_public_key")]
+  pub komodo_periphery_public_keys: Option<Vec<String>>,
   /// Override `passkey`
   pub komodo_passkey: Option<String>,
   /// Override `passkey` from file
@@ -324,18 +328,33 @@ pub struct CoreConfig {
   pub internet_interface: String,
 
   /// Default private key to use with Noise handshake to authenticate with Periphery agents.
-  /// If not provided, will use random default.
+  /// If not provided, will use randomly generated one on startup.
+  ///
+  /// Supports openssl generated pem file, `openssl genpkey -algorithm X25519 -out private.key`.
+  /// To load from file, use `private_key = "file:/path/to/private.key"`
+  ///
   /// Note. The private key used can be overridden for individual Servers / Builders
-  #[serde(default = "default_private_key")]
-  pub private_key: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub private_key: Option<String>,
 
-  /// Default accepted public key to allow Periphery to connect.
+  /// Default accepted public keys to allow Periphery to connect.
   /// Core gains knowledge of the Periphery public key through the noise handshake.
   /// If not provided, Periphery -> Core connected Servers must
-  /// configure accepted public keys individually.
-  /// Note: If used, the public key can still be overridden on individual Servers / Builders
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub periphery_public_key: Option<String>,
+  /// configure accepted public key individually.
+  ///
+  /// Supports multiple public keys seperated by commas or newlines.
+  ///
+  /// Supports openssl generated pem file, `openssl pkey -in private.key -pubout -out public.key`.
+  /// To load from file, include `file:/path/to/public.key` in the list.
+  ///
+  /// Note: If used, the accepted public key can still be overridden on individual Servers / Builders
+  #[serde(
+    default,
+    alias = "periphery_public_key",
+    deserialize_with = "option_string_list_deserializer",
+    skip_serializing_if = "Option::is_none"
+  )]
+  pub periphery_public_keys: Option<Vec<String>>,
 
   /// Deprecated. Legacy v1 compatibility.
   /// Users should upgrade to private / public key authentication.
@@ -660,10 +679,6 @@ fn default_core_bind_ip() -> String {
   "[::]".to_string()
 }
 
-fn default_private_key() -> String {
-  String::from("default-private-key-changeme")
-}
-
 fn default_frontend_path() -> String {
   "/app/frontend".to_string()
 }
@@ -719,8 +734,8 @@ impl Default for CoreConfig {
       port: default_core_port(),
       bind_ip: default_core_bind_ip(),
       internet_interface: Default::default(),
-      private_key: default_private_key(),
-      periphery_public_key: Default::default(),
+      private_key: Default::default(),
+      periphery_public_keys: Default::default(),
       passkey: Default::default(),
       timezone: Default::default(),
       ui_write_disabled: Default::default(),
@@ -783,8 +798,14 @@ impl CoreConfig {
       host: config.host,
       port: config.port,
       bind_ip: config.bind_ip,
-      private_key: empty_or_redacted(&config.private_key),
-      periphery_public_key: config.periphery_public_key,
+      private_key: self.private_key.as_ref().map(|private_key| {
+        if private_key.starts_with("file:") {
+          private_key.clone()
+        } else {
+          empty_or_redacted(private_key)
+        }
+      }),
+      periphery_public_keys: config.periphery_public_keys,
       passkey: config.passkey.as_deref().map(empty_or_redacted),
       timezone: config.timezone,
       first_server: config.first_server,

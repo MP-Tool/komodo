@@ -33,7 +33,9 @@ use transport::{
 };
 
 use crate::{
-  api::Args, config::periphery_config, connection::core_channels,
+  api::Args,
+  config::{core_public_keys, periphery_config},
+  connection::core_channels,
 };
 
 pub async fn run() -> anyhow::Result<()> {
@@ -163,9 +165,7 @@ async fn handle_login(
   socket: &mut AxumWebsocket,
   identifiers: ConnectionIdentifiers<'_>,
 ) -> anyhow::Result<()> {
-  let config = periphery_config();
-
-  match (&config.core_public_keys, &config.passkeys) {
+  match (core_public_keys(), &periphery_config().passkeys) {
     (Some(_), _) | (_, None) => {
       // Send login type [0] (Noise auth)
       socket

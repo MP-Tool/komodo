@@ -1,6 +1,7 @@
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use base64::{Engine as _, prelude::BASE64_STANDARD};
-use der::{Encode as _, asn1::BitStringRef};
+use der::{Decode as _, Encode as _, asn1::BitStringRef};
+use spki::SubjectPublicKeyInfoRef;
 
 #[derive(PartialEq)]
 pub struct SpkiPublicKey(String);
@@ -18,16 +19,44 @@ impl std::fmt::Display for SpkiPublicKey {
 }
 
 impl SpkiPublicKey {
+  pub fn as_str(&self) -> &str {
+    &self.0
+  }
+
   pub fn into_inner(self) -> String {
     self.0
   }
 
-  pub fn from_pem(public_key_pem: &str) -> anyhow::Result<Self> {
-    let (_label, public_key_der) =
-      pem_rfc7468::decode_vec(public_key_pem.as_bytes())
-        .map_err(anyhow::Error::msg)
-        .context("Failed to get der from pem")?;
-    Ok(Self(BASE64_STANDARD.encode(public_key_der)))
+  /// Accepts pem rfc7468 (openssl) or base64 der (second line of rfc7468 pem).
+  pub fn from_maybe_pem(
+    public_key_maybe_pem: &str,
+  ) -> anyhow::Result<Self> {
+    // check pem rfc7468 (openssl)
+    let public_key_der =
+      if public_key_maybe_pem.starts_with("-----BEGIN") {
+        let (_label, public_key_der) =
+          pem_rfc7468::decode_vec(public_key_maybe_pem.as_bytes())
+            .map_err(anyhow::Error::msg)
+            .context("Failed to get der from pem")
+            .unwrap();
+        public_key_der
+      } else {
+        BASE64_STANDARD
+          .decode(public_key_maybe_pem)
+          .context("Public key is not base64")?
+      };
+    Self::from_der(&public_key_der)
+  }
+
+  /// Accepts der (not base64)
+  pub fn from_der(public_key_der: &[u8]) -> anyhow::Result<Self> {
+    let spki = SubjectPublicKeyInfoRef::from_der(public_key_der)
+      .map_err(anyhow::Error::msg)
+      .context("Invalid public key der")?;
+    if spki.algorithm.oid != super::OID_X25519 {
+      return Err(anyhow!("Public key is not X25519"));
+    }
+    Self::from_raw_bytes(spki.subject_public_key.raw_bytes())
   }
 
   pub fn from_raw_bytes(public_key: &[u8]) -> anyhow::Result<Self> {

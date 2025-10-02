@@ -19,14 +19,15 @@ async fn app() -> anyhow::Result<()> {
   logger::init(&config.logging)?;
 
   info!("Komodo Periphery version: v{}", env!("CARGO_PKG_VERSION"));
-  // Init public key to crash on failure
-  info!("Periphery Public Key: {}", periphery_public_key());
 
   if config.pretty_startup_config {
     info!("{:#?}", config.sanitized());
   } else {
     info!("{:?}", config.sanitized());
   }
+
+  // Init + log public key. Will crash if invalid private key here.
+  info!("Public Key: {}", periphery_public_key());
 
   rustls::crypto::aws_lc_rs::default_provider()
     .install_default()

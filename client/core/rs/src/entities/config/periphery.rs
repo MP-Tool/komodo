@@ -212,15 +212,16 @@ pub struct Env {
 #[derive(Debug, Clone, Deserialize)]
 pub struct PeripheryConfig {
   /// The private key used with noise handshake.
+  /// If not provided, uses randomly generated one on startup.
+  ///
+  /// Supports openssl generated pem file, `openssl genpkey -algorithm X25519 -out private.key`.
+  /// To load from file, use `private_key = "file:/path/to/private.key"`
   #[serde(skip_serializing_if = "Option::is_none")]
   pub private_key: Option<String>,
-  /// The private key used with noise handshake.
-  /// Provide as file generated with
-  /// `openssl genpkey -algorithm X25519 -out komodo.key`
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub private_key_file: Option<PathBuf>,
-  /// Optionally pin a specific Core public key
-  /// for additional trust.
+  /// Optionally pin a specific Core public key for additional trust.
+  ///
+  /// Supports openssl generated pem file, `openssl pkey -in private.key -pubout -out public.key`.
+  /// To load from file, include `file:/path/to/public.key` in the list.
   #[serde(
     default,
     alias = "core_public_key",
@@ -418,7 +419,6 @@ impl Default for PeripheryConfig {
   fn default() -> Self {
     Self {
       private_key: None,
-      private_key_file: None,
       core_public_keys: None,
       passkeys: None,
       core_addresses: None,
@@ -454,11 +454,13 @@ impl Default for PeripheryConfig {
 impl PeripheryConfig {
   pub fn sanitized(&self) -> PeripheryConfig {
     PeripheryConfig {
-      private_key: self
-        .private_key
-        .as_ref()
-        .map(|pk| empty_or_redacted(pk)),
-      private_key_file: self.private_key_file.clone(),
+      private_key: self.private_key.as_ref().map(|private_key| {
+        if private_key.starts_with("file:") {
+          private_key.clone()
+        } else {
+          empty_or_redacted(private_key)
+        }
+      }),
       core_public_keys: self.core_public_keys.clone(),
       passkeys: self.passkeys.as_ref().map(|passkeys| {
         passkeys.iter().map(|p| empty_or_redacted(p)).collect()

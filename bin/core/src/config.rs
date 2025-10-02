@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::OnceLock};
+use std::{fs::read_to_string, path::PathBuf, sync::OnceLock};
 
 use anyhow::Context;
 use colored::Colorize;
@@ -16,17 +16,67 @@ use komodo_client::entities::{
   },
   logger::LogConfig,
 };
-use noise::key::SpkiPublicKey;
+use noise::key::{EncodedKeyPair, SpkiPublicKey};
+
+/// Should call in startup to ensure Core errors without valid private key.
+pub fn core_private_key() -> &'static String {
+  static CORE_PRIVATE_KEY: OnceLock<String> = OnceLock::new();
+  CORE_PRIVATE_KEY.get_or_init(|| {
+    let config = core_config();
+    let Some(private_key) = config.private_key.as_ref() else {
+      return EncodedKeyPair::generate().unwrap().private;
+    };
+    if let Some(path) = private_key.strip_prefix("file:") {
+      read_to_string(path)
+        .with_context(|| {
+          format!("Failed to read private key at {path:?}")
+        })
+        .unwrap()
+    } else {
+      private_key.clone()
+    }
+  })
+}
 
 /// Should call in startup to ensure Core errors without valid private key.
 pub fn core_public_key() -> &'static String {
   static CORE_PUBLIC_KEY: OnceLock<String> = OnceLock::new();
   CORE_PUBLIC_KEY.get_or_init(|| {
-    SpkiPublicKey::from_private_key(&core_config().private_key)
+    SpkiPublicKey::from_private_key(core_private_key())
       .context("Got invalid private key")
       .unwrap()
       .into_inner()
   })
+}
+
+pub fn periphery_public_keys() -> Option<&'static [SpkiPublicKey]> {
+  static PERIPHERY_PUBLIC_KEYS: OnceLock<Option<Vec<SpkiPublicKey>>> =
+    OnceLock::new();
+  PERIPHERY_PUBLIC_KEYS
+    .get_or_init(|| {
+      core_config().periphery_public_keys.as_ref().map(
+        |public_keys| {
+          public_keys
+            .iter()
+            .map(|public_key| {
+              let maybe_pem = if let Some(path) =
+                public_key.strip_prefix("file:")
+              {
+                read_to_string(path)
+                  .with_context(|| {
+                    format!("Failed to read public key at {path:?}")
+                  })
+                  .unwrap()
+              } else {
+                public_key.clone()
+              };
+              SpkiPublicKey::from_maybe_pem(&maybe_pem).unwrap()
+            })
+            .collect()
+        },
+      )
+    })
+    .as_deref()
 }
 
 pub fn core_connection_query() -> &'static String {
@@ -116,11 +166,11 @@ pub fn core_config() -> &'static CoreConfig {
     // recreating CoreConfig here makes sure apply all env overrides applied.
     CoreConfig {
       // Secret things overridden with file
-      jwt_secret: maybe_read_item_from_file(env.komodo_jwt_secret_file, env.komodo_jwt_secret).unwrap_or(config.jwt_secret),
       private_key: maybe_read_item_from_file(env.komodo_private_key_file, env.komodo_private_key)
-        .unwrap_or(config.private_key),
+        .or(config.private_key),
       passkey: maybe_read_item_from_file(env.komodo_passkey_file, env.komodo_passkey)
         .or(config.passkey),
+      jwt_secret: maybe_read_item_from_file(env.komodo_jwt_secret_file, env.komodo_jwt_secret).unwrap_or(config.jwt_secret),
       webhook_secret: maybe_read_item_from_file(env.komodo_webhook_secret_file, env.komodo_webhook_secret)
         .unwrap_or(config.webhook_secret),
       database: DatabaseConfig {
@@ -202,7 +252,8 @@ pub fn core_config() -> &'static CoreConfig {
       },
 
       // Non secrets
-      periphery_public_key: env.komodo_periphery_public_key.or(config.periphery_public_key),
+      periphery_public_keys: env.komodo_periphery_public_keys
+        .or(config.periphery_public_keys),
       title: env.komodo_title.unwrap_or(config.title),
       host: env.komodo_host.unwrap_or(config.host),
       port: env.komodo_port.unwrap_or(config.port),

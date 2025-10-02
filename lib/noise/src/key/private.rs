@@ -18,6 +18,10 @@ impl std::fmt::Display for Pkcs8PrivateKey {
 }
 
 impl Pkcs8PrivateKey {
+  pub fn as_str(&self) -> &str {
+    &self.0
+  }
+
   pub fn into_inner(self) -> String {
     self.0
   }
@@ -88,7 +92,7 @@ impl Pkcs8PrivateKey {
   pub fn maybe_raw_bytes(
     maybe_pkcs8_private_key: &str,
   ) -> anyhow::Result<Vec<u8>> {
-    // pem
+    // check pem rfc7468 (openssl)
     if maybe_pkcs8_private_key.starts_with("-----BEGIN") {
       let (_label, private_key_der) =
         pem_rfc7468::decode_vec(maybe_pkcs8_private_key.as_bytes())

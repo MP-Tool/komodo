@@ -42,8 +42,6 @@ async fn app() -> anyhow::Result<()> {
   logger::init(&config.logging)?;
 
   info!("Komodo Core version: v{}", env!("CARGO_PKG_VERSION"));
-  // Init public key to crash on failure
-  info!("Core Public Key: {}", core_public_key());
 
   match (
     config.pretty_startup_config,
@@ -54,6 +52,9 @@ async fn app() -> anyhow::Result<()> {
     (false, true) => info!("{:?}", config),
     (false, false) => info!("{:?}", config.sanitized()),
   }
+
+  // Init + log public key. Will crash if invalid private key here.
+  info!("Public Key: {}", core_public_key());
 
   rustls::crypto::aws_lc_rs::default_provider()
     .install_default()
