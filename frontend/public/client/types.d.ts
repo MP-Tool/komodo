@@ -2276,7 +2276,15 @@ export interface ServerConfig {
     /** Scheduled maintenance windows during which alerts will be suppressed. */
     maintenance_windows?: MaintenanceWindow[];
 }
-export type Server = Resource<ServerConfig, undefined>;
+export interface ServerInfo {
+    /**
+     * If a Periphery fails to authenticate to Core
+     * for a disconnected server with invalid Periphery public key,
+     * it will be stored here to accept the connection later on.
+     */
+    attempted_public_key?: string;
+}
+export type Server = Resource<ServerConfig, ServerInfo>;
 export type GetServerResponse = Server;
 export interface StackActionState {
     pulling: boolean;
@@ -3880,6 +3888,11 @@ export interface ServerListItemInfo {
     version?: string;
     /** The public key of Periphery */
     public_key?: string;
+    /**
+     * If a Periphery fails to authenticate to Core with invalid Periphery public key,
+     * it will be stored here to accept the connection later on.
+     */
+    attempted_public_key?: string;
     /**
      * Whether server is configured to send unreachable alerts.
      * Whether terminals are disabled for this Server.

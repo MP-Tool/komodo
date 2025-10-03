@@ -295,7 +295,7 @@ async fn forward_ws_channel(
     )
   }
   if let Some(connection) =
-    periphery_connections().get(&periphery.server_id).await
+    periphery_connections().get(&periphery.id).await
   {
     connection.channels.remove(&periphery_connection_id).await;
   }

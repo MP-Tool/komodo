@@ -19,7 +19,7 @@ use super::{
 };
 
 #[typeshare]
-pub type Server = Resource<ServerConfig, ()>;
+pub type Server = Resource<ServerConfig, ServerInfo>;
 
 #[typeshare]
 pub type ServerListItem = ResourceListItem<ServerListItemInfo>;
@@ -50,11 +50,24 @@ pub struct ServerListItemInfo {
   pub version: Option<String>,
   /// The public key of Periphery
   pub public_key: Option<String>,
+  /// If a Periphery fails to authenticate to Core with invalid Periphery public key,
+  /// it will be stored here to accept the connection later on.
+  pub attempted_public_key: Option<String>,
   /// Whether server is configured to send unreachable alerts.
   /// Whether terminals are disabled for this Server.
   pub terminals_disabled: bool,
   /// Whether container exec is disabled for this Server.
   pub container_exec_disabled: bool,
+}
+
+#[typeshare]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ServerInfo {
+  /// If a Periphery fails to authenticate to Core
+  /// for a disconnected server with invalid Periphery public key,
+  /// it will be stored here to accept the connection later on.
+  #[serde(default)]
+  pub attempted_public_key: String,
 }
 
 #[typeshare(serialized_as = "Partial<ServerConfig>")]

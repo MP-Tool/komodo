@@ -27,40 +27,35 @@ pub type ConnectionChannels = CloneCache<Uuid, Sender<Bytes>>;
 
 #[derive(Debug)]
 pub struct PeripheryClient {
-  pub server_id: String,
+  pub id: String,
   channels: Arc<ConnectionChannels>,
 }
 
 impl PeripheryClient {
   pub async fn new(
-    server_id: String,
     args: PeripheryConnectionArgs<'_>,
     // deprecated.
     passkey: &str,
   ) -> anyhow::Result<PeripheryClient> {
     let connections = periphery_connections();
 
+    let id = args.id.to_string();
+
     // Spawn client side connection if one doesn't exist.
-    let Some(connection) = connections.get(&server_id).await else {
+    let Some(connection) = connections.get(&id).await else {
       if args.address.is_none() {
-        return Err(anyhow!("Server {server_id} is not connected"));
+        return Err(anyhow!("Server {id} is not connected"));
       }
       let channels = args
-        .spawn_client_connection(
-          server_id.clone(),
-          passkey.to_string(),
-        )
+        .spawn_client_connection(id.clone(), passkey.to_string())
         .await?;
-      return Ok(PeripheryClient {
-        server_id,
-        channels,
-      });
+      return Ok(PeripheryClient { id, channels });
     };
 
     // Ensure the connection args are unchanged.
-    if args == connection.args.borrow() {
+    if args.matches(&connection.args) {
       return Ok(PeripheryClient {
-        server_id,
+        id,
         channels: connection.channels.clone(),
       });
     }
@@ -69,33 +64,27 @@ impl PeripheryClient {
     if args.address.is_none() {
       // Periphery -> Core connection
       // Remove this connection, wait and see if client reconnects
-      connections.remove(&server_id).await;
+      connections.remove(&id).await;
       tokio::time::sleep(Duration::from_millis(500)).await;
-      let connection =
-        connections.get(&server_id).await.with_context(|| {
-          format!("Server {server_id} is not connected")
-        })?;
+      let connection = connections
+        .get(&id)
+        .await
+        .with_context(|| format!("Server {id} is not connected"))?;
       Ok(PeripheryClient {
-        server_id,
+        id,
         channels: connection.channels.clone(),
       })
     } else {
       // Core -> Periphery connection
       let channels = args
-        .spawn_client_connection(
-          server_id.clone(),
-          passkey.to_string(),
-        )
+        .spawn_client_connection(id.clone(), passkey.to_string())
         .await?;
-      Ok(PeripheryClient {
-        server_id,
-        channels,
-      })
+      Ok(PeripheryClient { id, channels })
     }
   }
 
   pub async fn cleanup(self) -> Option<Arc<PeripheryConnection>> {
-    periphery_connections().remove(&self.server_id).await
+    periphery_connections().remove(&self.id).await
   }
 
   #[tracing::instrument(level = "debug", skip(self))]
@@ -117,12 +106,10 @@ impl PeripheryClient {
     T: std::fmt::Debug + Serialize + HasResponse,
     T::Response: DeserializeOwned,
   {
-    let connection = periphery_connections()
-      .get(&self.server_id)
-      .await
-      .with_context(|| {
-        format!("No connection found for server {}", self.server_id)
-      })?;
+    let connection =
+      periphery_connections().get(&self.id).await.with_context(
+        || format!("No connection found for server {}", self.id),
+      )?;
 
     // Polls connected 3 times before bailing
     connection.bail_if_not_connected().await?;
@@ -175,7 +162,7 @@ impl PeripheryClient {
         Err(e) => {
           warn!(
             "Server {} | Received invalid message | {e:#}",
-            self.server_id
+            self.id
           );
           continue;
         }
@@ -199,7 +186,7 @@ impl PeripheryClient {
           // TODO: delete log
           warn!(
             "Server {} | Got other message over over response channel: {other:?}",
-            self.server_id
+            self.id
           );
           continue;
         }

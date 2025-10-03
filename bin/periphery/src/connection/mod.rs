@@ -12,7 +12,10 @@ use serror::serialize_error_bytes;
 use tokio::sync::mpsc::Sender;
 use transport::{
   MessageState,
-  auth::{ConnectionIdentifiers, LoginFlow, PublicKeyValidator},
+  auth::{
+    ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
+    PublicKeyValidator,
+  },
   bytes::{
     data_from_transport_bytes, id_state_from_transport_bytes,
     to_transport_bytes,
@@ -68,12 +71,12 @@ async fn handle_login<W: Websocket, L: LoginFlow>(
   socket: &mut W,
   identifiers: ConnectionIdentifiers<'_>,
 ) -> anyhow::Result<()> {
-  L::login(
+  L::login(LoginFlowArgs {
     socket,
     identifiers,
-    periphery_private_key(),
-    &CorePublicKeyValidator,
-  )
+    private_key: periphery_private_key(),
+    public_key_validator: CorePublicKeyValidator,
+  })
   .await
 }
 

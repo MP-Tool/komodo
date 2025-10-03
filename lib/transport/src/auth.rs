@@ -24,12 +24,16 @@ pub trait PublicKeyValidator {
   fn validate(&self, public_key: String) -> anyhow::Result<()>;
 }
 
+pub struct LoginFlowArgs<'a, 's, V, W> {
+  pub identifiers: ConnectionIdentifiers<'a>,
+  pub private_key: &'a str,
+  pub public_key_validator: V,
+  pub socket: &'s mut W,
+}
+
 pub trait LoginFlow {
-  fn login(
-    socket: &mut impl Websocket,
-    connection_identifiers: ConnectionIdentifiers<'_>,
-    private_key: &str,
-    public_key_validator: &impl PublicKeyValidator,
+  fn login<'a, 's, V: PublicKeyValidator, W: Websocket>(
+    args: LoginFlowArgs<'a, 's, V, W>,
   ) -> impl Future<Output = anyhow::Result<()>>;
 }
 
@@ -38,11 +42,13 @@ const AUTH_TIMEOUT: Duration = Duration::from_secs(2);
 pub struct ServerLoginFlow;
 
 impl LoginFlow for ServerLoginFlow {
-  async fn login(
-    socket: &mut impl Websocket,
-    connection_identifiers: ConnectionIdentifiers<'_>,
-    private_key: &str,
-    public_key_validator: &impl PublicKeyValidator,
+  async fn login<'a, 's, V: PublicKeyValidator, W: Websocket>(
+    LoginFlowArgs {
+      identifiers,
+      private_key,
+      public_key_validator,
+      socket,
+    }: LoginFlowArgs<'a, 's, V, W>,
   ) -> anyhow::Result<()> {
     let res = async {
       // Server generates random nonce and sends to client
@@ -56,7 +62,7 @@ impl LoginFlow for ServerLoginFlow {
         private_key,
         // Builds the handshake using the connection-unique prologue hash.
         // The prologue must be the same on both sides of connection.
-        &connection_identifiers.hash(&nonce),
+        &identifiers.hash(&nonce),
       )
       .context("Failed to inialize handshake")?;
 
@@ -147,11 +153,13 @@ impl LoginFlow for ServerLoginFlow {
 pub struct ClientLoginFlow;
 
 impl LoginFlow for ClientLoginFlow {
-  async fn login(
-    socket: &mut impl Websocket,
-    connection_identifiers: ConnectionIdentifiers<'_>,
-    private_key: &str,
-    public_key_validator: &impl PublicKeyValidator,
+  async fn login<'a, 's, V: PublicKeyValidator, W: Websocket>(
+    LoginFlowArgs {
+      identifiers,
+      private_key,
+      public_key_validator,
+      socket,
+    }: LoginFlowArgs<'a, 's, V, W>,
   ) -> anyhow::Result<()> {
     let res = async {
       // Receive nonce from server
@@ -164,7 +172,7 @@ impl LoginFlow for ClientLoginFlow {
         private_key,
         // Builds the handshake using the connection-unique prologue hash.
         // The prologue must be the same on both sides of connection.
-        &connection_identifiers.hash(&nonce),
+        &identifiers.hash(&nonce),
       )
       .context("Failed to inialize handshake")?;
 

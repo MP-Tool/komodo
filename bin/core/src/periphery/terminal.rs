@@ -29,12 +29,10 @@ impl PeripheryClient {
       "request | type: ConnectTerminal | terminal name: {terminal}",
     );
 
-    let connection = periphery_connections()
-      .get(&self.server_id)
-      .await
-      .with_context(|| {
-        format!("No connection found for server {}", self.server_id)
-      })?;
+    let connection =
+      periphery_connections().get(&self.id).await.with_context(
+        || format!("No connection found for server {}", self.id),
+      )?;
 
     let id = self
       .request(ConnectTerminal { terminal })
@@ -56,12 +54,10 @@ impl PeripheryClient {
       "request | type: ConnectContainerExec | container name: {container} | shell: {shell}",
     );
 
-    let connection = periphery_connections()
-      .get(&self.server_id)
-      .await
-      .with_context(|| {
-        format!("No connection found for server {}", self.server_id)
-      })?;
+    let connection =
+      periphery_connections().get(&self.id).await.with_context(
+        || format!("No connection found for server {}", self.id),
+      )?;
 
     let id = self
       .request(ConnectContainerExec { container, shell })
@@ -99,12 +95,10 @@ impl PeripheryClient {
       "sending request | type: ExecuteTerminal | terminal name: {terminal} | command: {command}",
     );
 
-    let connection = periphery_connections()
-      .get(&self.server_id)
-      .await
-      .with_context(|| {
-        format!("No connection found for server {}", self.server_id)
-      })?;
+    let connection =
+      periphery_connections().get(&self.id).await.with_context(
+        || format!("No connection found for server {}", self.id),
+      )?;
 
     let id = self
       .request(ExecuteTerminal { terminal, command })
@@ -146,12 +140,10 @@ impl PeripheryClient {
       "sending request | type: ExecuteContainerExec | container: {container} | shell: {shell} | command: {command}",
     );
 
-    let connection = periphery_connections()
-      .get(&self.server_id)
-      .await
-      .with_context(|| {
-        format!("No connection found for server {}", self.server_id)
-      })?;
+    let connection =
+      periphery_connections().get(&self.id).await.with_context(
+        || format!("No connection found for server {}", self.id),
+      )?;
 
     let id = self
       .request(ExecuteContainerExec {

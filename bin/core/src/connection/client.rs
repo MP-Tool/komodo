@@ -27,7 +27,7 @@ use super::{PeripheryConnection, PeripheryConnectionArgs};
 impl PeripheryConnectionArgs<'_> {
   pub async fn spawn_client_connection(
     self,
-    server_id: String,
+    id: String,
     passkey: String,
   ) -> anyhow::Result<Arc<ConnectionChannels>> {
     let Some(address) = self.address else {
@@ -41,9 +41,8 @@ impl PeripheryConnectionArgs<'_> {
       AddressConnectionIdentifiers::extract(&address)?;
     let endpoint = format!("{address}/?{}", core_connection_query());
 
-    let (connection, mut receiver) = periphery_connections()
-      .insert(server_id.clone(), self)
-      .await;
+    let (connection, mut receiver) =
+      periphery_connections().insert(id.clone(), self).await;
 
     let channels = connection.channels.clone();
 

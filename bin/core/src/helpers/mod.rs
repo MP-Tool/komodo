@@ -193,7 +193,6 @@ pub async fn periphery_client(
     return Err(anyhow!("server not enabled"));
   }
   PeripheryClient::new(
-    server.id.clone(),
     PeripheryConnectionArgs::from_server(server),
     &server.config.passkey,
   )

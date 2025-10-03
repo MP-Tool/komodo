@@ -432,8 +432,10 @@ async fn get_on_host_periphery(
       // TODO: Ensure connection is actually established.
       // Builder id no good because it may be active for multiple connections.
       let periphery = PeripheryClient::new(
-        ObjectId::new().to_hex(),
-        PeripheryConnectionArgs::from_url_builder(&config),
+        PeripheryConnectionArgs::from_url_builder(
+          &ObjectId::new().to_hex(),
+          &config,
+        ),
         &config.passkey,
       )
       .await?;

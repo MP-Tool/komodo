@@ -9,6 +9,7 @@ use std::{
 use anyhow::anyhow;
 use bytes::Bytes;
 use cache::CloneCache;
+use database::mungos::{by_id::update_one_by_id, mongodb::bson::doc};
 use komodo_client::entities::{
   builder::{AwsBuilderConfig, UrlBuilderConfig},
   optional_str,
@@ -21,7 +22,10 @@ use tokio::sync::{
 };
 use tokio_util::sync::CancellationToken;
 use transport::{
-  auth::{ConnectionIdentifiers, LoginFlow, PublicKeyValidator},
+  auth::{
+    ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
+    PublicKeyValidator,
+  },
   bytes::id_from_transport_bytes,
   channel::{BufferedReceiver, buffered_channel},
   websocket::{
@@ -33,6 +37,7 @@ use transport::{
 use crate::{
   config::{core_private_key, periphery_public_keys},
   periphery::ConnectionChannels,
+  state::db_client,
 };
 
 pub mod client;
@@ -55,7 +60,6 @@ impl PeripheryConnections {
     let (connection, receiver) = if let Some(existing_connection) =
       self.0.remove(&server_id).await
     {
-      existing_connection.cancel();
       existing_connection.with_new_args(args)
     } else {
       PeripheryConnection::new(args)
@@ -89,6 +93,8 @@ impl PeripheryConnections {
 /// The configurable args of a connection
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PeripheryConnectionArgs<'a> {
+  /// Usually the server id
+  pub id: &'a str,
   pub address: Option<&'a str>,
   core_private_key: Option<&'a str>,
   periphery_public_key: Option<&'a str>,
@@ -99,6 +105,27 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
     // Make sure all cases get the same error,
     // including what the public key should be.
     let invalid_error = || {
+      // Spawn task to set the 'attempted_public_key'
+      // for easy manual connection acceptance later on.
+      tokio::spawn(async move {
+        update_one_by_id(
+          &db_client().servers,
+          self.id,
+          doc! {
+            "$set": {
+              "info.attempted_public_key": &public_key,
+            }
+          },
+          None,
+        )
+        .await
+        .inspect_err(|e| {
+          warn!(
+            "Failed to update attempted public_key for Server {}",
+            self.id
+          )
+        });
+      });
       anyhow!("{public_key} is invalid")
         .context(
           "Ensure public key matches configured Periphery Public Key",
@@ -136,6 +163,7 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
 impl<'a> PeripheryConnectionArgs<'a> {
   pub fn from_server(server: &'a Server) -> Self {
     Self {
+      id: &server.id,
       address: optional_str(&server.config.address),
       core_private_key: optional_str(&server.config.core_private_key),
       periphery_public_key: optional_str(
@@ -144,8 +172,12 @@ impl<'a> PeripheryConnectionArgs<'a> {
     }
   }
 
-  pub fn from_url_builder(config: &'a UrlBuilderConfig) -> Self {
+  pub fn from_url_builder(
+    id: &str,
+    config: &'a UrlBuilderConfig,
+  ) -> Self {
     Self {
+      id,
       address: optional_str(&config.address),
       core_private_key: optional_str(&config.core_private_key),
       periphery_public_key: optional_str(
@@ -155,10 +187,12 @@ impl<'a> PeripheryConnectionArgs<'a> {
   }
 
   pub fn from_aws_builder(
+    id: &str,
     address: &'a str,
     config: &'a AwsBuilderConfig,
   ) -> Self {
     Self {
+      id,
       address: Some(address),
       core_private_key: optional_str(&config.core_private_key),
       periphery_public_key: optional_str(
@@ -169,6 +203,7 @@ impl<'a> PeripheryConnectionArgs<'a> {
 
   pub fn to_owned(self) -> OwnedPeripheryConnectionArgs {
     OwnedPeripheryConnectionArgs {
+      id: self.id.to_string(),
       address: self.address.map(str::to_string),
       core_private_key: self.core_private_key.map(str::to_string),
       periphery_public_key: self
@@ -176,10 +211,19 @@ impl<'a> PeripheryConnectionArgs<'a> {
         .map(str::to_string),
     }
   }
+
+  pub fn matches<'b>(
+    self,
+    args: impl Into<PeripheryConnectionArgs<'b>>,
+  ) -> bool {
+    self == args.into()
+  }
 }
 
 #[derive(Debug, Clone)]
 pub struct OwnedPeripheryConnectionArgs {
+  /// Usually the Server id.
+  pub id: String,
   /// Specify outbound connection address.
   /// Inbound connections have this as None
   pub address: Option<String>,
@@ -191,6 +235,17 @@ pub struct OwnedPeripheryConnectionArgs {
   pub periphery_public_key: Option<String>,
 }
 
+impl OwnedPeripheryConnectionArgs {
+  pub fn borrow(&self) -> PeripheryConnectionArgs<'_> {
+    PeripheryConnectionArgs {
+      id: &self.id,
+      address: self.address.as_deref(),
+      core_private_key: self.core_private_key.as_deref(),
+      periphery_public_key: self.periphery_public_key.as_deref(),
+    }
+  }
+}
+
 impl From<PeripheryConnectionArgs<'_>>
   for OwnedPeripheryConnectionArgs
 {
@@ -199,13 +254,11 @@ impl From<PeripheryConnectionArgs<'_>>
   }
 }
 
-impl OwnedPeripheryConnectionArgs {
-  pub fn borrow(&self) -> PeripheryConnectionArgs<'_> {
-    PeripheryConnectionArgs {
-      address: self.address.as_deref(),
-      core_private_key: self.core_private_key.as_deref(),
-      periphery_public_key: self.periphery_public_key.as_deref(),
-    }
+impl<'a> From<&'a OwnedPeripheryConnectionArgs>
+  for PeripheryConnectionArgs<'a>
+{
+  fn from(value: &'a OwnedPeripheryConnectionArgs) -> Self {
+    value.borrow()
   }
 }
 
@@ -250,6 +303,8 @@ impl PeripheryConnection {
     &self,
     args: impl Into<OwnedPeripheryConnectionArgs>,
   ) -> (Arc<PeripheryConnection>, BufferedReceiver<Bytes>) {
+    // Ensure this connection is cancelled.
+    self.cancel();
     let (sender, receiever) = buffered_channel();
     (
       PeripheryConnection {
@@ -270,16 +325,17 @@ impl PeripheryConnection {
     socket: &mut W,
     identifiers: ConnectionIdentifiers<'_>,
   ) -> anyhow::Result<()> {
-    L::login(
+    let private_key = self
+      .args
+      .core_private_key
+      .as_ref()
+      .unwrap_or(core_private_key());
+    L::login(LoginFlowArgs {
       socket,
       identifiers,
-      self
-        .args
-        .core_private_key
-        .as_ref()
-        .unwrap_or(core_private_key()),
-      &self.args.borrow(),
-    )
+      private_key,
+      public_key_validator: self.args.borrow(),
+    })
     .await
   }
 

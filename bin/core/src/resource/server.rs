@@ -1,5 +1,6 @@
 use anyhow::Context;
 use database::mungos::mongodb::{Collection, bson::doc};
+use formatting::format_serror;
 use indexmap::IndexSet;
 use komodo_client::entities::{
   Operation, ResourceTarget, ResourceTargetVariant, komodo_timestamp,
@@ -8,7 +9,8 @@ use komodo_client::entities::{
   resource::Resource,
   server::{
     PartialServerConfig, Server, ServerConfig, ServerConfigDiff,
-    ServerListItem, ServerListItemInfo, ServerQuerySpecifics,
+    ServerInfo, ServerListItem, ServerListItemInfo,
+    ServerQuerySpecifics,
   },
   update::Update,
   user::User,
@@ -29,7 +31,7 @@ impl super::KomodoResource for Server {
   type Config = ServerConfig;
   type PartialConfig = PartialServerConfig;
   type ConfigDiff = ServerConfigDiff;
-  type Info = ();
+  type Info = ServerInfo;
   type ListItem = ServerListItem;
   type QuerySpecifics = ServerQuerySpecifics;
 
@@ -101,6 +103,9 @@ impl super::KomodoResource for Server {
           .send_version_mismatch_alerts,
         version,
         public_key,
+        attempted_public_key: optional_string(
+          server.info.attempted_public_key,
+        ),
         terminals_disabled,
         container_exec_disabled,
       },
@@ -159,22 +164,25 @@ impl super::KomodoResource for Server {
 
   async fn post_update(
     updated: &Self,
-    _update: &mut Update,
+    update: &mut Update,
   ) -> anyhow::Result<()> {
     if updated.config.enabled {
       // Init periphery client to trigger reconnection
       // if relevant parameters change.
       if let Err(e) = PeripheryClient::new(
-        updated.id.clone(),
         PeripheryConnectionArgs::from_server(updated),
         &updated.config.passkey,
       )
       .await
-      {
-        warn!(
-          "Failed to get client handle after update for Server {} | {e:#}",
+      .with_context(|| {
+        format!(
+          "Failed to get client handle after update for Server {}",
           updated.id
-        );
+        )
+      }) {
+        warn!("{e:#}");
+        update
+          .push_simple_log("Post Update", format_serror(&e.into()));
       };
     } else {
       periphery_connections().remove(&updated.id).await;
