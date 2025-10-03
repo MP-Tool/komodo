@@ -1,4 +1,10 @@
-import { useExecute, useLocalStorage, useRead, useUser } from "@lib/hooks";
+import {
+  useExecute,
+  useLocalStorage,
+  useRead,
+  useUser,
+  useWrite,
+} from "@lib/hooks";
 import { cn } from "@lib/utils";
 import { Types } from "komodo_client";
 import { RequiredResourceComponents } from "@types";
@@ -14,6 +20,7 @@ import {
   AlertCircle,
   CheckCircle2,
   KeyRound,
+  Loader2,
 } from "lucide-react";
 import { Section } from "@components/layouts";
 import { Prune } from "./actions";
@@ -45,6 +52,18 @@ import { ServerTerminals } from "@components/terminal/server";
 import { usePermissions } from "@lib/hooks";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ui/tooltip";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@ui/hover-card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@ui/dialog";
+import { Button } from "@ui/button";
+import { useToast } from "@ui/use-toast";
+import { useState } from "react";
 
 export const useServer = (id?: string) =>
   useRead("ListServers", {}, { refetchInterval: 10_000 }).data?.find(
@@ -397,7 +416,78 @@ export const ServerComponents: RequiredResourceComponents = {
     );
   },
 
-  Status: {},
+  Status: {
+    AttemptedPubkey: ({ id }) => {
+      const { toast } = useToast();
+      const server = useServer(id);
+      const { canWrite } = usePermissions({ type: "Server", id });
+      const [open, setOpen] = useState(false);
+      const { mutate, isPending } = useWrite("UpdateServer", {
+        onSuccess: () => {
+          toast({ title: "Confirmed Server public key" });
+          setOpen(false);
+        },
+        onError: () => {
+          setOpen(false);
+        },
+      });
+
+      if (!server?.info.attempted_public_key) return null;
+
+      return (
+        <Tooltip>
+          <TooltipTrigger>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger disabled={!canWrite}>
+                <Card className="px-3 py-2 bg-destructive/75 hover:bg-destructive transition-colors cursor-pointer">
+                  <div className="text-sm text-nowrap overflow-hidden overflow-ellipsis">
+                    Invalid Pubkey
+                  </div>
+                </Card>
+              </DialogTrigger>
+              <DialogContent className="w-[90vw] max-w-[700px]">
+                <DialogHeader>
+                  <DialogTitle>Confirm {server.name} public key?</DialogTitle>
+                  <DialogDescription>
+                    Public Key: {server.info.attempted_public_key}
+                  </DialogDescription>
+                </DialogHeader>
+                <div></div>
+                <DialogFooter>
+                  <Button
+                    className="w-[200px]"
+                    variant="secondary"
+                    onClick={() =>
+                      mutate({
+                        id,
+                        config: {
+                          periphery_public_key:
+                            server.info.attempted_public_key,
+                        },
+                      })
+                    }
+                    disabled={isPending}
+                  >
+                    {isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Confirm"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="grid gap-2">
+              Core failed to validate Periphery public key.
+              {canWrite ? " Click to validate." : ""}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      );
+    },
+  },
 
   Info: {
     Pubkey: ({ id }) => {
@@ -434,7 +524,9 @@ export const ServerComponents: RequiredResourceComponents = {
       return (
         <div className="flex gap-2 items-center">
           <Cpu className="w-4 h-4" />
-          {core_count || "N/A"} Core{core_count > 1 ? "s" : ""}
+          {core_count
+            ? `${core_count} Core${core_count === 1 ? "" : "s"}`
+            : "N/A"}
         </div>
       );
     },
@@ -449,13 +541,12 @@ export const ServerComponents: RequiredResourceComponents = {
         }
       ).data;
 
-      if (!stats?.load_average) return null;
-      const one = stats.load_average?.one;
+      const one = stats?.load_average?.one;
 
       return (
         <div className="flex gap-2 items-center">
           <Cpu className="w-4 h-4" />
-          {one.toFixed(2)}
+          {one?.toFixed(2) ?? "N/A"}
         </div>
       );
     },
@@ -472,7 +563,7 @@ export const ServerComponents: RequiredResourceComponents = {
       return (
         <div className="flex gap-2 items-center">
           <MemoryStick className="w-4 h-4" />
-          {stats?.mem_total_gb.toFixed(2) ?? "N/A"} GB
+          {stats?.mem_total_gb.toFixed(2).concat(" GB") ?? "N/A"}
         </div>
       );
     },
@@ -486,6 +577,7 @@ export const ServerComponents: RequiredResourceComponents = {
           refetchInterval: 5000,
         }
       ).data;
+
       const disk_total_gb = stats?.disks.reduce(
         (acc, curr) => acc + curr.total_gb,
         0
@@ -493,7 +585,7 @@ export const ServerComponents: RequiredResourceComponents = {
       return (
         <div className="flex gap-2 items-center">
           <Database className="w-4 h-4" />
-          {disk_total_gb?.toFixed(2) ?? "N/A"} GB
+          {disk_total_gb?.toFixed(2).concat(" GB") ?? "N/A"}
         </div>
       );
     },

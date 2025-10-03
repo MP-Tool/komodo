@@ -3,7 +3,9 @@ use std::str::FromStr;
 use colored::Colorize;
 use database::mungos::{
   find::find_collect,
-  mongodb::bson::{Document, doc, oid::ObjectId, to_document},
+  mongodb::bson::{
+    Document, doc, oid::ObjectId, to_bson, to_document,
+  },
 };
 use futures::future::join_all;
 use komodo_client::{
@@ -22,7 +24,7 @@ use komodo_client::{
     builder::{PartialBuilderConfig, PartialServerBuilderConfig},
     komodo_timestamp,
     procedure::{EnabledExecution, ProcedureConfig, ProcedureStage},
-    server::{PartialServerConfig, Server},
+    server::{PartialServerConfig, Server, ServerInfo},
     sync::ResourceSync,
     tag::TagColor,
     update::Log,
@@ -106,9 +108,10 @@ pub async fn on_startup() {
   tokio::join!(
     in_progress_update_cleanup(),
     open_alert_cleanup(),
-    clean_up_server_templates(),
     ensure_first_server_and_builder(),
     ensure_init_user_and_resources(),
+    clean_up_server_templates(),
+    init_server_info(),
   );
 }
 
@@ -458,4 +461,26 @@ async fn clean_up_server_templates() {
         .expect("Failed to clean up server template updates on db");
     },
   );
+}
+
+/// v2 adds ServerInfo to ServerSchema.
+/// Need to ensure it is initialized from null.
+async fn init_server_info() {
+  let default_server_info = match to_bson(&ServerInfo::default()) {
+    Ok(info) => info,
+    Err(e) => {
+      error!("Failed to serialize ServerInfo to bson | {e:?}");
+      return;
+    }
+  };
+  if let Err(e) = db_client()
+    .servers
+    .update_many(
+      doc! { "info": null },
+      doc! { "$set": { "info": default_server_info } },
+    )
+    .await
+  {
+    error!("Failed to migrate ServerInfo to v2 | {e:?}");
+  }
 }

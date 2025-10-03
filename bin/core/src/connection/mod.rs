@@ -105,28 +105,10 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
     // Make sure all cases get the same error,
     // including what the public key should be.
     let invalid_error = || {
-      // Spawn task to set the 'attempted_public_key'
-      // for easy manual connection acceptance later on.
-      let id = self.id.to_string();
-      let attempted = public_key.clone();
-      tokio::spawn(async move {
-        if let Err(e) = update_one_by_id(
-          &db_client().servers,
-          &id,
-          doc! {
-            "$set": {
-              "info.attempted_public_key": &attempted,
-            }
-          },
-          None,
-        )
-        .await
-        {
-          warn!(
-            "Failed to update attempted public_key for Server {id} | {e:?}"
-          );
-        };
-      });
+      spawn_update_attempted_public_key(
+        self.id.to_string(),
+        Some(public_key.clone()),
+      );
       anyhow!("{public_key} is invalid")
         .context(
           "Ensure public key matches configured Periphery Public Key",
@@ -337,7 +319,10 @@ impl PeripheryConnection {
       private_key,
       public_key_validator: self.args.borrow(),
     })
-    .await
+    .await?;
+    // Clear attempted public key after successful login
+    spawn_update_attempted_public_key(self.args.id.clone(), None);
+    Ok(())
   }
 
   pub async fn handle_socket<W: Websocket>(
@@ -478,4 +463,31 @@ impl PeripheryConnection {
   pub fn cancel(&self) {
     self.cancel.cancel();
   }
+}
+
+/// Spawn task to set the 'attempted_public_key'
+/// for easy manual connection acceptance later on.
+fn spawn_update_attempted_public_key(
+  id: String,
+  public_key: impl Into<Option<String>>,
+) {
+  let public_key = public_key.into();
+  tokio::spawn(async move {
+    if let Err(e) = update_one_by_id(
+      &db_client().servers,
+      &id,
+      doc! {
+        "$set": {
+          "info.attempted_public_key": &public_key.as_deref().unwrap_or_default(),
+        }
+      },
+      None,
+    )
+    .await
+    {
+      warn!(
+        "Failed to update attempted public_key for Server {id} | {e:?}"
+      );
+    };
+  });
 }

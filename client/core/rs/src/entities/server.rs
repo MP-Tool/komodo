@@ -2,10 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use derive_builder::Builder;
 use partial_derive2::Partial;
-use serde::{
-  Deserialize, Serialize,
-  de::{Visitor, value::MapAccessDeserializer},
-};
+use serde::{Deserialize, Serialize};
 use strum::Display;
 use typeshare::typeshare;
 
@@ -64,67 +61,13 @@ pub struct ServerListItemInfo {
 }
 
 #[typeshare]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ServerInfo {
   /// If a Periphery fails to authenticate to Core
   /// for a disconnected server with invalid Periphery public key,
   /// it will be stored here to accept the connection later on.
+  #[serde(default)]
   pub attempted_public_key: String,
-}
-
-// Need custom deserializer for Komodo v1 backward compatibility.
-impl<'de> Deserialize<'de> for ServerInfo {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: serde::Deserializer<'de>,
-  {
-    struct ServerInfoVisitor;
-
-    impl<'de> Visitor<'de> for ServerInfoVisitor {
-      type Value = ServerInfo;
-
-      fn expecting(
-        &self,
-        formatter: &mut std::fmt::Formatter,
-      ) -> std::fmt::Result {
-        write!(formatter, "ServerInfo object or null")
-      }
-
-      fn visit_none<E>(self) -> Result<Self::Value, E>
-      where
-        E: serde::de::Error,
-      {
-        Ok(Default::default())
-      }
-
-      fn visit_unit<E>(self) -> Result<Self::Value, E>
-      where
-        E: serde::de::Error,
-      {
-        Ok(Default::default())
-      }
-
-      fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
-      where
-        A: serde::de::MapAccess<'de>,
-      {
-        #[derive(Deserialize)]
-        struct _ServerInfo {
-          #[serde(default)]
-          attempted_public_key: String,
-        }
-        let _ServerInfo {
-          attempted_public_key,
-        } =
-          _ServerInfo::deserialize(MapAccessDeserializer::new(map))?;
-        Ok(ServerInfo {
-          attempted_public_key,
-        })
-      }
-    }
-
-    deserializer.deserialize_any(ServerInfoVisitor)
-  }
 }
 
 #[typeshare(serialized_as = "Partial<ServerConfig>")]
