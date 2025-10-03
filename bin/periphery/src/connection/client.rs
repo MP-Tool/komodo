@@ -1,8 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::Context;
-use axum::http::HeaderValue;
+use anyhow::{Context, anyhow};
+use axum::http::{HeaderValue, StatusCode};
 use periphery_client::CONNECTION_RETRY_SECONDS;
+use tokio_tungstenite::tungstenite;
 use transport::{
   auth::{AddressConnectionIdentifiers, ClientLoginFlow},
   fix_ws_address,
@@ -36,7 +37,7 @@ pub async fn handler(
 
   loop {
     let (mut socket, accept) =
-      match connect_websocket(&endpoint).await {
+      match connect_websocket(&endpoint, connect_as).await {
         Ok(res) => res,
         Err(e) => {
           if !already_logged_connection_error {
@@ -87,9 +88,18 @@ pub async fn handler(
 
 async fn connect_websocket(
   url: &str,
+  connect_as: &str,
 ) -> anyhow::Result<(TungsteniteWebsocket, HeaderValue)> {
   let (ws, mut response) = tokio_tungstenite::connect_async(url)
     .await
+    .map_err(|e| match e {
+      tungstenite::Error::Http(response) => match response.status() {
+        StatusCode::BAD_REQUEST => anyhow!("400 Bad Request: Server '{connect_as}' does not exist, is disabled, or is configured to make Core → Periphery connection"),
+        StatusCode::UNAUTHORIZED => anyhow!("401 Unauthorized: Only one Server connected as '{connect_as}' is allowed."),
+        _ => anyhow::Error::from(tungstenite::Error::Http(response)),
+      },
+      e => anyhow::Error::from(e),
+    })
     .with_context(|| format!("Failed to connect to {url}"))?;
   let accept = response
     .headers_mut()
