@@ -54,6 +54,6 @@ ENV KOMODO_CLI_CONFIG_KEYWORDS="*config.*,*komodo.cli*.*"
 CMD [ "core" ]
 
 # Label for Ghcr
-LABEL org.opencontainers.image.source=https://github.com/moghtech/komodo
+LABEL org.opencontainers.image.source="https://github.com/moghtech/komodo"
 LABEL org.opencontainers.image.description="Komodo Core"
-LABEL org.opencontainers.image.licenses=GPL-3.0
+LABEL org.opencontainers.image.licenses="GPL-3.0"

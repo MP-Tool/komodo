@@ -11,26 +11,30 @@ services:
     labels:
       komodo.skip: # Prevent Komodo from stopping with StopAllContainers
     restart: unless-stopped
-    ## https://komo.do/docs/connect-servers#configuration
+    ## Full variable list + descriptions are available here:
+    ## 🦎 https://github.com/moghtech/komodo/blob/main/config/periphery.config.toml 🦎
     environment:
-      ### ==============================
-      ###  CORE -> PERIPHERY CONNECTION
-      ### ==============================
-      ## List of accepted Core public keys
-      PERIPHERY_CORE_PUBLIC_KEYS: sFIibtOSCFLQelO4b4x6VoYIddkRn9Tj1Nas2eR1ME0=
+      ## You only need to keep the config for one of the
+      ## connection directions.
       ### ==============================
       ###  PERIPHERY -> CORE CONNECTION
       ### ==============================
       ## The address of Komodo Core to connect to.
-      # PERIPHERY_CORE_ADDRESS: komodo.example.com
+      PERIPHERY_CORE_ADDRESS: komodo.example.com
       ## The name of the Komodo Server to connect as.
       ## Must match existing server.
-      # PERIPHERY_CONNECT_AS: server-name
-      ## Core must have matching public key configured to authenticate.
-      ## Compute then public key using `km key compute <private-key>`.
-      # PERIPHERY_PRIVATE_KEY: default-periphery-pk
+      PERIPHERY_CONNECT_AS: server-name
+      ## Create a Server Creation Key in the Komodo UI.
+      ## This allows Periphery to create a new Server in the UI with the above name,
+      ## and can be ommitted once the Server exists.
+      PERIPHERY_SERVER_CREATION_KEY: <your-key>
       ## Disable the inbound connection server.
-      # PERIPHERY_SERVER_ENABLED: false
+      PERIPHERY_SERVER_ENABLED: false
+      ### ==============================
+      ###  CORE -> PERIPHERY CONNECTION
+      ### ==============================
+      ## List of accepted Core public keys
+      # PERIPHERY_CORE_PUBLIC_KEYS: sFIibtOSCFLQelO4b4x6VoYIddkRn9Tj1Nas2eR1ME0=
       ### ================
       ###  GENERAL CONFIG
       ### ================
@@ -51,6 +55,8 @@ services:
       PERIPHERY_INCLUDE_DISK_MOUNTS: /etc/hostname
       # PERIPHERY_EXCLUDE_DISK_MOUNTS: /snap,/etc/repos
     volumes:
+      ## Mount private key storage volume
+      - keys:/config/keys
       ## Mount external docker socket
       - /var/run/docker.sock:/var/run/docker.sock
       ## Allow Periphery to see processes outside of container
@@ -60,8 +66,12 @@ services:
       ## or docker will get confused. See https://github.com/moghtech/komodo/discussions/180.
       ## Default: /etc/komodo.
       - ${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}:${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}
-    ## If periphery is being run remote from the core server, ports need to be exposed
+      ## Optionally mount a custom periphery.config.toml
+      # - /path/to/periphery.config.toml:/config/config.toml
+    ## If Periphery is being run in Core -> Periphery mode,
+    ## ports may need to be exposed
     # ports:
     #   - 8120:8120
-    ## If you want to use a custom periphery config file, use command to pass it to periphery.
-    # command: periphery --config-path ${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}/periphery.config.toml
+
+volumes:
+  keys:

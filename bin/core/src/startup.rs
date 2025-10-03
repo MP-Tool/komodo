@@ -201,27 +201,30 @@ async fn open_alert_cleanup() {
 /// Ensures a default server / builder exists with the defined address
 async fn ensure_first_server_and_builder() {
   let config = core_config();
-  if config.first_server.is_none()
-    && config.first_server_name.is_none()
+  if config.first_server_name.is_none()
+    && config.first_server_address.is_none()
   {
     // If neither defined, early return
     return;
   }
+  // Maybe create first Server / Builder
   let db = db_client();
-  // If any server exists, exit early.
-  let Ok(None) = db
-    .servers
-    .find_one(Document::new())
-    .await
-    .inspect_err(|e| error!("Failed to initialize 'first_server'. Failed to query db. {e:?}"))
+  // If any Server exists, exit early.
+  let Ok(None) =
+    db.servers.find_one(Document::new()).await.inspect_err(|e| {
+      error!(
+        "Failed to initialize first Server. Failed to query db. {e:?}"
+      )
+    })
   else {
     return;
   };
+  // Use the same name for Server and Builder
   let name = config.first_server_name.as_deref().unwrap_or("Local");
   let server = match (CreateServer {
     name: name.to_string(),
     config: PartialServerConfig {
-      address: config.first_server.clone(),
+      address: config.first_server_address.clone(),
       enabled: Some(true),
       ..Default::default()
     },
@@ -234,7 +237,7 @@ async fn ensure_first_server_and_builder() {
     Ok(server) => server,
     Err(e) => {
       error!(
-        "Failed to initialize 'first_server'. Failed to CreateServer. {:#}",
+        "Failed to initialize first Server. Failed to CreateServer. {:#}",
         e.error
       );
       return;
@@ -247,6 +250,7 @@ async fn ensure_first_server_and_builder() {
       return;
     };
   if let Err(e) = (CreateBuilder {
+    // Same name as Server
     name: name.to_string(),
     config: PartialBuilderConfig::Server(
       PartialServerBuilderConfig {

@@ -24,8 +24,13 @@ COPY --from=builder /builder/target/release/periphery /usr/local/bin/periphery
 
 EXPOSE 8120
 
+# Can mount config file to /config/*config*.toml and it will be picked up.
+ENV PERIPHERY_CONFIG_PATHS="/config"
+# Change the default in container to /config/keys to match Core
+ENV PERIPHERY_PRIVATE_KEY="file:/config/keys/periphery.key"
+
 CMD [ "periphery" ]
 
-LABEL org.opencontainers.image.source=https://github.com/moghtech/komodo
+LABEL org.opencontainers.image.source="https://github.com/moghtech/komodo"
 LABEL org.opencontainers.image.description="Komodo Periphery"
-LABEL org.opencontainers.image.licenses=GPL-3.0
+LABEL org.opencontainers.image.licenses="GPL-3.0"

@@ -78,8 +78,18 @@ impl ConfigLoader<'_, '_> {
     }
     let mut all_files = IndexSet::new();
     for &path in paths {
-      let Ok(metadata) = std::fs::metadata(path) else {
-        continue;
+      let metadata = match std::fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(e) => {
+          if debug_print {
+            println!(
+              "{}: {}: {path:?} | {e:?}",
+              "DEBUG".cyan(),
+              "Skipping Path".dimmed()
+            );
+          }
+          continue;
+        }
       };
       if metadata.is_dir() {
         let mut files = Vec::new();
