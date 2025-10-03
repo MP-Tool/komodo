@@ -135,6 +135,20 @@ const RequireAuth = () => {
   const { data: user, error } = useUser();
   const location = useLocation();
 
+  if (
+    (error as { error?: TypeError } | undefined)?.error?.message?.startsWith(
+      "NetworkError"
+    )
+  ) {
+    // Will just show the spinner without navigate to login,
+    // which won't help because its not a login issue.
+    return (
+      <div className="w-screen h-screen flex justify-center items-center">
+        <Loader2 className="w-16 h-16 animate-spin" />
+      </div>
+    );
+  }
+
   if (!LOGIN_TOKENS.jwt() || error) {
     if (location.pathname === "/") {
       return <Navigate to="/login" replace />;
@@ -146,7 +160,7 @@ const RequireAuth = () => {
   if (!user) {
     return (
       <div className="w-screen h-screen flex justify-center items-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <Loader2 className="w-16 h-16 animate-spin" />
       </div>
     );
   }
