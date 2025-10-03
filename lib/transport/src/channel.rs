@@ -1,8 +1,36 @@
 use std::ops::Deref;
 
-use tokio::sync::mpsc;
+use anyhow::Context;
+use tokio::sync::{Mutex, MutexGuard, mpsc};
 
 const RESPONSE_BUFFER_MAX_LEN: usize = 1_024;
+
+#[derive(Debug)]
+pub struct BufferedChannel<T> {
+  pub sender: mpsc::Sender<T>,
+  pub receiver: Mutex<BufferedReceiver<T>>,
+}
+
+impl<T: Deref> Default for BufferedChannel<T> {
+  fn default() -> Self {
+    let (sender, receiver) = buffered_channel();
+    BufferedChannel {
+      sender,
+      receiver: receiver.into(),
+    }
+  }
+}
+
+impl<T> BufferedChannel<T> {
+  pub fn receiver(
+    &self,
+  ) -> anyhow::Result<MutexGuard<'_, BufferedReceiver<T>>> {
+    self
+      .receiver
+      .try_lock()
+      .context("Receiver is already locked")
+  }
+}
 
 /// Create a buffered channel
 pub fn buffered_channel<T: Deref>()

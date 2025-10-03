@@ -1835,6 +1835,10 @@ export type GetGitProviderAccountResponse = GitProviderAccount;
 export declare enum Timelength {
     /** `1-sec` */
     OneSecond = "1-sec",
+    /** `1-sec` */
+    TwoSeconds = "2-sec",
+    /** `1-sec` */
+    ThreeSeconds = "3-sec",
     /** `5-sec` */
     FiveSeconds = "5-sec",
     /** `10-sec` */
@@ -1847,6 +1851,8 @@ export declare enum Timelength {
     OneMinute = "1-min",
     /** `2-min` */
     TwoMinutes = "2-min",
+    /** `3-min` */
+    ThreeMinutes = "3-min",
     /** `5-min` */
     FiveMinutes = "5-min",
     /** `10-min` */
@@ -1859,6 +1865,8 @@ export declare enum Timelength {
     OneHour = "1-hr",
     /** `2-hr` */
     TwoHours = "2-hr",
+    /** `3-hr` */
+    ThreeHours = "3-hr",
     /** `6-hr` */
     SixHours = "6-hr",
     /** `8-hr` */
@@ -1867,8 +1875,10 @@ export declare enum Timelength {
     TwelveHours = "12-hr",
     /** `1-day` */
     OneDay = "1-day",
+    /** `2-day` */
+    TwoDays = "2-day",
     /** `3-day` */
-    ThreeDay = "3-day",
+    ThreeDays = "3-day",
     /** `1-wk` */
     OneWeek = "1-wk",
     /** `2-wk` */

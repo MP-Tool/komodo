@@ -3,13 +3,13 @@ use std::{
   time::Duration,
 };
 
-use anyhow::{Context, anyhow};
+use anyhow::anyhow;
 use bytes::Bytes;
 use cache::CloneCache;
 use resolver_api::Resolve;
 use response::JsonBytes;
 use serror::serialize_error_bytes;
-use tokio::sync::{Mutex, MutexGuard, mpsc::Sender};
+use tokio::sync::mpsc::Sender;
 use transport::{
   MessageState,
   auth::{ConnectionIdentifiers, LoginFlow, PublicKeyValidator},
@@ -17,7 +17,7 @@ use transport::{
     data_from_transport_bytes, id_state_from_transport_bytes,
     to_transport_bytes,
   },
-  channel::{BufferedReceiver, buffered_channel},
+  channel::{BufferedChannel, BufferedReceiver},
   websocket::{
     Websocket, WebsocketMessage, WebsocketReceiver,
     WebsocketSender as _,
@@ -35,34 +35,9 @@ use crate::{
 pub mod client;
 pub mod server;
 
-pub struct Channel {
-  pub sender: Sender<Bytes>,
-  pub receiver: Mutex<BufferedReceiver<Bytes>>,
-}
-
-impl Default for Channel {
-  fn default() -> Self {
-    let (sender, receiver) = buffered_channel();
-    Channel {
-      sender,
-      receiver: receiver.into(),
-    }
-  }
-}
-
-impl Channel {
-  pub fn receiver(
-    &self,
-  ) -> anyhow::Result<MutexGuard<'_, BufferedReceiver<Bytes>>> {
-    self
-      .receiver
-      .try_lock()
-      .context("Receiver is already locked")
-  }
-}
-
 // Core Address / Host -> Channel
-pub type CoreChannels = CloneCache<String, Arc<Channel>>;
+pub type CoreChannels =
+  CloneCache<String, Arc<BufferedChannel<Bytes>>>;
 
 pub fn core_channels() -> &'static CoreChannels {
   static CORE_CHANNELS: OnceLock<CoreChannels> = OnceLock::new();
@@ -79,7 +54,7 @@ impl PublicKeyValidator for CorePublicKeyValidator {
         .all(|expected| public_key != expected.as_str())
     {
       Err(
-        anyhow!("Got invalid public key: {public_key}")
+        anyhow!("{public_key} is invalid")
           .context("Ensure public key matches one of the 'core_public_keys' in periphery config (PERIPHERY_CORE_PUBLIC_KEYS)")
           .context("Periphery failed to validate Core public key"),
       )

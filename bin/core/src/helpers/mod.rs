@@ -17,9 +17,9 @@ use komodo_client::entities::{
 };
 use rand::Rng;
 
-use crate::connection::PeripheryConnectionArgs;
 use crate::{
-  config::core_config, periphery::PeripheryClient, state::db_client,
+  config::core_config, connection::PeripheryConnectionArgs,
+  periphery::PeripheryClient, state::db_client,
 };
 
 pub mod action_state;
@@ -194,11 +194,7 @@ pub async fn periphery_client(
   }
   PeripheryClient::new(
     server.id.clone(),
-    PeripheryConnectionArgs {
-      address: &server.config.address,
-      core_private_key: &server.config.core_private_key,
-      periphery_public_key: &server.config.periphery_public_key,
-    },
+    PeripheryConnectionArgs::from_server(server),
     &server.config.passkey,
   )
   .await

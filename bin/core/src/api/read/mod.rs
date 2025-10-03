@@ -114,7 +114,7 @@ enum ReadRequest {
   ListServers(ListServers),
   ListFullServers(ListFullServers),
   ListTerminals(ListTerminals),
-  
+
   // ==== DOCKER ====
   GetDockerContainersSummary(GetDockerContainersSummary),
   ListAllDockerContainers(ListAllDockerContainers),
@@ -131,7 +131,6 @@ enum ReadRequest {
   ListDockerImageHistory(ListDockerImageHistory),
   ListDockerVolumes(ListDockerVolumes),
   InspectDockerVolume(InspectDockerVolume),
-  
 
   // ==== SERVER STATS ====
   GetSystemInformation(GetSystemInformation),

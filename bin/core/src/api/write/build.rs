@@ -1,5 +1,4 @@
-use std::time::Duration;
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::{Context, anyhow};
 use database::mungos::mongodb::bson::to_document;
@@ -30,15 +29,15 @@ use periphery_client::api::build::{
 use resolver_api::Resolve;
 use tokio::fs;
 
-use crate::connection::PeripheryConnectionArgs;
-use crate::periphery::PeripheryClient;
 use crate::{
   config::core_config,
+  connection::PeripheryConnectionArgs,
   helpers::{
     git_token, periphery_client,
     query::get_server_with_state,
     update::{add_update, make_update},
   },
+  periphery::PeripheryClient,
   permission::get_check_permissions,
   resource,
   state::{db_client, github_client},
@@ -434,11 +433,7 @@ async fn get_on_host_periphery(
       // Builder id no good because it may be active for multiple connections.
       let periphery = PeripheryClient::new(
         ObjectId::new().to_hex(),
-        PeripheryConnectionArgs {
-          address: &config.address,
-          core_private_key: &config.core_private_key,
-          periphery_public_key: &config.periphery_public_key,
-        },
+        PeripheryConnectionArgs::from_url_builder(&config),
         &config.passkey,
       )
       .await?;

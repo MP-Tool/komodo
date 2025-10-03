@@ -164,16 +164,18 @@ impl super::KomodoResource for Server {
     if updated.config.enabled {
       // Init periphery client to trigger reconnection
       // if relevant parameters change.
-      let _ = PeripheryClient::new(
+      if let Err(e) = PeripheryClient::new(
         updated.id.clone(),
-        PeripheryConnectionArgs {
-          address: &updated.config.address,
-          core_private_key: &updated.config.core_private_key,
-          periphery_public_key: &updated.config.periphery_public_key,
-        },
+        PeripheryConnectionArgs::from_server(updated),
         &updated.config.passkey,
       )
-      .await;
+      .await
+      {
+        warn!(
+          "Failed to get client handle after update for Server {} | {e:#}",
+          updated.id
+        );
+      };
     } else {
       periphery_connections().remove(&updated.id).await;
     }

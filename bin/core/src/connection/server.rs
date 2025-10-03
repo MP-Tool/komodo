@@ -12,9 +12,9 @@ use transport::{
   websocket::axum::AxumWebsocket,
 };
 
-use crate::{
-  connection::PeripheryConnectionArgs, state::periphery_connections,
-};
+use crate::state::periphery_connections;
+
+use super::PeripheryConnectionArgs;
 
 pub async fn handler(
   Query(PeripheryConnectionQuery { server: _server }): Query<
@@ -59,11 +59,7 @@ pub async fn handler(
   let (connection, mut receiver) = periphery_connections()
     .insert(
       server.id.clone(),
-      PeripheryConnectionArgs {
-        address: "",
-        core_private_key: &server.config.core_private_key,
-        periphery_public_key: &server.config.periphery_public_key,
-      },
+      PeripheryConnectionArgs::from_server(&server),
     )
     .await;
 
@@ -79,6 +75,7 @@ pub async fn handler(
       .await
     {
       connection.set_error(e).await;
+      return;
     }
 
     connection.handle_socket(socket, &mut receiver).await

@@ -18,10 +18,11 @@ use transport::{
 
 use crate::{
   config::{core_config, core_connection_query},
-  connection::{PeripheryConnection, PeripheryConnectionArgs},
   periphery::ConnectionChannels,
   state::periphery_connections,
 };
+
+use super::{PeripheryConnection, PeripheryConnectionArgs};
 
 impl PeripheryConnectionArgs<'_> {
   pub async fn spawn_client_connection(
@@ -29,19 +30,20 @@ impl PeripheryConnectionArgs<'_> {
     server_id: String,
     passkey: String,
   ) -> anyhow::Result<Arc<ConnectionChannels>> {
-    if self.address.is_empty() {
+    let Some(address) = self.address else {
       return Err(anyhow!(
         "Cannot spawn client connection with empty address"
       ));
-    }
+    };
 
-    let address = fix_ws_address(self.address);
+    let address = fix_ws_address(address);
     let identifiers =
       AddressConnectionIdentifiers::extract(&address)?;
     let endpoint = format!("{address}/?{}", core_connection_query());
 
-    let (connection, mut receiver) =
-      periphery_connections().insert(server_id, self).await;
+    let (connection, mut receiver) = periphery_connections()
+      .insert(server_id.clone(), self)
+      .await;
 
     let channels = connection.channels.clone();
 
@@ -75,9 +77,6 @@ impl PeripheryConnectionArgs<'_> {
           .client_login(&mut socket, identifiers, &passkey)
           .await
         {
-          if connection.cancel.is_cancelled() {
-            break;
-          }
           connection.set_error(e).await;
           tokio::time::sleep(Duration::from_secs(
             CONNECTION_RETRY_SECONDS,

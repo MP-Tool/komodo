@@ -43,7 +43,7 @@ export const AlertDetailsDialogContent = ({
 }) => (
   <>
     {alert && (
-      <DialogContent className="w-[90vw] max-w-[700px]">
+      <DialogContent className="w-[90vw] max-w-[900px]">
         {alert && (
           <>
             <DialogHeader>

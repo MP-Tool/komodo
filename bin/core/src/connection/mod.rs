@@ -9,7 +9,11 @@ use std::{
 use anyhow::anyhow;
 use bytes::Bytes;
 use cache::CloneCache;
-use komodo_client::entities::optional_str;
+use komodo_client::entities::{
+  builder::{AwsBuilderConfig, UrlBuilderConfig},
+  optional_str,
+  server::Server,
+};
 use serror::serror_into_anyhow_error;
 use tokio::sync::{
   RwLock,
@@ -34,97 +38,28 @@ use crate::{
 pub mod client;
 pub mod server;
 
-pub enum PeripheryPublicKeyValidator<'a> {
-  /// When Core connects to Periphery, it is mainly
-  /// Periphery authenticating the connection from Core.
-  /// If user doesn't pin a public key in config, the
-  /// Periphery public key is not validated.
-  CoreToPeriphery(Option<&'a str>),
-  /// When Periphery connects to Core, its public key
-  /// must be validated, otherwise any random Periphery
-  /// can connect. If one isn't provided here,
-  /// will fallback to the default accepted 'periphery_public_keys'
-  /// in the Core config.
-  PeripheryToCore(Option<&'a str>),
-}
-
-impl PeripheryPublicKeyValidator<'_> {
-  pub fn new<'a>(
-    address: &str,
-    configured_public_key: &'a str,
-  ) -> PeripheryPublicKeyValidator<'a> {
-    let public_key = optional_str(configured_public_key);
-    if address.is_empty() {
-      PeripheryPublicKeyValidator::PeripheryToCore(public_key)
-    } else {
-      PeripheryPublicKeyValidator::CoreToPeriphery(public_key)
-    }
-  }
-}
-
-impl PublicKeyValidator for PeripheryPublicKeyValidator<'_> {
-  fn validate(&self, public_key: String) -> anyhow::Result<()> {
-    use PeripheryPublicKeyValidator::*;
-    let invalid_error = || {
-      anyhow!("Got invalid public key: {public_key}")
-        .context(
-          "Ensure public key matches configured Periphery Public Key",
-        )
-        .context("Core failed to validate Periphery public key")
-    };
-    match self {
-      // No public key validation
-      CoreToPeriphery(None) => Ok(()),
-      // Core config public key authentication
-      PeripheryToCore(None) => {
-        let expected =
-          periphery_public_keys().ok_or_else(invalid_error)?;
-        if expected
-          .iter()
-          .any(|expected| public_key == expected.as_str())
-        {
-          Ok(())
-        } else {
-          Err(invalid_error())
-        }
-      }
-      // Validate keys explicitly set in Server config.
-      CoreToPeriphery(Some(expected))
-      | PeripheryToCore(Some(expected)) => {
-        if &public_key == expected {
-          Ok(())
-        } else {
-          Err(invalid_error())
-        }
-      }
-    }
-  }
-}
-
 #[derive(Default)]
 pub struct PeripheryConnections(
   CloneCache<String, Arc<PeripheryConnection>>,
 );
 
 impl PeripheryConnections {
+  /// Insert a recreated connection.
+  /// Ensures the fields which must be persisted between
+  /// connection recreation are carried over.
   pub async fn insert(
     &self,
     server_id: String,
     args: PeripheryConnectionArgs<'_>,
   ) -> (Arc<PeripheryConnection>, BufferedReceiver<Bytes>) {
-    let channels = if let Some(existing_connection) =
+    let (connection, receiver) = if let Some(existing_connection) =
       self.0.remove(&server_id).await
     {
       existing_connection.cancel();
-      // Keep the same channels so requests
-      // can handle disconnects while processing.
-      existing_connection.channels.clone()
+      existing_connection.with_new_args(args)
     } else {
-      Default::default()
+      PeripheryConnection::new(args)
     };
-
-    let (connection, receiver) =
-      PeripheryConnection::new(args, channels);
 
     self.0.insert(server_id, connection.clone()).await;
 
@@ -152,64 +87,181 @@ impl PeripheryConnections {
 }
 
 /// The configurable args of a connection
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PeripheryConnectionArgs<'a> {
-  pub address: &'a str,
-  pub core_private_key: &'a str,
-  pub periphery_public_key: &'a str,
+  pub address: Option<&'a str>,
+  core_private_key: Option<&'a str>,
+  periphery_public_key: Option<&'a str>,
 }
 
-impl PeripheryConnectionArgs<'_> {
-  pub fn matches(&self, connection: &PeripheryConnection) -> bool {
-    self.address == connection.address
-      && self.core_private_key == connection.core_private_key
-      && self.periphery_public_key == connection.periphery_public_key
+impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
+  fn validate(&self, public_key: String) -> anyhow::Result<()> {
+    // Make sure all cases get the same error,
+    // including what the public key should be.
+    let invalid_error = || {
+      anyhow!("{public_key} is invalid")
+        .context(
+          "Ensure public key matches configured Periphery Public Key",
+        )
+        .context("Core failed to validate Periphery public key")
+    };
+    // Handle explicit public key
+    if let Some(expected) = self.periphery_public_key {
+      return if public_key == expected {
+        Ok(())
+      } else {
+        Err(invalid_error())
+      };
+    }
+    // Core -> Periphery connections with no explicit
+    // Periphery public key are not validated.
+    if self.address.is_some() {
+      return Ok(());
+    }
+    // Periphery -> Core connections fall back to
+    // 'periphery_public_keys' in Core config.
+    let expected =
+      periphery_public_keys().ok_or_else(invalid_error)?;
+    if expected
+      .iter()
+      .any(|expected| public_key == expected.as_str())
+    {
+      Ok(())
+    } else {
+      Err(invalid_error())
+    }
+  }
+}
+
+impl<'a> PeripheryConnectionArgs<'a> {
+  pub fn from_server(server: &'a Server) -> Self {
+    Self {
+      address: optional_str(&server.config.address),
+      core_private_key: optional_str(&server.config.core_private_key),
+      periphery_public_key: optional_str(
+        &server.config.periphery_public_key,
+      ),
+    }
+  }
+
+  pub fn from_url_builder(config: &'a UrlBuilderConfig) -> Self {
+    Self {
+      address: optional_str(&config.address),
+      core_private_key: optional_str(&config.core_private_key),
+      periphery_public_key: optional_str(
+        &config.periphery_public_key,
+      ),
+    }
+  }
+
+  pub fn from_aws_builder(
+    address: &'a str,
+    config: &'a AwsBuilderConfig,
+  ) -> Self {
+    Self {
+      address: Some(address),
+      core_private_key: optional_str(&config.core_private_key),
+      periphery_public_key: optional_str(
+        &config.periphery_public_key,
+      ),
+    }
+  }
+
+  pub fn to_owned(self) -> OwnedPeripheryConnectionArgs {
+    OwnedPeripheryConnectionArgs {
+      address: self.address.map(str::to_string),
+      core_private_key: self.core_private_key.map(str::to_string),
+      periphery_public_key: self
+        .periphery_public_key
+        .map(str::to_string),
+    }
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct OwnedPeripheryConnectionArgs {
+  /// Specify outbound connection address.
+  /// Inbound connections have this as None
+  pub address: Option<String>,
+  /// The private key to use, or None for core private key
+  pub core_private_key: Option<String>,
+  /// The public key to expect Periphery to have.
+  /// If None, must have 'periphery_public_keys' set
+  /// in Core config, or will error
+  pub periphery_public_key: Option<String>,
+}
+
+impl From<PeripheryConnectionArgs<'_>>
+  for OwnedPeripheryConnectionArgs
+{
+  fn from(value: PeripheryConnectionArgs<'_>) -> Self {
+    value.to_owned()
+  }
+}
+
+impl OwnedPeripheryConnectionArgs {
+  pub fn borrow(&self) -> PeripheryConnectionArgs<'_> {
+    PeripheryConnectionArgs {
+      address: self.address.as_deref(),
+      core_private_key: self.core_private_key.as_deref(),
+      periphery_public_key: self.periphery_public_key.as_deref(),
+    }
   }
 }
 
 #[derive(Debug)]
 pub struct PeripheryConnection {
-  /// Specify outbound connection address.
-  /// Inbound connections have this as empty string
-  pub address: String,
-  /// The private key to use, or empty for core private key
-  pub core_private_key: String,
-  /// The public key to expect Periphery to have.
-  /// Required non-empty for inbound connection.
-  pub periphery_public_key: String,
-  /// Whether Periphery is currently connected.
-  pub connected: AtomicBool,
-  /// Stores latest connection error
-  pub error: RwLock<Option<serror::Serror>>,
+  /// The connection args
+  pub args: OwnedPeripheryConnectionArgs,
+  /// Send and receive bytes over the connection socket.
+  pub sender: Sender<Bytes>,
   /// Cancel the connection
   pub cancel: CancellationToken,
-  /// Send bytes to Periphery
-  pub sender: Sender<Bytes>,
-  /// Send bytes from Periphery to channel handlers.
-  /// Must be maintained if new connection replaces old
-  /// at the same server id.
+  /// Whether Periphery is currently connected.
+  pub connected: AtomicBool,
+  // These fields must be maintained if new connection replaces old
+  // at the same server id.
+  /// Stores latest connection error
+  pub error: Arc<RwLock<Option<serror::Serror>>>,
+  /// Forward bytes from Periphery to specific channel handlers.
   pub channels: Arc<ConnectionChannels>,
 }
 
 impl PeripheryConnection {
   pub fn new(
-    args: PeripheryConnectionArgs<'_>,
-    channels: Arc<ConnectionChannels>,
+    args: impl Into<OwnedPeripheryConnectionArgs>,
   ) -> (Arc<PeripheryConnection>, BufferedReceiver<Bytes>) {
-    let (sender, receiver) = buffered_channel();
+    let (sender, receiever) = buffered_channel();
     (
       PeripheryConnection {
-        address: args.address.to_string(),
-        core_private_key: args.core_private_key.to_string(),
-        periphery_public_key: args.periphery_public_key.to_string(),
         sender,
-        channels,
-        connected: AtomicBool::new(false),
-        error: RwLock::new(None),
+        args: args.into(),
         cancel: CancellationToken::new(),
+        connected: AtomicBool::new(false),
+        error: Default::default(),
+        channels: Default::default(),
       }
       .into(),
-      receiver,
+      receiever,
+    )
+  }
+
+  pub fn with_new_args(
+    &self,
+    args: impl Into<OwnedPeripheryConnectionArgs>,
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver<Bytes>) {
+    let (sender, receiever) = buffered_channel();
+    (
+      PeripheryConnection {
+        sender,
+        args: args.into(),
+        cancel: CancellationToken::new(),
+        connected: AtomicBool::new(false),
+        error: self.error.clone(),
+        channels: self.channels.clone(),
+      }
+      .into(),
+      receiever,
     )
   }
 
@@ -218,22 +270,15 @@ impl PeripheryConnection {
     socket: &mut W,
     identifiers: ConnectionIdentifiers<'_>,
   ) -> anyhow::Result<()> {
-    let core_private_key = if let Some(private_key) =
-      optional_str(&self.core_private_key)
-    {
-      private_key
-    } else {
-      core_private_key()
-    };
-
     L::login(
       socket,
       identifiers,
-      core_private_key,
-      &PeripheryPublicKeyValidator::new(
-        &self.address,
-        &self.periphery_public_key,
-      ),
+      self
+        .args
+        .core_private_key
+        .as_ref()
+        .unwrap_or(core_private_key()),
+      &self.args.borrow(),
     )
     .await
   }
@@ -243,7 +288,7 @@ impl PeripheryConnection {
     socket: W,
     receiver: &mut BufferedReceiver<Bytes>,
   ) {
-    let handler_cancel = CancellationToken::new();
+    let cancel = self.cancel.child_token();
 
     self.set_connected(true);
     self.clear_error().await;
@@ -254,8 +299,7 @@ impl PeripheryConnection {
       loop {
         let next = tokio::select! {
           next = receiver.recv() => next,
-          _ = self.cancel.cancelled() => break,
-          _ = handler_cancel.cancelled() => break,
+          _ = cancel.cancelled() => break,
         };
 
         let message = match next {
@@ -274,15 +318,14 @@ impl PeripheryConnection {
       }
       // Cancel again if not already
       let _ = ws_write.close(None).await;
-      handler_cancel.cancel();
+      cancel.cancel();
     };
 
     let handle_reads = async {
       loop {
         let next = tokio::select! {
           next = ws_read.recv() => next,
-          _ = self.cancel.cancelled() => break,
-          _ = handler_cancel.cancelled() => break,
+          _ = cancel.cancelled() => break,
         };
 
         match next {
@@ -300,7 +343,7 @@ impl PeripheryConnection {
         };
       }
       // Cancel again if not already
-      handler_cancel.cancel();
+      cancel.cancel();
     };
 
     tokio::join!(forward_writes, handle_reads);

@@ -55,7 +55,7 @@ pub async fn handler(
       };
 
     already_logged_connection_error = false;
-    
+
     if let Err(e) = super::handle_login::<_, ClientLoginFlow>(
       &mut socket,
       identifiers.build(accept.as_bytes(), query.as_bytes()),

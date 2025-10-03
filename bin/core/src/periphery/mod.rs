@@ -42,7 +42,7 @@ impl PeripheryClient {
 
     // Spawn client side connection if one doesn't exist.
     let Some(connection) = connections.get(&server_id).await else {
-      if args.address.is_empty() {
+      if args.address.is_none() {
         return Err(anyhow!("Server {server_id} is not connected"));
       }
       let channels = args
@@ -58,7 +58,7 @@ impl PeripheryClient {
     };
 
     // Ensure the connection args are unchanged.
-    if args.matches(&connection) {
+    if args == connection.args.borrow() {
       return Ok(PeripheryClient {
         server_id,
         channels: connection.channels.clone(),
@@ -66,7 +66,7 @@ impl PeripheryClient {
     }
 
     // The args have changed.
-    if args.address.is_empty() {
+    if args.address.is_none() {
       // Periphery -> Core connection
       // Remove this connection, wait and see if client reconnects
       connections.remove(&server_id).await;

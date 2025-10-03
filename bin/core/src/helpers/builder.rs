@@ -50,11 +50,7 @@ pub async fn get_builder_periphery(
       // with simultaneous spawned builders.
       let periphery = PeripheryClient::new(
         ObjectId::new().to_hex(),
-        PeripheryConnectionArgs {
-          address: &config.address,
-          core_private_key: &config.core_private_key,
-          periphery_public_key: &config.periphery_public_key,
-        },
+        PeripheryConnectionArgs::from_url_builder(&config),
         &config.passkey,
       )
       .await?;
@@ -112,11 +108,10 @@ async fn get_aws_builder(
     format!("{protocol}://{ip}:{}", config.port);
   let periphery = PeripheryClient::new(
     ObjectId::new().to_hex(),
-    PeripheryConnectionArgs {
-      address: &periphery_address,
-      core_private_key: &config.core_private_key,
-      periphery_public_key: &config.periphery_public_key,
-    },
+    PeripheryConnectionArgs::from_aws_builder(
+      &periphery_address,
+      &config,
+    ),
     "",
   )
   .await?;

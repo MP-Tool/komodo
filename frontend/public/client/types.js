@@ -273,6 +273,10 @@ export var Timelength;
 (function (Timelength) {
     /** `1-sec` */
     Timelength["OneSecond"] = "1-sec";
+    /** `1-sec` */
+    Timelength["TwoSeconds"] = "2-sec";
+    /** `1-sec` */
+    Timelength["ThreeSeconds"] = "3-sec";
     /** `5-sec` */
     Timelength["FiveSeconds"] = "5-sec";
     /** `10-sec` */
@@ -285,6 +289,8 @@ export var Timelength;
     Timelength["OneMinute"] = "1-min";
     /** `2-min` */
     Timelength["TwoMinutes"] = "2-min";
+    /** `3-min` */
+    Timelength["ThreeMinutes"] = "3-min";
     /** `5-min` */
     Timelength["FiveMinutes"] = "5-min";
     /** `10-min` */
@@ -297,6 +303,8 @@ export var Timelength;
     Timelength["OneHour"] = "1-hr";
     /** `2-hr` */
     Timelength["TwoHours"] = "2-hr";
+    /** `3-hr` */
+    Timelength["ThreeHours"] = "3-hr";
     /** `6-hr` */
     Timelength["SixHours"] = "6-hr";
     /** `8-hr` */
@@ -305,8 +313,10 @@ export var Timelength;
     Timelength["TwelveHours"] = "12-hr";
     /** `1-day` */
     Timelength["OneDay"] = "1-day";
+    /** `2-day` */
+    Timelength["TwoDays"] = "2-day";
     /** `3-day` */
-    Timelength["ThreeDay"] = "3-day";
+    Timelength["ThreeDays"] = "3-day";
     /** `1-wk` */
     Timelength["OneWeek"] = "1-wk";
     /** `2-wk` */
