@@ -29,7 +29,7 @@ pub async fn handler(
 
   let server = crate::resource::get::<Server>(&_server)
     .await
-    .status_code(StatusCode::BAD_REQUEST)?;
+    .status_code(StatusCode::NOT_FOUND)?;
 
   if !server.config.enabled {
     return Err(anyhow!("Server is Disabled."))

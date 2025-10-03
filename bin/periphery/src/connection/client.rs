@@ -94,8 +94,9 @@ async fn connect_websocket(
     .await
     .map_err(|e| match e {
       tungstenite::Error::Http(response) => match response.status() {
-        StatusCode::BAD_REQUEST => anyhow!("400 Bad Request: Server '{connect_as}' does not exist, is disabled, or is configured to make Core → Periphery connection"),
-        StatusCode::UNAUTHORIZED => anyhow!("401 Unauthorized: Only one Server connected as '{connect_as}' is allowed."),
+        StatusCode::NOT_FOUND => anyhow!("404 Not Found: Server '{connect_as}' does not exist."),
+        StatusCode::BAD_REQUEST => anyhow!("400 Bad Request: Server '{connect_as}' is disabled or configured to make Core → Periphery connection"),
+        StatusCode::UNAUTHORIZED => anyhow!("401 Unauthorized: Only one Server connected as '{connect_as}' is allowed. Or the Core reverse proxy needs to forward host and websocket headers."),
         _ => anyhow::Error::from(tungstenite::Error::Http(response)),
       },
       e => anyhow::Error::from(e),
