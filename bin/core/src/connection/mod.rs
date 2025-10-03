@@ -107,24 +107,25 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
     let invalid_error = || {
       // Spawn task to set the 'attempted_public_key'
       // for easy manual connection acceptance later on.
+      let id = self.id.to_string();
+      let attempted = public_key.clone();
       tokio::spawn(async move {
-        update_one_by_id(
+        if let Err(e) = update_one_by_id(
           &db_client().servers,
-          self.id,
+          &id,
           doc! {
             "$set": {
-              "info.attempted_public_key": &public_key,
+              "info.attempted_public_key": &attempted,
             }
           },
           None,
         )
         .await
-        .inspect_err(|e| {
+        {
           warn!(
-            "Failed to update attempted public_key for Server {}",
-            self.id
-          )
-        });
+            "Failed to update attempted public_key for Server {id} | {e:?}"
+          );
+        };
       });
       anyhow!("{public_key} is invalid")
         .context(
@@ -173,7 +174,7 @@ impl<'a> PeripheryConnectionArgs<'a> {
   }
 
   pub fn from_url_builder(
-    id: &str,
+    id: &'a str,
     config: &'a UrlBuilderConfig,
   ) -> Self {
     Self {
@@ -187,7 +188,7 @@ impl<'a> PeripheryConnectionArgs<'a> {
   }
 
   pub fn from_aws_builder(
-    id: &str,
+    id: &'a str,
     address: &'a str,
     config: &'a AwsBuilderConfig,
   ) -> Self {
