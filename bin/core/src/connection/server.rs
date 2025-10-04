@@ -57,7 +57,7 @@ pub async fn handler(
     );
   }
 
-  // Handle regular / creation flow.
+  // Handle connection vs. onboarding flow.
   match Server::coll()
     .find_one(id_or_name_filter(&server_query))
     .await
@@ -68,7 +68,7 @@ pub async fn handler(
         .await
     }
     None if ObjectId::from_str(&server_query).is_err() => {
-      create_server_handler(server_query, identifiers, ws).await
+      onboard_server_handler(server_query, identifiers, ws).await
     }
     None => Err(
       anyhow!("Must provide name based Server specifier for onboarding flow, name cannot be valid ObjectId (hex)")
@@ -142,7 +142,7 @@ async fn existing_server_handler(
   }))
 }
 
-async fn create_server_handler(
+async fn onboard_server_handler(
   server_query: String,
   identifiers: HeaderConnectionIdentifiers,
   ws: WebSocketUpgrade,
@@ -174,7 +174,7 @@ async fn create_server_handler(
       }
     };
 
-    // TODO: Get actual public key from Periphery, maybe freshly generated
+    // Post onboarding login 1: Receive public key
     let periphery_public_key = match socket
       .recv_bytes_with_timeout(Duration::from_secs(2))
       .await
@@ -187,6 +187,7 @@ async fn create_server_handler(
         return;
       }
     };
+    
     let config = ServerConfig {
       periphery_public_key,
       enabled: true,
