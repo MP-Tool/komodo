@@ -169,7 +169,7 @@ async fn create_server_handler(
     {
       Ok(creation_key) => creation_key,
       Err(e) => {
-        warn!("Server {server_query} failed to onboard via creation key | {e:#}");
+        debug!("Server {server_query} failed to onboard via creation key | {e:#}");
         return;
       }
     };

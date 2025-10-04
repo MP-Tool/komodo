@@ -175,6 +175,7 @@ const CreateKey = () => {
                   className="w-72"
                   value={privateKey}
                   onChange={(e) => setPrivateKey(e.target.value)}
+                  type="password"
                   placeholder="Optional"
                 />
               </div>
