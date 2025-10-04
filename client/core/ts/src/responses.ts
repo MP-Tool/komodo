@@ -177,6 +177,9 @@ export type ReadResponses = {
   ListGitProviderAccounts: Types.ListGitProviderAccountsResponse;
   GetDockerRegistryAccount: Types.GetDockerRegistryAccountResponse;
   ListDockerRegistryAccounts: Types.ListDockerRegistryAccountsResponse;
+
+  // ==== SERVER ONBOARDING KEY ====
+  ListServerOnboardingKeys: Types.ListServerOnboardingKeysResponse;
 };
 
 export type WriteResponses = {
@@ -321,6 +324,10 @@ export type WriteResponses = {
   CreateDockerRegistryAccount: Types.CreateDockerRegistryAccountResponse;
   UpdateDockerRegistryAccount: Types.UpdateDockerRegistryAccountResponse;
   DeleteDockerRegistryAccount: Types.DeleteDockerRegistryAccountResponse;
+
+  // ==== SERVER ONBOARDING KEY ====
+  CreateServerOnboardingKey: Types.CreateServerOnboardingKeyResponse;
+  DeleteServerOnboardingKey: Types.DeleteServerOnboardingKeyResponse;
 };
 
 export type ExecuteResponses = {
@@ -408,7 +415,7 @@ export type ExecuteResponses = {
   UnpauseStackService: Types.Update;
   DestroyStackService: Types.Update;
   RunStackService: Types.Update;
-  
+
   // ==== ALERTER ====
   TestAlerter: Types.Update;
   SendAlert: Types.Update;

@@ -240,10 +240,10 @@ pub async fn get<T: KomodoResource>(
   T::coll()
     .find_one(id_or_name_filter(id_or_name))
     .await
-    .context("failed to query db for resource")?
+    .context("Failed to query db for resource")?
     .with_context(|| {
       format!(
-        "did not find any {} matching {id_or_name}",
+        "Did not find any {} matching {id_or_name}",
         T::resource_type()
       )
     })

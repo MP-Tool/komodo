@@ -21,7 +21,11 @@ use tracing::warn;
 use crate::{MessageState, websocket::Websocket};
 
 pub trait PublicKeyValidator {
-  fn validate(&self, public_key: String) -> anyhow::Result<()>;
+  type ValidationResult;
+  fn validate(
+    &self,
+    public_key: String,
+  ) -> impl Future<Output = anyhow::Result<Self::ValidationResult>>;
 }
 
 pub struct LoginFlowArgs<'a, 's, V, W> {
@@ -34,7 +38,7 @@ pub struct LoginFlowArgs<'a, 's, V, W> {
 pub trait LoginFlow {
   fn login<'a, 's, V: PublicKeyValidator, W: Websocket>(
     args: LoginFlowArgs<'a, 's, V, W>,
-  ) -> impl Future<Output = anyhow::Result<()>>;
+  ) -> impl Future<Output = anyhow::Result<V::ValidationResult>>;
 }
 
 const AUTH_TIMEOUT: Duration = Duration::from_secs(2);
@@ -49,7 +53,7 @@ impl LoginFlow for ServerLoginFlow {
       public_key_validator,
       socket,
     }: LoginFlowArgs<'a, 's, V, W>,
-  ) -> anyhow::Result<()> {
+  ) -> anyhow::Result<V::ValidationResult> {
     let res = async {
       // Server generates random nonce and sends to client
       let nonce = nonce();
@@ -118,17 +122,17 @@ impl LoginFlow for ServerLoginFlow {
           .context("Invalid public key")?
           .into_inner();
 
-      public_key_validator.validate(public_key)
+      public_key_validator.validate(public_key).await
     }
     .await;
 
     match res {
-      Ok(_) => {
+      Ok(res) => {
         socket
           .send(MessageState::Successful.into())
           .await
           .context("Failed to send login successful to client")?;
-        Ok(())
+        Ok(res)
       }
       Err(e) => {
         let mut bytes = serialize_error_bytes(&e);
@@ -160,7 +164,7 @@ impl LoginFlow for ClientLoginFlow {
       public_key_validator,
       socket,
     }: LoginFlowArgs<'a, 's, V, W>,
-  ) -> anyhow::Result<()> {
+  ) -> anyhow::Result<V::ValidationResult> {
     let res = async {
       // Receive nonce from server
       let nonce = socket
@@ -210,7 +214,8 @@ impl LoginFlow for ClientLoginFlow {
         SpkiPublicKey::from_raw_bytes(handshake.remote_public_key()?)
           .context("Invalid public key")?
           .into_inner();
-      public_key_validator.validate(public_key)?;
+      let validation_result =
+        public_key_validator.validate(public_key).await?;
 
       // Send handshake_m3
       let mut handshake_m3 = handshake
@@ -231,7 +236,7 @@ impl LoginFlow for ClientLoginFlow {
         "Authentication state message did not contain state byte",
       )?;
       match MessageState::from_byte(*state) {
-        MessageState::Successful => anyhow::Ok(()),
+        MessageState::Successful => anyhow::Ok(validation_result),
         _ => Err(deserialize_error_bytes(
           &state_msg[..(state_msg.len() - 1)],
         )),
@@ -239,23 +244,24 @@ impl LoginFlow for ClientLoginFlow {
     }
     .await;
 
-    if let Err(e) = res {
-      let mut bytes = serialize_error_bytes(&e);
-      bytes.push(MessageState::Failed.as_byte());
-      if let Err(e) = socket
-        .send(bytes.into())
-        .await
-        .context("Failed to send login failed to client")
-      {
-        // Log additional error
-        warn!("{e:#}");
+    match res {
+      Ok(res) => Ok(res),
+      Err(e) => {
+        let mut bytes = serialize_error_bytes(&e);
+        bytes.push(MessageState::Failed.as_byte());
+        if let Err(e) = socket
+          .send(bytes.into())
+          .await
+          .context("Failed to send login failed to client")
+        {
+          // Log additional error
+          warn!("{e:#}");
+        }
+        // Close socket
+        let _ = socket.close(None).await;
+        // Return the original error
+        Err(e)
       }
-      // Close socket
-      let _ = socket.close(None).await;
-      // Return the original error
-      Err(e)
-    } else {
-      Ok(())
     }
   }
 }

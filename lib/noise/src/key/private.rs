@@ -24,6 +24,10 @@ impl Pkcs8PrivateKey {
     &self.0
   }
 
+  pub fn as_bytes(&self) -> &[u8] {
+    self.0.as_bytes()
+  }
+
   pub fn into_inner(self) -> String {
     self.0
   }
@@ -46,6 +50,33 @@ impl Pkcs8PrivateKey {
     std::fs::write(path, self.as_pem()).with_context(|| {
       format!("Failed to write private key pem to {path:?}")
     })
+  }
+
+  /// - For raw bytes: converts to pkcs8 and returns
+  /// - For pkcs8 base64: clones and returns
+  /// - For pkcs8 base64 pem: unwraps and returns
+  pub fn from_maybe_raw_bytes(
+    maybe_pkcs8_private_key: &str,
+  ) -> anyhow::Result<Self> {
+    // check pem rfc7468 (openssl)
+    if maybe_pkcs8_private_key.starts_with("-----BEGIN") {
+      let (_label, private_key_der) =
+        pem_rfc7468::decode_vec(maybe_pkcs8_private_key.as_bytes())
+          .map_err(anyhow::Error::msg)
+          .context("Failed to get der from pem")?;
+      return Ok(Self(BASE64_STANDARD.encode(private_key_der)));
+    }
+    let len = maybe_pkcs8_private_key.len();
+    if len == 64 {
+      // already base64 der
+      Ok(Self(maybe_pkcs8_private_key.to_string()))
+    } else if len <= 32 {
+      Self::from_raw_bytes(maybe_pkcs8_private_key.as_bytes())
+    } else {
+      Err(anyhow!(
+        "Private key must be less than 32 characters, or pkcs8 encoded."
+      ))
+    }
   }
 
   pub fn from_raw_bytes(private_key: &[u8]) -> anyhow::Result<Self> {

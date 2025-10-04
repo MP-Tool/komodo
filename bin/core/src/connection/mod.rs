@@ -101,7 +101,11 @@ pub struct PeripheryConnectionArgs<'a> {
 }
 
 impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
-  fn validate(&self, public_key: String) -> anyhow::Result<()> {
+  type ValidationResult = String;
+  async fn validate(
+    &self,
+    public_key: String,
+  ) -> anyhow::Result<Self::ValidationResult> {
     // Make sure all cases get the same error,
     // including what the public key should be.
     let invalid_error = || {
@@ -118,7 +122,7 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
     // Handle explicit public key
     if let Some(expected) = self.periphery_public_key {
       return if public_key == expected {
-        Ok(())
+        Ok(public_key)
       } else {
         Err(invalid_error())
       };
@@ -126,7 +130,7 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
     // Core -> Periphery connections with no explicit
     // Periphery public key are not validated.
     if self.address.is_some() {
-      return Ok(());
+      return Ok(public_key);
     }
     // Periphery -> Core connections fall back to
     // 'periphery_public_keys' in Core config.
@@ -136,7 +140,7 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
       .iter()
       .any(|expected| public_key == expected.as_str())
     {
-      Ok(())
+      Ok(public_key)
     } else {
       Err(invalid_error())
     }

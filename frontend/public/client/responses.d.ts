@@ -132,6 +132,7 @@ export type ReadResponses = {
     ListGitProviderAccounts: Types.ListGitProviderAccountsResponse;
     GetDockerRegistryAccount: Types.GetDockerRegistryAccountResponse;
     ListDockerRegistryAccounts: Types.ListDockerRegistryAccountsResponse;
+    ListServerOnboardingKeys: Types.ListServerOnboardingKeysResponse;
 };
 export type WriteResponses = {
     CreateLocalUser: Types.CreateLocalUserResponse;
@@ -240,6 +241,8 @@ export type WriteResponses = {
     CreateDockerRegistryAccount: Types.CreateDockerRegistryAccountResponse;
     UpdateDockerRegistryAccount: Types.UpdateDockerRegistryAccountResponse;
     DeleteDockerRegistryAccount: Types.DeleteDockerRegistryAccountResponse;
+    CreateServerOnboardingKey: Types.CreateServerOnboardingKeyResponse;
+    DeleteServerOnboardingKey: Types.DeleteServerOnboardingKeyResponse;
 };
 export type ExecuteResponses = {
     StartContainer: Types.Update;

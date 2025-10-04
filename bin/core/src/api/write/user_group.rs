@@ -26,7 +26,7 @@ impl Resolve<WriteArgs> for CreateUserGroup {
   ) -> serror::Result<UserGroup> {
     if !admin.admin {
       return Err(
-        anyhow!("This call is admin-only")
+        anyhow!("This call is admin only")
           .status_code(StatusCode::FORBIDDEN),
       );
     }
@@ -64,7 +64,7 @@ impl Resolve<WriteArgs> for RenameUserGroup {
   ) -> serror::Result<UserGroup> {
     if !admin.admin {
       return Err(
-        anyhow!("This call is admin-only")
+        anyhow!("This call is admin only")
           .status_code(StatusCode::FORBIDDEN),
       );
     }
@@ -93,7 +93,7 @@ impl Resolve<WriteArgs> for DeleteUserGroup {
   ) -> serror::Result<UserGroup> {
     if !admin.admin {
       return Err(
-        anyhow!("This call is admin-only")
+        anyhow!("This call is admin only")
           .status_code(StatusCode::FORBIDDEN),
       );
     }
@@ -129,7 +129,7 @@ impl Resolve<WriteArgs> for AddUserToUserGroup {
   ) -> serror::Result<UserGroup> {
     if !admin.admin {
       return Err(
-        anyhow!("This call is admin-only")
+        anyhow!("This call is admin only")
           .status_code(StatusCode::FORBIDDEN),
       );
     }
@@ -176,7 +176,7 @@ impl Resolve<WriteArgs> for RemoveUserFromUserGroup {
   ) -> serror::Result<UserGroup> {
     if !admin.admin {
       return Err(
-        anyhow!("This call is admin-only")
+        anyhow!("This call is admin only")
           .status_code(StatusCode::FORBIDDEN),
       );
     }
@@ -223,7 +223,7 @@ impl Resolve<WriteArgs> for SetUsersInUserGroup {
   ) -> serror::Result<UserGroup> {
     if !admin.admin {
       return Err(
-        anyhow!("This call is admin-only")
+        anyhow!("This call is admin only")
           .status_code(StatusCode::FORBIDDEN),
       );
     }
@@ -273,7 +273,7 @@ impl Resolve<WriteArgs> for SetEveryoneUserGroup {
   ) -> serror::Result<UserGroup> {
     if !admin.admin {
       return Err(
-        anyhow!("This call is admin-only")
+        anyhow!("This call is admin only")
           .status_code(StatusCode::FORBIDDEN),
       );
     }

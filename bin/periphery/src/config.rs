@@ -135,6 +135,11 @@ pub fn periphery_config() -> &'static PeripheryConfig {
         env.periphery_private_key,
       )
       .or(config.private_key),
+      onboarding_key: maybe_read_item_from_file(
+        env.periphery_onboarding_key_file,
+        env.periphery_onboarding_key,
+      )
+      .or(config.onboarding_key),
       core_public_keys: env
         .periphery_core_public_keys
         .or(config.core_public_keys),

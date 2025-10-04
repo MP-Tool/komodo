@@ -138,6 +138,10 @@ pub struct Env {
   pub periphery_private_key: Option<String>,
   /// Override `private_key` from file
   pub periphery_private_key_file: Option<PathBuf>,
+  /// Override `onboarding_key`
+  pub periphery_onboarding_key: Option<String>,
+  /// Override `onboarding_key` from file
+  pub periphery_onboarding_key_file: Option<PathBuf>,
   /// Override `core_public_keys`
   #[serde(alias = "periphery_core_public_key")]
   pub periphery_core_public_keys: Option<Vec<String>>,
@@ -222,6 +226,12 @@ pub struct PeripheryConfig {
   /// Default: ${root_directory}/keys/periphery.key
   #[serde(skip_serializing_if = "Option::is_none")]
   pub private_key: Option<String>,
+
+  /// Provide an onboarding key to use with the new Server
+  /// creation flow.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub onboarding_key: Option<String>,
+
   /// Optionally pin a specific Core public key for additional trust.
   ///
   /// Supports openssl generated pem file, `openssl pkey -in private.key -pubout -out public.key`.
@@ -423,6 +433,7 @@ impl Default for PeripheryConfig {
   fn default() -> Self {
     Self {
       private_key: None,
+      onboarding_key: None,
       core_public_keys: None,
       passkeys: None,
       core_addresses: None,
@@ -465,6 +476,10 @@ impl PeripheryConfig {
           empty_or_redacted(private_key)
         }
       }),
+      onboarding_key: self
+        .onboarding_key
+        .as_ref()
+        .map(|key| empty_or_redacted(key)),
       core_public_keys: self.core_public_keys.clone(),
       passkeys: self.passkeys.as_ref().map(|passkeys| {
         passkeys.iter().map(|p| empty_or_redacted(p)).collect()

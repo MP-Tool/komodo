@@ -54,8 +54,8 @@ async fn prune_images() -> anyhow::Result<()> {
 
   while let Some((res, server)) = futures.next().await {
     if let Err(e) = res {
-      error!(
-        "failed to prune images on server {} ({}) | {e:#}",
+      warn!(
+        "failed to prune images on Server {} ({}) | {e:#}",
         server.name, server.id
       )
     }

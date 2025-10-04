@@ -38,6 +38,15 @@ impl EncodedKeyPair {
     let public = SpkiPublicKey::from_raw_bytes(&keypair.public)?;
     Ok(EncodedKeyPair { private, public })
   }
+
+  pub fn from_private_key(
+    maybe_pkcs8_private_key: &str,
+  ) -> anyhow::Result<EncodedKeyPair> {
+    let private =
+      Pkcs8PrivateKey::from_maybe_raw_bytes(maybe_pkcs8_private_key)?;
+    let public = private.compute_public_key()?;
+    Ok(Self { private, public })
+  }
 }
 
 pub fn load_maybe_generate_private_key(

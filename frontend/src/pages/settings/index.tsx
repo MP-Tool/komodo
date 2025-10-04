@@ -8,6 +8,7 @@ import { Tags } from "./tags";
 import { UsersPage } from "./users";
 import { Profile } from "./profile";
 import { ProvidersPage } from "./providers";
+import { Onboarding } from "./onboarding";
 
 const Resources = lazy(() => import("@pages/resources"));
 
@@ -36,6 +37,9 @@ export default function Settings() {
             )}
             {user?.admin && <TabsTrigger value="Users">Users</TabsTrigger>}
             <TabsTrigger value="Profile">Profile</TabsTrigger>
+            {user?.admin && (
+              <TabsTrigger value="Onboarding">Onboarding</TabsTrigger>
+            )}
           </TabsList>
 
           {currentView === "Variables" && <ExportButton include_variables />}
@@ -65,6 +69,9 @@ export default function Settings() {
         )}
         <TabsContent value="Profile">
           <Profile />
+        </TabsContent>
+        <TabsContent value="Onboarding">
+          <Onboarding />
         </TabsContent>
       </Tabs>
     </Page>

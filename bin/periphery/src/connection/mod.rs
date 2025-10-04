@@ -50,7 +50,8 @@ pub fn core_channels() -> &'static CoreChannels {
 pub struct CorePublicKeyValidator;
 
 impl PublicKeyValidator for CorePublicKeyValidator {
-  fn validate(&self, public_key: String) -> anyhow::Result<()> {
+  type ValidationResult = ();
+  async fn validate(&self, public_key: String) -> anyhow::Result<()> {
     if let Some(public_keys) = core_public_keys()
       && public_keys
         .iter()

@@ -29,6 +29,7 @@ mod provider;
 mod repo;
 mod resource;
 mod server;
+mod server_onboarding_key;
 mod service_user;
 mod stack;
 mod sync;
@@ -185,13 +186,17 @@ pub enum WriteRequest {
   UpdateVariableIsSecret(UpdateVariableIsSecret),
   DeleteVariable(DeleteVariable),
 
-  // ==== PROVIDERS ====
+  // ==== PROVIDER ====
   CreateGitProviderAccount(CreateGitProviderAccount),
   UpdateGitProviderAccount(UpdateGitProviderAccount),
   DeleteGitProviderAccount(DeleteGitProviderAccount),
   CreateDockerRegistryAccount(CreateDockerRegistryAccount),
   UpdateDockerRegistryAccount(UpdateDockerRegistryAccount),
   DeleteDockerRegistryAccount(DeleteDockerRegistryAccount),
+
+  // ==== SERVER ONBOARDING KEY ====
+  CreateServerOnboardingKey(CreateServerOnboardingKey),
+  DeleteServerOnboardingKey(DeleteServerOnboardingKey),
 }
 
 pub fn router() -> Router {
