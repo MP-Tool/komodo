@@ -39,9 +39,9 @@ use komodo_client::{
 use periphery_client::api::{
   self as periphery,
   container::InspectContainer,
-  image::{ImageHistory, InspectImage},
-  network::InspectNetwork,
-  volume::InspectVolume,
+  docker::{
+    ImageHistory, InspectImage, InspectNetwork, InspectVolume,
+  },
 };
 use reqwest::StatusCode;
 use resolver_api::Resolve;

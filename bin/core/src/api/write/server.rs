@@ -99,7 +99,7 @@ impl Resolve<WriteArgs> for CreateNetwork {
     update.id = add_update(update.clone()).await?;
 
     match periphery
-      .request(api::network::CreateNetwork {
+      .request(api::docker::CreateNetwork {
         name: to_docker_compatible_name(&self.name),
         driver: None,
       })

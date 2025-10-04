@@ -15,12 +15,11 @@ use serde::{Deserialize, Serialize};
 pub mod build;
 pub mod compose;
 pub mod container;
+pub mod docker;
 pub mod git;
-pub mod image;
-pub mod network;
+pub mod keys;
 pub mod stats;
 pub mod terminal;
-pub mod volume;
 
 //
 

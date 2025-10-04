@@ -4,16 +4,22 @@ use cache::TimeoutCache;
 use command::run_komodo_command;
 use komodo_client::entities::{
   deployment::extract_registry_domain,
-  docker::image::{Image, ImageHistoryResponseItem},
+  docker::{
+    image::{Image, ImageHistoryResponseItem},
+    network::Network,
+    volume::Volume,
+  },
   komodo_timestamp,
   update::Log,
 };
-use periphery_client::api::image::*;
+use periphery_client::api::docker::*;
 use resolver_api::Resolve;
 
 use crate::docker::{docker_client, docker_login};
 
-//
+// =====
+// IMAGE
+// =====
 
 impl Resolve<super::Args> for InspectImage {
   #[instrument(name = "InspectImage", level = "debug")]
@@ -109,5 +115,82 @@ impl Resolve<super::Args> for PruneImages {
   async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
     let command = String::from("docker image prune -a -f");
     Ok(run_komodo_command("Prune Images", None, command).await)
+  }
+}
+
+// =======
+// NETWORK
+// =======
+
+impl Resolve<super::Args> for InspectNetwork {
+  #[instrument(name = "InspectNetwork", level = "debug")]
+  async fn resolve(self, _: &super::Args) -> serror::Result<Network> {
+    Ok(docker_client().inspect_network(&self.name).await?)
+  }
+}
+
+//
+
+impl Resolve<super::Args> for CreateNetwork {
+  #[instrument(name = "CreateNetwork", skip(self))]
+  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+    let CreateNetwork { name, driver } = self;
+    let driver = match driver {
+      Some(driver) => format!(" -d {driver}"),
+      None => String::new(),
+    };
+    let command = format!("docker network create{driver} {name}");
+    Ok(run_komodo_command("Create Network", None, command).await)
+  }
+}
+
+//
+
+impl Resolve<super::Args> for DeleteNetwork {
+  #[instrument(name = "DeleteNetwork", skip(self))]
+  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+    let command = format!("docker network rm {}", self.name);
+    Ok(run_komodo_command("Delete Network", None, command).await)
+  }
+}
+
+//
+
+impl Resolve<super::Args> for PruneNetworks {
+  #[instrument(name = "PruneNetworks", skip(self))]
+  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+    let command = String::from("docker network prune -f");
+    Ok(run_komodo_command("Prune Networks", None, command).await)
+  }
+}
+
+// ======
+// VOLUME
+// ======
+
+impl Resolve<super::Args> for InspectVolume {
+  #[instrument(name = "InspectVolume", level = "debug")]
+  async fn resolve(self, _: &super::Args) -> serror::Result<Volume> {
+    Ok(docker_client().inspect_volume(&self.name).await?)
+  }
+}
+
+//
+
+impl Resolve<super::Args> for DeleteVolume {
+  #[instrument(name = "DeleteVolume")]
+  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+    let command = format!("docker volume rm {}", self.name);
+    Ok(run_komodo_command("Delete Volume", None, command).await)
+  }
+}
+
+//
+
+impl Resolve<super::Args> for PruneVolumes {
+  #[instrument(name = "PruneVolumes")]
+  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+    let command = String::from("docker volume prune -a -f");
+    Ok(run_komodo_command("Prune Volumes", None, command).await)
   }
 }

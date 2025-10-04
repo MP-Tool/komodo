@@ -334,7 +334,7 @@ pub async fn pull_deployment_inner(
   let res = async {
     let log = match periphery_client(server)
       .await?
-      .request(api::image::PullImage {
+      .request(api::docker::PullImage {
         name: image,
         account,
         token,

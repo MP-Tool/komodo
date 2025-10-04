@@ -694,7 +694,7 @@ impl Resolve<ExecuteArgs> for DeleteNetwork {
     let periphery = periphery_client(&server).await?;
 
     let log = match periphery
-      .request(api::network::DeleteNetwork {
+      .request(api::docker::DeleteNetwork {
         name: self.name.clone(),
       })
       .await
@@ -756,7 +756,7 @@ impl Resolve<ExecuteArgs> for PruneNetworks {
     let periphery = periphery_client(&server).await?;
 
     let log = match periphery
-      .request(api::network::PruneNetworks {})
+      .request(api::docker::PruneNetworks {})
       .await
       .context(format!(
         "failed to prune networks on server {}",
@@ -799,7 +799,7 @@ impl Resolve<ExecuteArgs> for DeleteImage {
     let periphery = periphery_client(&server).await?;
 
     let log = match periphery
-      .request(api::image::DeleteImage {
+      .request(api::docker::DeleteImage {
         name: self.name.clone(),
       })
       .await
@@ -858,7 +858,7 @@ impl Resolve<ExecuteArgs> for PruneImages {
     let periphery = periphery_client(&server).await?;
 
     let log =
-      match periphery.request(api::image::PruneImages {}).await {
+      match periphery.request(api::docker::PruneImages {}).await {
         Ok(log) => log,
         Err(e) => Log::error(
           "prune images",
@@ -899,7 +899,7 @@ impl Resolve<ExecuteArgs> for DeleteVolume {
     let periphery = periphery_client(&server).await?;
 
     let log = match periphery
-      .request(api::volume::DeleteVolume {
+      .request(api::docker::DeleteVolume {
         name: self.name.clone(),
       })
       .await
@@ -961,7 +961,7 @@ impl Resolve<ExecuteArgs> for PruneVolumes {
     let periphery = periphery_client(&server).await?;
 
     let log =
-      match periphery.request(api::volume::PruneVolumes {}).await {
+      match periphery.request(api::docker::PruneVolumes {}).await {
         Ok(log) => log,
         Err(e) => Log::error(
           "prune volumes",

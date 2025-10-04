@@ -8,8 +8,8 @@ use komodo_client::entities::{
   update::Log,
 };
 use periphery_client::api::{
-  build::*, compose::*, container::*, git::*, image::*, network::*,
-  stats::*, terminal::*, volume::*, *,
+  build::*, compose::*, container::*, docker::*, git::*, stats::*,
+  terminal::*, *,
 };
 use resolver_api::Resolve;
 use response::JsonBytes;
@@ -28,10 +28,8 @@ mod build;
 mod compose;
 mod container;
 mod deploy;
+mod docker;
 mod git;
-mod image;
-mod network;
-mod volume;
 
 #[derive(Debug)]
 pub struct Args {
