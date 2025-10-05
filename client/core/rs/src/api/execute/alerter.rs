@@ -30,7 +30,8 @@ pub struct TestAlerter {
 
 //
 
-/// Send a custom alert message to configured Alerters. Response: [Update]
+/// Send a custom alert message to configured Alerters. Response: [Update].
+/// Alias: `alert`
 #[typeshare]
 #[derive(
   Serialize,

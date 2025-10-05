@@ -29,7 +29,7 @@ pub struct ClearRepoCache {}
 //
 
 /// **Admin only.** Backs up the Komodo Core database to compressed jsonl files.
-/// Response: [Update]
+/// Response: [Update]. Aliases: `backup-database`, `backup-db`, `backup`.
 ///
 /// Mount a folder to `/backups`, and Core will use it to create
 /// timestamped database dumps, which can be restored using
@@ -56,7 +56,7 @@ pub struct BackupCoreDatabase {}
 
 /// **Admin only.** Trigger a global poll for image updates on Stacks and Deployments
 /// with `poll_for_updates` or `auto_update` enabled.
-/// Response: [Update]
+/// Response: [Update]. Alias: `auto-update`.
 ///
 /// 1. `docker compose pull` any Stacks / Deployments with `poll_for_updates` or `auto_update` enabled. This will pick up any available updates.
 /// 2. Redeploy Stacks / Deployments that have updates found and 'auto_update' enabled.
@@ -79,7 +79,7 @@ pub struct GlobalAutoUpdate {}
 //
 
 /// **Admin only.** Rotates all connected Server keys.
-/// Response: [Update]
+/// Response: [Update]. Alias: `rotate-keys`.
 #[typeshare]
 #[derive(
   Debug,

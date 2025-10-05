@@ -161,8 +161,11 @@ pub enum Execution {
 
   // MAINTENANCE
   ClearRepoCache(ClearRepoCache),
+  #[clap(alias = "backup-database", alias = "backup-db", alias = "backup")]
   BackupCoreDatabase(BackupCoreDatabase),
+  #[clap(alias = "auto-update")]
   GlobalAutoUpdate(GlobalAutoUpdate),
+  #[clap(alias = "rotate-keys")]
   RotateAllServerKeys(RotateAllServerKeys),
 
   // SLEEP
