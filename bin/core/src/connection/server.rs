@@ -194,7 +194,10 @@ async fn onboard_server_handler(
     };
 
     let config = if onboarding_key.copy_server.is_empty() {
-      PartialServerConfig::default()
+      PartialServerConfig {
+        enabled: Some(true),
+        ..Default::default()
+      }
     } else {
       let config = match db_client().servers.find_one(id_or_name_filter(&onboarding_key.copy_server)).await {
         Ok(Some(server)) => server.config,
