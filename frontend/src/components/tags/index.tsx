@@ -188,15 +188,19 @@ export const TagsWithBadge = ({
   onBadgeClick,
   className,
   icon,
+  useName,
 }: {
   tag_ids?: string[];
   onBadgeClick?: (tag_id: string) => void;
   className?: string;
   icon?: ReactNode;
+  useName?: boolean;
 }) => {
   const all_tags = useRead("ListTags", {}).data;
-  const get_tag = (tag_id: string) =>
-    all_tags?.find((t) => t._id?.$oid === tag_id);
+  const get_tag = (tag: string) =>
+    useName
+      ? all_tags?.find((t) => t.name === tag)
+      : all_tags?.find((t) => t._id?.$oid === tag);
   return (
     <>
       {tag_ids?.map((tag_id) => {
@@ -212,7 +216,12 @@ export const TagsWithBadge = ({
               `hover:${color}`,
               className
             )}
-            onClick={() => onBadgeClick && onBadgeClick(tag_id)}
+            onClick={() =>
+              onBadgeClick &&
+              (useName
+                ? tag?.name && onBadgeClick(tag.name)
+                : onBadgeClick(tag_id))
+            }
           >
             {tag?.name ?? "unknown"}
             {icon}

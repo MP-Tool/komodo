@@ -173,6 +173,7 @@ export const ProcedureConfig = ({ id }: { id: string }) => {
                   {stages &&
                     stages.map((stage, index) => (
                       <Stage
+                        key={index}
                         stage={stage}
                         setStage={(stage) =>
                           set({

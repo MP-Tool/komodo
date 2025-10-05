@@ -9033,12 +9033,12 @@ export type WriteRequest =
 	| { type: "CopyServer", params: CopyServer }
 	| { type: "DeleteServer", params: DeleteServer }
 	| { type: "UpdateServer", params: UpdateServer }
-	| { type: "UpdateServerPublicKey", params: UpdateServerPublicKey }
 	| { type: "RenameServer", params: RenameServer }
 	| { type: "CreateNetwork", params: CreateNetwork }
 	| { type: "CreateTerminal", params: CreateTerminal }
 	| { type: "DeleteTerminal", params: DeleteTerminal }
 	| { type: "DeleteAllTerminals", params: DeleteAllTerminals }
+	| { type: "UpdateServerPublicKey", params: UpdateServerPublicKey }
 	| { type: "RotateServerKeys", params: RotateServerKeys }
 	| { type: "CreateStack", params: CreateStack }
 	| { type: "CopyStack", params: CopyStack }

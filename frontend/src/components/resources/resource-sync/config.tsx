@@ -18,12 +18,12 @@ import {
   useWrite,
 } from "@lib/hooks";
 import { Types } from "komodo_client";
-import { ReactNode, useState } from "react";
-import { CopyWebhook } from "../common";
+import { ReactNode } from "react";
+import { CopyWebhook, TagSelector } from "../common";
 import { useToast } from "@ui/use-toast";
 import { text_color_class_by_intention } from "@lib/color";
 import { ConfirmButton, ShowHideButton } from "@components/util";
-import { Ban, CirclePlus, MinusCircle, SearchX, Tag } from "lucide-react";
+import { Ban, CirclePlus } from "lucide-react";
 import { MonacoEditor } from "@components/monaco";
 import {
   Select,
@@ -32,17 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ui/select";
-import { filterBySplit } from "@lib/utils";
-import { Button } from "@ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@ui/command";
 import { LinkedRepoConfig } from "@components/config/linked_repo";
 
 type SyncMode = "UI Defined" | "Files On Server" | "Git Repo" | undefined;
@@ -220,10 +209,11 @@ export const ResourceSyncConfig = ({
     description: "Only sync resources matching all of these tags.",
     components: {
       match_tags: (values, set) => (
-        <MatchTags
+        <TagSelector
           tags={values ?? []}
-          set={set}
+          set={(match_tags) => set({ match_tags })}
           disabled={disabled || !include_resources}
+          useName
         />
       ),
     },
@@ -584,115 +574,5 @@ export const ResourceSyncConfig = ({
       components={components}
       file_contents_language="fancy_toml"
     />
-  );
-};
-
-const MatchTags = ({
-  tags,
-  set,
-  disabled,
-}: {
-  tags: string[];
-  set: (update: Partial<Types.ResourceSyncConfig>) => void;
-  disabled: boolean;
-}) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const all_tags = useRead("ListTags", {}).data;
-  const filtered = filterBySplit(all_tags, search, (item) => item.name);
-  return (
-    <div className="flex gap-3 items-center">
-      <Popover
-        open={open}
-        onOpenChange={(open) => {
-          setSearch("");
-          setOpen(open);
-        }}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className="flex items-center gap-2"
-            disabled={disabled}
-          >
-            <Tag className="w-3 h-3" />
-            Select Tag
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-[200px] max-h-[200px] p-0"
-          sideOffset={12}
-          align="start"
-        >
-          <Command shouldFilter={false}>
-            <CommandInput
-              placeholder="Search Tags"
-              className="h-9"
-              value={search}
-              onValueChange={setSearch}
-            />
-            <CommandList>
-              <CommandEmpty className="flex justify-evenly items-center pt-2">
-                No Tags Found
-                <SearchX className="w-3 h-3" />
-              </CommandEmpty>
-
-              <CommandGroup>
-                {filtered
-                  ?.filter((tag) => !tags.includes(tag.name))
-                  .map((tag) => (
-                    <CommandItem
-                      key={tag.name}
-                      onSelect={() => {
-                        set({ match_tags: [...tags, tag.name] });
-                        setSearch("");
-                        setOpen(false);
-                      }}
-                      className="flex items-center justify-between cursor-pointer"
-                    >
-                      <div className="p-1">{tag.name}</div>
-                    </CommandItem>
-                  ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-
-      <MatchTagsTags
-        tags={tags}
-        onBadgeClick={(tag) =>
-          set({ match_tags: tags.filter((name) => name !== tag) })
-        }
-        disabled={disabled}
-      />
-    </div>
-  );
-};
-
-const MatchTagsTags = ({
-  tags,
-  onBadgeClick,
-  disabled,
-}: {
-  tags?: string[];
-  onBadgeClick: (tag: string) => void;
-  disabled: boolean;
-}) => {
-  return (
-    <>
-      {tags?.map((tag) => (
-        <Button
-          key={tag}
-          variant="secondary"
-          className="flex items-center gap-2"
-          onClick={() => onBadgeClick && onBadgeClick(tag)}
-          disabled={disabled}
-        >
-          {tag}
-          <MinusCircle className="w-4 h-4" />
-        </Button>
-      ))}
-    </>
   );
 };

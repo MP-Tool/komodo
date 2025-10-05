@@ -159,13 +159,13 @@ export type WriteResponses = {
     CopyServer: Types.Server;
     DeleteServer: Types.Server;
     UpdateServer: Types.Server;
-    UpdateServerPublicKey: Types.Server;
     RenameServer: Types.Update;
     CreateNetwork: Types.Update;
     CreateTerminal: Types.NoData;
     DeleteTerminal: Types.NoData;
     DeleteAllTerminals: Types.NoData;
-    RotateServerKeys: Types.NoData;
+    UpdateServerPublicKey: Types.Update;
+    RotateServerKeys: Types.Update;
     CreateStack: Types.Stack;
     CopyStack: Types.Stack;
     DeleteStack: Types.Stack;

@@ -278,8 +278,7 @@ impl Resolve<WriteArgs> for RotateServerKeys {
       .request(api::keys::RotatePrivateKey {})
       .await
       .context("Failed to rotate Periphery private key")?
-      .public_key
-      .into();
+      .public_key;
 
     UpdateServerPublicKey {
       server: server.id,

@@ -12,7 +12,7 @@ import {
 import { Button } from "@ui/button";
 import { useToast } from "@ui/use-toast";
 import { Trash, PlusCircle, Loader2, Check, KeyRound } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Input } from "@ui/input";
 import {
   DropdownMenu,
@@ -25,6 +25,7 @@ import { Section } from "@components/layouts";
 import { DataTable, SortableHeader } from "@ui/data-table";
 import { fmt_date_with_minutes } from "@lib/formatting";
 import { Switch } from "@ui/switch";
+import { ResourceSelector, TagSelector } from "@components/resources/common";
 
 export const Onboarding = () => {
   useSetTitle("Onboarding");
@@ -38,6 +39,85 @@ export const Onboarding = () => {
       toast({ title: "Updated onboarding key" });
     },
   });
+  const columns = useMemo(
+    () => [
+      {
+        size: 150,
+        accessorKey: "name",
+        header: ({ column }) => <SortableHeader column={column} title="Name" />,
+        cell: ({ row }) => (
+          <Input
+            defaultValue={row.original.name}
+            onBlur={(e) =>
+              e.target.value != row.original.name &&
+              mutate({
+                public_key: row.original.public_key,
+                name: e.target.value,
+              })
+            }
+            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          />
+        ),
+      },
+      {
+        size: 150,
+        accessorKey: "copy_server",
+        header: "Template",
+        cell: ({ row }) => (
+          <ResourceSelector type="Server" selected={row.original.copy_server} />
+        ),
+      },
+      {
+        size: 200,
+        accessorKey: "tags",
+        header: "Tags",
+        cell: ({ row }) => (
+          <TagSelector
+            tags={row.original.tags}
+            set={(tags) =>
+              mutate({ public_key: row.original.public_key, tags })
+            }
+            disabled={false}
+            icon={<PlusCircle className="w-3 h-3" />}
+            small
+          />
+        ),
+      },
+      {
+        size: 150,
+        accessorKey: "expires",
+        header: ({ column }) => (
+          <SortableHeader column={column} title="Expires" />
+        ),
+        cell: ({ row }) =>
+          row.original.expires
+            ? fmt_date_with_minutes(new Date(row.original.expires))
+            : "Never",
+      },
+      {
+        size: 100,
+        accessorKey: "enabled",
+        header: ({ column }) => (
+          <SortableHeader column={column} title="Enabled" />
+        ),
+        cell: ({ row }) => (
+          <Switch
+            checked={row.original.enabled}
+            onCheckedChange={(enabled) =>
+              mutate({ public_key: row.original.public_key, enabled })
+            }
+          />
+        ),
+      },
+      {
+        size: 100,
+        accessorKey: "public_key",
+        header: "Delete",
+        cell: ({ row }) => <DeleteKey public_key={row.original.public_key} />,
+      },
+    ],
+    [mutate]
+  );
   return (
     <Section
       title="Server Onboarding Keys"
@@ -48,54 +128,7 @@ export const Onboarding = () => {
       <DataTable
         tableKey="server-onboarding-keys-v1"
         data={keys}
-        columns={[
-          {
-            accessorKey: "name",
-            header: ({ column }) => (
-              <SortableHeader column={column} title="Name" />
-            ),
-            cell: ({ row }) => (row.original.name ? row.original.name : "N/A"),
-          },
-          {
-            accessorKey: "expires",
-            header: ({ column }) => (
-              <SortableHeader column={column} title="Expires" />
-            ),
-            cell: ({ row }) =>
-              row.original.expires
-                ? fmt_date_with_minutes(new Date(row.original.expires))
-                : "Never",
-          },
-          {
-            accessorKey: "created_at",
-            header: ({ column }) => (
-              <SortableHeader column={column} title="Created At" />
-            ),
-            cell: ({ row }) =>
-              fmt_date_with_minutes(new Date(row.original.created_at)),
-          },
-          {
-            accessorKey: "enabled",
-            header: ({ column }) => (
-              <SortableHeader column={column} title="Enabled" />
-            ),
-            cell: ({ row }) => (
-              <Switch
-                checked={row.original.enabled}
-                onCheckedChange={(enabled) =>
-                  mutate({ public_key: row.original.public_key, enabled })
-                }
-              />
-            ),
-          },
-          {
-            accessorKey: "public_key",
-            header: "Delete",
-            cell: ({ row }) => (
-              <DeleteKey public_key={row.original.public_key} />
-            ),
-          },
-        ]}
+        columns={columns}
       />
     </Section>
   );

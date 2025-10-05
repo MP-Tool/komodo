@@ -8985,9 +8985,6 @@ export type WriteRequest = {
     type: "UpdateServer";
     params: UpdateServer;
 } | {
-    type: "UpdateServerPublicKey";
-    params: UpdateServerPublicKey;
-} | {
     type: "RenameServer";
     params: RenameServer;
 } | {
@@ -9002,6 +8999,9 @@ export type WriteRequest = {
 } | {
     type: "DeleteAllTerminals";
     params: DeleteAllTerminals;
+} | {
+    type: "UpdateServerPublicKey";
+    params: UpdateServerPublicKey;
 } | {
     type: "RotateServerKeys";
     params: RotateServerKeys;

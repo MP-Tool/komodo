@@ -38,9 +38,12 @@ import {
   Copy,
   Edit2,
   Loader2,
+  MinusCircle,
   NotepadText,
+  PlusCircle,
   SearchX,
   Server,
+  Tag,
   Trash,
   X,
 } from "lucide-react";
@@ -55,11 +58,13 @@ import { cn, filterBySplit, usableResourcePath } from "@lib/utils";
 import {
   ColorIntention,
   hex_color_by_intention,
+  tag_background_class,
   text_color_class_by_intention,
 } from "@lib/color";
 import { Switch } from "@ui/switch";
 import { ResourceListItem } from "komodo_client/dist/types";
 import { Badge } from "@ui/badge";
+import { TagsWithBadge } from "@components/tags";
 
 export const ResourcePageHeader = ({
   type,
@@ -667,6 +672,142 @@ export const StandardSource = ({
     <div className="flex items-center gap-2">
       <NotepadText className="w-4 h-4" />
       UI Defined
+    </div>
+  );
+};
+
+export const TagSelector = ({
+  tags,
+  set,
+  disabled,
+  small,
+  useName,
+  icon,
+}: {
+  tags: string[];
+  set: (tags: string[]) => void;
+  disabled: boolean;
+  small?: boolean;
+  useName?: boolean;
+  icon?: ReactNode;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const all_tags = useRead("ListTags", {}).data ?? [];
+  const all_tag_names = all_tags.map((tag) => tag.name);
+
+  const { toast } = useToast();
+  const inv = useInvalidate();
+
+  const { mutateAsync: create } = useWrite("CreateTag", {
+    onSuccess: () => inv([`ListTags`]),
+  });
+
+  useEffect(() => {
+    if (open) setSearch("");
+  }, [open]);
+
+  const create_tag = async () => {
+    if (!search) return toast({ title: "Must provide tag name in input" });
+    const tag = await create({ name: search });
+    set([...tags, useName ? tag.name : tag._id?.$oid!]);
+    setOpen(false);
+  };
+
+  const filtered = filterBySplit(all_tags, search, (item) => item.name)?.sort(
+    (a, b) => {
+      if (a.name > b.name) {
+        return 1;
+      } else if (a.name < b.name) {
+        return -1;
+      } else {
+        return 0;
+      }
+    }
+  );
+
+  return (
+    <div className={cn("flex items-center", small ? "gap-2" : "gap-3")}>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="secondary"
+            className={cn(
+              "flex items-center gap-2",
+              small && "px-2 py-2 h-fit"
+            )}
+          >
+            {icon ?? <Tag className={small ? "w-3 h-3" : "w-4 h-4"} />}
+            {!small && "Select Tag"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[200px] p-0" sideOffset={12} align="start">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Search / Create"
+              className="h-9"
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandList>
+              <CommandEmpty className="m-1">
+                <Button
+                  variant="ghost"
+                  onClick={create_tag}
+                  className="w-full flex items-center justify-between hover:bg-accent"
+                >
+                  Create Tag
+                  <PlusCircle className="w-4" />
+                </Button>
+              </CommandEmpty>
+              <CommandGroup>
+                {filtered
+                  ?.filter(
+                    (tag) => !tags.includes(useName ? tag.name : tag._id!.$oid)
+                  )
+                  .map((tag) => (
+                    <CommandItem
+                      key={tag._id?.$oid}
+                      value={tag.name}
+                      onSelect={() =>
+                        set([...tags, useName ? tag.name : tag._id!.$oid])
+                      }
+                      className="cursor-pointer flex items-center justify-between gap-2"
+                    >
+                      <div className="p-1">{tag.name}</div>
+                      <div
+                        className={cn(
+                          "w-[25px] h-[25px] rounded-sm",
+                          tag_background_class(tag.color)
+                        )}
+                      />
+                    </CommandItem>
+                  ))}
+                {search && !all_tag_names.includes(search) && (
+                  <CommandItem onSelect={create_tag} className="cursor-pointer">
+                    <div className="w-full p-1 flex items-center justify-between">
+                      Create Tag
+                      <PlusCircle className="w-4" />
+                    </div>
+                  </CommandItem>
+                )}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      <TagsWithBadge
+        tag_ids={tags}
+        onBadgeClick={(tag) => {
+          if (disabled) return;
+          set(tags.filter((t) => t != tag));
+        }}
+        className={small ? "text-sm" : "text-md px-3 py-1"}
+        icon={!disabled && <MinusCircle className="w-3 h-3" />}
+        useName={useName}
+      />
     </div>
   );
 };
