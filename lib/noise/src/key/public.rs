@@ -5,7 +5,7 @@ use base64::{Engine as _, prelude::BASE64_STANDARD};
 use der::{Decode as _, Encode as _, asn1::BitStringRef};
 use spki::SubjectPublicKeyInfoRef;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct SpkiPublicKey(String);
 
 impl From<String> for SpkiPublicKey {

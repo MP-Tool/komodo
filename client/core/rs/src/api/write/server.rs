@@ -191,6 +191,8 @@ pub struct DeleteTerminal {
   pub terminal: String,
 }
 
+//
+
 /// Delete all terminals on the server.
 /// Response: [NoData]
 #[typeshare]
@@ -201,6 +203,22 @@ pub struct DeleteTerminal {
 #[response(NoData)]
 #[error(serror::Error)]
 pub struct DeleteAllTerminals {
+  /// Server Id or name
+  pub server: String,
+}
+
+//
+
+/// Rotate the private key on the server.
+/// Response: [NoData]
+#[typeshare]
+#[derive(
+  Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
+)]
+#[empty_traits(KomodoWriteRequest)]
+#[response(NoData)]
+#[error(serror::Error)]
+pub struct RotateServerPrivateKey {
   /// Server Id or name
   pub server: String,
 }

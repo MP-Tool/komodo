@@ -54,6 +54,7 @@ impl PublicKeyValidator for CorePublicKeyValidator {
   async fn validate(&self, public_key: String) -> anyhow::Result<()> {
     if let Some(public_keys) = core_public_keys()
       && public_keys
+        .load()
         .iter()
         .all(|expected| public_key != expected.as_str())
     {
@@ -75,7 +76,7 @@ async fn handle_login<W: Websocket, L: LoginFlow>(
   L::login(LoginFlowArgs {
     socket,
     identifiers,
-    private_key: periphery_private_key(),
+    private_key: periphery_private_key().load().as_str(),
     public_key_validator: CorePublicKeyValidator,
   })
   .await

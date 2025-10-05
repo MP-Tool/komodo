@@ -7810,6 +7810,15 @@ export interface RestartStack {
 	services?: string[];
 }
 
+/**
+ * Rotate the private key on the server.
+ * Response: [NoData]
+ */
+export interface RotateServerPrivateKey {
+	/** Server Id or name */
+	server: string;
+}
+
 /** Runs the target Action. Response: [Update] */
 export interface RunAction {
 	/** Id or name */
@@ -9020,6 +9029,7 @@ export type WriteRequest =
 	| { type: "CreateTerminal", params: CreateTerminal }
 	| { type: "DeleteTerminal", params: DeleteTerminal }
 	| { type: "DeleteAllTerminals", params: DeleteAllTerminals }
+	| { type: "RotateServerPrivateKey", params: RotateServerPrivateKey }
 	| { type: "CreateStack", params: CreateStack }
 	| { type: "CopyStack", params: CopyStack }
 	| { type: "DeleteStack", params: DeleteStack }

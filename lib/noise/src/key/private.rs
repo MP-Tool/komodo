@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use base64::{Engine as _, prelude::BASE64_STANDARD};
 use der::{Decode as _, Encode as _, asn1::OctetStringRef};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct Pkcs8PrivateKey(String);
 
 impl From<String> for Pkcs8PrivateKey {

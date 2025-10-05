@@ -1,6 +1,11 @@
-use std::{fs::read_to_string, path::PathBuf, sync::OnceLock};
+use std::{
+  fs::read_to_string,
+  path::PathBuf,
+  sync::{Arc, OnceLock},
+};
 
 use anyhow::Context;
+use arc_swap::ArcSwap;
 use clap::Parser;
 use colored::Colorize;
 use config::ConfigLoader;
@@ -14,41 +19,49 @@ use komodo_client::entities::{
 use noise::key::{SpkiPublicKey, load_maybe_generate_private_key};
 
 /// Should call in startup to ensure Periphery errors without valid private key.
-pub fn periphery_private_key() -> &'static String {
-  static PERIPHERY_PRIVATE_KEY: OnceLock<String> = OnceLock::new();
+pub fn periphery_private_key() -> &'static ArcSwap<String> {
+  static PERIPHERY_PRIVATE_KEY: OnceLock<ArcSwap<String>> =
+    OnceLock::new();
   PERIPHERY_PRIVATE_KEY.get_or_init(|| {
     let config = periphery_config();
     let private_key = config.private_key.clone().unwrap_or(format!(
       "file:{}/keys/periphery.key",
       config.root_directory.display()
     ));
-    if let Some(path) = private_key.strip_prefix("file:") {
-      load_maybe_generate_private_key(path).unwrap()
-    } else {
-      private_key.clone()
-    }
+    let private_key =
+      if let Some(path) = private_key.strip_prefix("file:") {
+        load_maybe_generate_private_key(path).unwrap()
+      } else {
+        private_key
+      };
+    ArcSwap::new(Arc::new(private_key))
   })
 }
 
 /// Should call in startup to ensure Periphery errors without valid private key.
-pub fn periphery_public_key() -> &'static SpkiPublicKey {
-  static PERIPHERY_PUBLIC_KEY: OnceLock<SpkiPublicKey> =
+pub fn periphery_public_key() -> &'static ArcSwap<SpkiPublicKey> {
+  static PERIPHERY_PUBLIC_KEY: OnceLock<ArcSwap<SpkiPublicKey>> =
     OnceLock::new();
   PERIPHERY_PUBLIC_KEY.get_or_init(|| {
-    SpkiPublicKey::from_private_key(periphery_private_key())
-      .context("Got invalid private key")
-      .unwrap()
+    let public_key = SpkiPublicKey::from_private_key(
+      periphery_private_key().load().as_str(),
+    )
+    .context("Got invalid private key")
+    .unwrap();
+    ArcSwap::new(Arc::new(public_key))
   })
 }
 
-pub fn core_public_keys() -> Option<&'static [SpkiPublicKey]> {
-  static CORE_PUBLIC_KEYS: OnceLock<Option<Vec<SpkiPublicKey>>> =
-    OnceLock::new();
+pub fn core_public_keys()
+-> Option<&'static ArcSwap<Vec<SpkiPublicKey>>> {
+  static CORE_PUBLIC_KEYS: OnceLock<
+    Option<ArcSwap<Vec<SpkiPublicKey>>>,
+  > = OnceLock::new();
   CORE_PUBLIC_KEYS
     .get_or_init(|| {
       periphery_config().core_public_keys.as_ref().map(
         |public_keys| {
-          public_keys
+          let public_keys = public_keys
             .iter()
             .map(|public_key| {
               let maybe_pem = if let Some(path) =
@@ -64,11 +77,12 @@ pub fn core_public_keys() -> Option<&'static [SpkiPublicKey]> {
               };
               SpkiPublicKey::from_maybe_pem(&maybe_pem).unwrap()
             })
-            .collect()
+            .collect::<Vec<_>>();
+          ArcSwap::new(Arc::new(public_keys))
         },
       )
     })
-    .as_deref()
+    .as_ref()
 }
 
 pub fn periphery_args() -> &'static CliArgs {

@@ -8,8 +8,8 @@ use komodo_client::entities::{
   update::Log,
 };
 use periphery_client::api::{
-  build::*, compose::*, container::*, docker::*, git::*, stats::*,
-  terminal::*, *,
+  build::*, compose::*, container::*, docker::*, git::*, keys::*,
+  stats::*, terminal::*, *,
 };
 use resolver_api::Resolve;
 use response::JsonBytes;
@@ -30,6 +30,7 @@ mod container;
 mod deploy;
 mod docker;
 mod git;
+mod keys;
 
 #[derive(Debug)]
 pub struct Args {
@@ -146,6 +147,10 @@ pub enum PeripheryRequest {
   DisconnectTerminal(DisconnectTerminal),
   ExecuteTerminal(ExecuteTerminal),
   ExecuteContainerExec(ExecuteContainerExec),
+
+  // Keys
+  RotatePrivateKey(RotatePrivateKey),
+  RotateCorePublicKey(RotateCorePublicKey),
 }
 
 //

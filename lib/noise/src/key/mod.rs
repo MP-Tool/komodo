@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::path::Path;
 
 use anyhow::Context;
 use der::AnyRef;
@@ -50,10 +50,9 @@ impl EncodedKeyPair {
 }
 
 pub fn load_maybe_generate_private_key(
-  path: &str,
+  path: impl AsRef<Path>,
 ) -> anyhow::Result<String> {
-  let path = PathBuf::from_str(path)
-    .with_context(|| format!("Invalid private key path: {path:?}"))?;
+  let path = path.as_ref();
   if path
     .try_exists()
     .with_context(|| format!("Invalid private key path: {path:?}"))?
@@ -63,18 +62,26 @@ pub fn load_maybe_generate_private_key(
       format!("Failed to read private key at {path:?}")
     })
   } else {
-    // Ensure the parent directory exists
-    if let Some(parent) = path.parent() {
-      std::fs::create_dir_all(parent).with_context(|| {
-        format!(
-          "Failed to create private key parent directory {parent:?}"
-        )
-      })?;
-    }
-    // Generate and write pems to path
-    let keys = EncodedKeyPair::generate()?;
-    keys.private.write_pem(&path)?;
-    keys.public.write_pem(path.with_extension("pub"))?;
+    let keys = generate_write_keys(path)?;
     Ok(keys.private.into_inner())
   }
+}
+
+pub fn generate_write_keys(
+  path: impl AsRef<Path>,
+) -> anyhow::Result<EncodedKeyPair> {
+  let path = path.as_ref();
+  // Ensure the parent directory exists
+  if let Some(parent) = path.parent() {
+    std::fs::create_dir_all(parent).with_context(|| {
+      format!(
+        "Failed to create private key parent directory {parent:?}"
+      )
+    })?;
+  }
+  // Generate and write pems to path
+  let keys = EncodedKeyPair::generate()?;
+  keys.private.write_pem(&path)?;
+  keys.public.write_pem(path.with_extension("pub"))?;
+  Ok(keys)
 }

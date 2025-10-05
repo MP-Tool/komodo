@@ -182,7 +182,9 @@ async fn handle_onboarding(
 
   // Post onboarding login 1: Send public key
   socket
-    .send(Bytes::from_static(periphery_public_key().as_bytes()))
+    .send(Bytes::copy_from_slice(
+      periphery_public_key().load().as_bytes(),
+    ))
     .await
     .context("Failed to send public key bytes")?;
 

@@ -5,7 +5,7 @@ use komodo_client::{
   entities::{
     NoData, Operation,
     permission::PermissionLevel,
-    server::Server,
+    server::{PartialServerConfig, Server},
     to_docker_compatible_name,
     update::{Update, UpdateStatus},
   },
@@ -108,7 +108,7 @@ impl Resolve<WriteArgs> for CreateNetwork {
       Ok(log) => update.logs.push(log),
       Err(e) => update.push_error_log(
         "create network",
-        format_serror(&e.context("failed to create network").into()),
+        format_serror(&e.context("Failed to create network").into()),
       ),
     };
 
@@ -141,7 +141,7 @@ impl Resolve<WriteArgs> for CreateTerminal {
         recreate: self.recreate,
       })
       .await
-      .context("Failed to create terminal on periphery")?;
+      .context("Failed to create terminal on Periphery")?;
 
     Ok(NoData {})
   }
@@ -167,7 +167,7 @@ impl Resolve<WriteArgs> for DeleteTerminal {
         terminal: self.terminal,
       })
       .await
-      .context("Failed to delete terminal on periphery")?;
+      .context("Failed to delete terminal on Periphery")?;
 
     Ok(NoData {})
   }
@@ -191,7 +191,42 @@ impl Resolve<WriteArgs> for DeleteAllTerminals {
     periphery
       .request(api::terminal::DeleteAllTerminals {})
       .await
-      .context("Failed to delete all terminals on periphery")?;
+      .context("Failed to delete all terminals on Periphery")?;
+
+    Ok(NoData {})
+  }
+}
+
+//
+
+impl Resolve<WriteArgs> for RotateServerPrivateKey {
+  #[instrument(name = "RotateServerPrivateKey", skip(args))]
+  async fn resolve(self, args: &WriteArgs) -> serror::Result<NoData> {
+    let server = get_check_permissions::<Server>(
+      &self.server,
+      &args.user,
+      PermissionLevel::Write.into(),
+    )
+    .await?;
+
+    let periphery = periphery_client(&server).await?;
+
+    let periphery_public_key = periphery
+      .request(api::keys::RotatePrivateKey {})
+      .await
+      .context("Failed to rotate Periphery private key")?
+      .public_key
+      .into();
+
+    UpdateServer {
+      id: server.id,
+      config: PartialServerConfig {
+        periphery_public_key,
+        ..Default::default()
+      },
+    }
+    .resolve(args)
+    .await?;
 
     Ok(NoData {})
   }
