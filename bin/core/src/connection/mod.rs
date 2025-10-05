@@ -35,7 +35,8 @@ use transport::{
 };
 
 use crate::{
-  config::core_private_key, periphery::ConnectionChannels,
+  config::{core_private_key, periphery_public_keys},
+  periphery::ConnectionChannels,
   state::db_client,
 };
 
@@ -104,25 +105,40 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
     &self,
     public_key: String,
   ) -> anyhow::Result<Self::ValidationResult> {
+    let invalid_error = || {
+      spawn_update_attempted_public_key(
+        self.id.to_string(),
+        Some(public_key.clone()),
+      );
+      let e = anyhow!("{public_key} is invalid")
+        .context(
+          "Ensure public key matches configured Periphery Public Key",
+        )
+        .context("Core failed to validate Periphery public key");
+      e
+    };
     let core_to_periphery = self.address.is_some();
     match (self.periphery_public_key, core_to_periphery) {
       // The key matches expected.
       (Some(expected), _) if public_key == expected => Ok(public_key),
+      // Explicit auth failed.
+      (Some(_), _) => Err(invalid_error()),
       // Core -> Periphery connections with no explicit
       // Periphery public key are not validated.
       (None, true) => Ok(public_key),
-      // Auth failed.
-      (Some(_), _) | (None, false) => {
-        spawn_update_attempted_public_key(
-          self.id.to_string(),
-          Some(public_key.clone()),
-        );
-        let e = anyhow!("{public_key} is invalid")
-          .context(
-            "Ensure public key matches configured Periphery Public Key",
-          )
-          .context("Core failed to validate Periphery public key");
-        Err(e)
+      // Periphery -> Core connections with no explicit
+      // Periphery public key can fall back to Core config `periphery_public_keys` if defined.
+      (None, false) => {
+        let expected =
+          periphery_public_keys().ok_or_else(invalid_error)?;
+        if expected
+          .iter()
+          .any(|expected| public_key == expected.as_str())
+        {
+          Ok(public_key)
+        } else {
+          Err(invalid_error())
+        }
       }
     }
   }

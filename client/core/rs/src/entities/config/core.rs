@@ -13,10 +13,13 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use serde::Deserialize;
 
-use crate::entities::{
-  Timelength,
-  config::DatabaseConfig,
-  logger::{LogConfig, LogLevel, StdioLogMode},
+use crate::{
+  deserializers::option_string_list_deserializer,
+  entities::{
+    Timelength,
+    config::DatabaseConfig,
+    logger::{LogConfig, LogLevel, StdioLogMode},
+  },
 };
 
 use super::{DockerRegistry, GitProvider, empty_or_redacted};
@@ -75,6 +78,9 @@ pub struct Env {
   pub komodo_private_key: Option<String>,
   /// Override `private_key` with file
   pub komodo_private_key_file: Option<PathBuf>,
+  /// Override `periphery_public_keys`
+  #[serde(alias = "komodo_periphery_public_key")]
+  pub komodo_periphery_public_keys: Option<Vec<String>>,
   /// Override `passkey`
   pub komodo_passkey: Option<String>,
   /// Override `passkey` from file
@@ -335,6 +341,25 @@ pub struct CoreConfig {
   /// Default: file:/config/keys/core.key
   #[serde(default = "default_private_key")]
   pub private_key: String,
+
+  /// Default accepted public keys to allow Periphery to connect.
+  /// Core gains knowledge of the Periphery public key through the noise handshake.
+  /// If not provided, Periphery -> Core connected Servers must
+  /// configure accepted public key individually.
+  ///
+  /// Supports multiple public keys seperated by commas or newlines.
+  ///
+  /// Supports openssl generated pem file, `openssl pkey -in private.key -pubout -out public.key`.
+  /// To load from file, include `file:/path/to/public.key` in the list.
+  ///
+  /// Note: If used, the accepted public key can still be overridden on individual Servers / Builders
+  #[serde(
+    default,
+    alias = "periphery_public_key",
+    deserialize_with = "option_string_list_deserializer",
+    skip_serializing_if = "Option::is_none"
+  )]
+  pub periphery_public_keys: Option<Vec<String>>,
 
   /// Deprecated. Legacy v1 compatibility.
   /// Users should upgrade to private / public key authentication.
@@ -724,6 +749,7 @@ impl Default for CoreConfig {
       bind_ip: default_core_bind_ip(),
       internet_interface: Default::default(),
       private_key: Default::default(),
+      periphery_public_keys: Default::default(),
       passkey: Default::default(),
       timezone: Default::default(),
       ui_write_disabled: Default::default(),
@@ -791,6 +817,7 @@ impl CoreConfig {
       } else {
         empty_or_redacted(&self.private_key)
       },
+      periphery_public_keys: config.periphery_public_keys,
       passkey: config.passkey.as_deref().map(empty_or_redacted),
       timezone: config.timezone,
       first_server_address: config.first_server_address,

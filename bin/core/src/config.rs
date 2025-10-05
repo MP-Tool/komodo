@@ -58,6 +58,36 @@ pub fn core_connection_query() -> &'static String {
   })
 }
 
+pub fn periphery_public_keys() -> Option<&'static [SpkiPublicKey]> {
+  static PERIPHERY_PUBLIC_KEYS: OnceLock<Option<Vec<SpkiPublicKey>>> =
+    OnceLock::new();
+  PERIPHERY_PUBLIC_KEYS
+    .get_or_init(|| {
+      core_config().periphery_public_keys.as_ref().map(
+        |public_keys| {
+          public_keys
+            .iter()
+            .map(|public_key| {
+              let maybe_pem = if let Some(path) =
+                public_key.strip_prefix("file:")
+              {
+                std::fs::read_to_string(path)
+                  .with_context(|| {
+                    format!("Failed to read public key at {path:?}")
+                  })
+                  .unwrap()
+              } else {
+                public_key.clone()
+              };
+              SpkiPublicKey::from_maybe_pem(&maybe_pem).unwrap()
+            })
+            .collect()
+        },
+      )
+    })
+    .as_deref()
+}
+
 pub fn core_config() -> &'static CoreConfig {
   static CORE_CONFIG: OnceLock<CoreConfig> = OnceLock::new();
   CORE_CONFIG.get_or_init(|| {
@@ -220,6 +250,7 @@ pub fn core_config() -> &'static CoreConfig {
       port: env.komodo_port.unwrap_or(config.port),
       bind_ip: env.komodo_bind_ip.unwrap_or(config.bind_ip),
       timezone: env.komodo_timezone.unwrap_or(config.timezone),
+      periphery_public_keys: env.komodo_periphery_public_keys.or(config.periphery_public_keys),
       first_server_address: env.komodo_first_server_address.or(config.first_server_address),
       first_server_name: env.komodo_first_server_name.or(config.first_server_name),
       frontend_path: env.komodo_frontend_path.unwrap_or(config.frontend_path),
