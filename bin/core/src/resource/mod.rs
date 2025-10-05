@@ -396,7 +396,7 @@ pub async fn list_full_for_user_using_document<T: KomodoResource>(
   )
   .await
   .with_context(|| {
-    format!("failed to pull {}s from mongo", T::resource_type())
+    format!("Failed to pull {}s from mongo", T::resource_type())
   })
 }
 
@@ -416,7 +416,7 @@ pub async fn get_id_to_resource_map<T: KomodoResource>(
   let res = find_collect(T::coll(), None, None)
     .await
     .with_context(|| {
-      format!("failed to pull {}s from mongo", T::resource_type())
+      format!("Failed to pull {}s from mongo", T::resource_type())
     })?
     .into_iter()
     .filter(|resource| {
@@ -531,11 +531,11 @@ pub async fn create<T: KomodoResource>(
     .insert_one(&resource)
     .await
     .with_context(|| {
-      format!("failed to add {} to db", T::resource_type())
+      format!("Failed to add {} to db", T::resource_type())
     })?
     .inserted_id
     .as_object_id()
-    .context("inserted_id is not ObjectId")?
+    .context("Inserted_id is not ObjectId")?
     .to_string();
 
   let resource = get::<T>(&resource_id).await?;
@@ -552,18 +552,18 @@ pub async fn create<T: KomodoResource>(
   let mut update = make_update(target, T::create_operation(), user);
   update.start_ts = start_ts;
   update.push_simple_log(
-    &format!("create {}", T::resource_type()),
+    &format!("Create {}", T::resource_type()),
     format!(
-      "created {}\nid: {}\nname: {}",
+      "Created {}\nid: {}\nname: {}",
       T::resource_type(),
       resource.id,
       resource.name
     ),
   );
   update.push_simple_log(
-    "config",
+    "Config",
     serde_json::to_string_pretty(&resource.config)
-      .context("failed to serialize resource config to JSON")?,
+      .context("Failed to serialize resource config to JSON")?,
   );
 
   T::post_create(&resource, &mut update).await?;
@@ -759,7 +759,7 @@ pub async fn remove_tag_from_all<T: KomodoResource>(
   T::coll()
     .update_many(doc! {}, doc! { "$pull": { "tags": tag_id } })
     .await
-    .context("failed to remove tag from resources")?;
+    .context("Failed to remove tag from resources")?;
   Ok(())
 }
 
@@ -876,7 +876,7 @@ pub async fn delete<T: KomodoResource>(
     async {
       if let Err(e) = T::post_delete(&resource, &mut update).await {
         update
-          .push_error_log("post delete", format_serror(&e.into()));
+          .push_error_log("Post delete", format_serror(&e.into()));
       }
     },
     delete_from_alerters::<T>(&resource.id)
@@ -949,7 +949,7 @@ where
     .await
   {
     warn!(
-      "failed to delete_many permissions matching target {target:?} | {e:#}"
+      "Failed to delete_many permissions matching target {target:?} | {e:#}"
     );
   }
 }
@@ -984,7 +984,7 @@ where
       },
     )
     .await
-    .context("failed to remove resource from users recently viewed")
+    .context("Failed to remove resource from users recently viewed")
   {
     warn!("{e:#}");
   }
