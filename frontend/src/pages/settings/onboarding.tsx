@@ -92,6 +92,21 @@ export const Onboarding = () => {
         ),
       },
       {
+        size: 100,
+        accessorKey: "create_builder",
+        header: ({ column }) => (
+          <SortableHeader column={column} title="Create Builder" />
+        ),
+        cell: ({ row }) => (
+          <Switch
+            checked={row.original.create_builder}
+            onCheckedChange={(create_builder) =>
+              mutate({ public_key: row.original.public_key, create_builder })
+            }
+          />
+        ),
+      },
+      {
         size: 150,
         accessorKey: "expires",
         header: ({ column }) => (

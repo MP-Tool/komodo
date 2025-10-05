@@ -9,8 +9,9 @@ use axum::{
 use bytes::Bytes;
 use database::mungos::mongodb::bson::{doc, oid::ObjectId};
 use komodo_client::{
-  api::write::{CreateServer, UpdateResourceMeta},
+  api::write::{CreateBuilder, CreateServer, UpdateResourceMeta},
   entities::{
+    builder::{PartialBuilderConfig, PartialServerBuilderConfig},
     onboarding_key::OnboardingKey,
     server::{PartialServerConfig, Server},
     user::system_user,
@@ -193,58 +194,22 @@ async fn onboard_server_handler(
       }
     };
 
-    let config = if onboarding_key.copy_server.is_empty() {
-      PartialServerConfig {
-        enabled: Some(true),
-        ..Default::default()
-      }
-    } else {
-      let config = match db_client().servers.find_one(id_or_name_filter(&onboarding_key.copy_server)).await {
-        Ok(Some(server)) => server.config,
-        Ok(None) => {
-          warn!("Server onboarding: Failed to find Server {}", onboarding_key.copy_server);
-          Default::default()
-        }
-        Err(e) => {
-          warn!("Failed to query database for onboarding key 'copy_server' | {e:?}");
-          Default::default()
-        }
-      };
-      PartialServerConfig {
-        enabled: Some(true),
-        address: None,
-        ..config.into()
-      }
-    };
+    
 
-    let args = WriteArgs { user: system_user().to_owned() };
-
-    let create = CreateServer { name: server_query, config, public_key: Some(public_key) };
-    let server = match create.resolve(&args).await {
-      Ok(server) => server,
+    let server_id = match create_server_maybe_builder(
+      server_query,
+      public_key,
+      onboarding_key.copy_server,
+      onboarding_key.tags,
+      onboarding_key.create_builder
+    ).await {
+      Ok(server_id) => server_id,
       Err(e) => {
-        warn!("Server onboarding flow failed at Server creation | {:#}", e.error);
+        warn!("{e:#}");
         if let Err(e) = socket
-          .send_error(&e.error)
+          .send_error(&e)
           .await
           .context("Failed to send Server creation failed to client")
-        {
-          // Log additional error
-          warn!("{e:#}");
-        }
-        return;
-      }
-    };
-
-    let meta = UpdateResourceMeta { target: (&server).into(), tags: Some(onboarding_key.tags), description: None, template: None };
-    match meta.resolve(&args).await {
-      Ok(server) => server,
-      Err(e) => {
-        warn!("Server onboarding flow failed at Server meta update | {:#}", e.error);
-        if let Err(e) = socket
-          .send_error(&e.error)
-          .await
-          .context("Failed to send Server meta update failed to client")
         {
           // Log additional error
           warn!("{e:#}");
@@ -271,12 +236,94 @@ async fn onboard_server_handler(
       .onboarding_keys
       .update_one(
         doc! { "public_key": &onboarding_key.public_key },
-        doc! { "$push": { "onboarded": server.id } },
+        doc! { "$push": { "onboarded": server_id } },
       ).await;
     if let Err(e) = res {
       warn!("Failed to update onboarding key 'onboarded' | {e:?}");
     }
   }))
+}
+
+async fn create_server_maybe_builder(
+  server_query: String,
+  public_key: String,
+  copy_server: String,
+  tags: Vec<String>,
+  create_builder: bool,
+) -> anyhow::Result<String> {
+  let config = if copy_server.is_empty() {
+    PartialServerConfig {
+      enabled: Some(true),
+      ..Default::default()
+    }
+  } else {
+    let config = match db_client().servers.find_one(id_or_name_filter(&copy_server)).await {
+      Ok(Some(server)) => server.config,
+      Ok(None) => {
+        warn!("Server onboarding: Failed to find Server {}", copy_server);
+        Default::default()
+      }
+      Err(e) => {
+        warn!("Failed to query database for onboarding key 'copy_server' | {e:?}");
+        Default::default()
+      }
+    };
+    PartialServerConfig {
+      enabled: Some(true),
+      address: None,
+      ..config.into()
+    }
+  };
+
+  let args = WriteArgs {
+    user: system_user().to_owned(),
+  };
+
+  let server = CreateServer {
+    name: server_query.clone(),
+    config,
+    public_key: Some(public_key),
+  }
+  .resolve(&args)
+  .await
+  .map_err(|e| e.error)
+  .context("Server onboarding flow failed at Server creation")?;
+
+  // Don't need to fail, only warn on this
+  if let Err(e) = (UpdateResourceMeta {
+    target: (&server).into(),
+    tags: Some(tags),
+    description: None,
+    template: None,
+  })
+  .resolve(&args)
+  .await
+  .map_err(|e| e.error)
+  .context("Server onboarding flow failed at Server creation")
+  {
+    warn!("{e:#}");
+  };
+
+  if create_builder {
+    // Don't need to fail, only warn on this
+    if let Err(e) = (CreateBuilder {
+      name: server_query,
+      config: PartialBuilderConfig::Server(
+        PartialServerBuilderConfig {
+          server_id: Some(server.id.clone()),
+        },
+      ),
+    })
+    .resolve(&args)
+    .await
+    .map_err(|e| e.error)
+    .context("Server onboarding flow failed at Builder creation")
+    {
+      warn!("{e:#}");
+    };
+  }
+
+  Ok(server.id)
 }
 
 struct CreationKeyValidator;

@@ -22,24 +22,35 @@ pub struct OnboardingKey {
 
   /// Disable the onboarding key when not in use.
   #[cfg_attr(feature = "mongo", index)]
+  #[serde(default)]
   pub enabled: bool,
 
   /// Name associated with the api key for management
+  #[serde(default)]
   pub name: String,
 
   /// The [Server](crate::entities::server::Server) ids onboarded by this Creation Key
+  #[serde(default)]
   pub onboarded: Vec<String>,
 
   /// Timestamp of key creation
+  #[serde(default)]
   pub created_at: I64,
 
   /// Expiry of key, or 0 if never expires
+  #[serde(default)]
   pub expires: I64,
 
   /// Default tags to give to Servers created with this key.
+  #[serde(default)]
   pub tags: Vec<String>,
 
   /// Optional. If specified, copy this Server config when initializing
   /// the Server.
+  #[serde(default)]
   pub copy_server: String,
+
+  /// Also create a Builder for the Server.
+  #[serde(default)]
+  pub create_builder: bool,
 }

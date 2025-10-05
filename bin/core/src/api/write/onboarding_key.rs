@@ -43,6 +43,7 @@ impl Resolve<WriteArgs> for CreateOnboardingKey {
       expires: self.expires,
       tags: self.tags,
       copy_server: self.copy_server,
+      create_builder: self.create_builder,
     };
     let db = db_client();
     // Create the key
@@ -84,12 +85,7 @@ impl Resolve<WriteArgs> for UpdateOnboardingKey {
     let query = doc! { "public_key": &self.public_key };
 
     // No changes
-    if self.enabled.is_none()
-      && self.name.is_none()
-      && self.expires.is_none()
-      && self.tags.is_none()
-      && self.copy_server.is_none()
-    {
+    if self.is_none() {
       return db_client()
         .onboarding_keys
         .find_one(query)
@@ -119,6 +115,10 @@ impl Resolve<WriteArgs> for UpdateOnboardingKey {
 
     if let Some(copy_server) = self.copy_server {
       update.insert("copy_server", copy_server);
+    }
+
+    if let Some(create_builder) = self.create_builder {
+      update.insert("create_builder", create_builder);
     }
 
     db_client()

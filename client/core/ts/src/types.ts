@@ -1158,22 +1158,24 @@ export interface OnboardingKey {
 	/** Unique public key associated the creation private key. */
 	public_key: string;
 	/** Disable the onboarding key when not in use. */
-	enabled: boolean;
+	enabled?: boolean;
 	/** Name associated with the api key for management */
-	name: string;
+	name?: string;
 	/** The [Server](crate::entities::server::Server) ids onboarded by this Creation Key */
-	onboarded: string[];
+	onboarded?: string[];
 	/** Timestamp of key creation */
-	created_at: I64;
+	created_at?: I64;
 	/** Expiry of key, or 0 if never expires */
-	expires: I64;
+	expires?: I64;
 	/** Default tags to give to Servers created with this key. */
-	tags: string[];
+	tags?: string[];
 	/**
 	 * Optional. If specified, copy this Server config when initializing
 	 * the Server.
 	 */
-	copy_server: string;
+	copy_server?: string;
+	/** Also create a Builder for the Server. */
+	create_builder?: boolean;
 }
 
 export type DeleteOnboardingKeyResponse = OnboardingKey;
@@ -5162,6 +5164,8 @@ export interface CreateOnboardingKey {
 	tags?: string[];
 	/** Optional. New Servers copy this Server's config. */
 	copy_server?: string;
+	/** Optional. Whether to also create a Builder for the Server. */
+	create_builder?: boolean;
 }
 
 /** The response for [CreateServerOnboardingKey] */
@@ -8373,6 +8377,8 @@ export interface UpdateOnboardingKey {
 	tags?: string[];
 	/** Update the copy server */
 	copy_server?: string;
+	/** Update whether to create Builder */
+	create_builder?: boolean;
 }
 
 /**

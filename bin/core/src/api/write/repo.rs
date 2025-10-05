@@ -42,7 +42,8 @@ impl Resolve<WriteArgs> for CreateRepo {
     self,
     WriteArgs { user }: &WriteArgs,
   ) -> serror::Result<Repo> {
-    resource::create::<Repo>(&self.name, self.config, None, user).await
+    resource::create::<Repo>(&self.name, self.config, None, user)
+      .await
   }
 }
 
@@ -58,7 +59,8 @@ impl Resolve<WriteArgs> for CopyRepo {
       PermissionLevel::Read.into(),
     )
     .await?;
-    resource::create::<Repo>(&self.name, config.into(), None, user).await
+    resource::create::<Repo>(&self.name, config.into(), None, user)
+      .await
   }
 }
 

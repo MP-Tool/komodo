@@ -38,6 +38,9 @@ pub struct CreateOnboardingKey {
   /// Optional. New Servers copy this Server's config.
   #[serde(default)]
   pub copy_server: String,
+  /// Optional. Whether to also create a Builder for the Server.
+  #[serde(default)]
+  pub create_builder: bool,
 }
 
 /// The response for [CreateServerOnboardingKey]
@@ -74,6 +77,19 @@ pub struct UpdateOnboardingKey {
   pub tags: Option<Vec<String>>,
   /// Update the copy server
   pub copy_server: Option<String>,
+  /// Update whether to create Builder
+  pub create_builder: Option<bool>,
+}
+
+impl UpdateOnboardingKey {
+  pub fn is_none(&self) -> bool {
+    self.enabled.is_none()
+      && self.name.is_none()
+      && self.expires.is_none()
+      && self.tags.is_none()
+      && self.copy_server.is_none()
+      && self.create_builder.is_none()
+  }
 }
 
 #[typeshare]
