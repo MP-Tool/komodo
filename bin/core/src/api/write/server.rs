@@ -1,7 +1,4 @@
-use std::str::FromStr;
-
 use anyhow::Context;
-use database::mungos::mongodb::bson::{doc, oid::ObjectId};
 use formatting::{bold, format_serror};
 use komodo_client::{
   api::write::*,
@@ -22,8 +19,7 @@ use crate::{
     update::{add_update, make_update, update_update},
   },
   permission::get_check_permissions,
-  resource,
-  state::db_client,
+  resource::{self, update_server_public_key},
 };
 
 use super::WriteArgs;
@@ -234,14 +230,7 @@ impl Resolve<WriteArgs> for UpdateServerPublicKey {
     )
     .await?;
 
-    db_client()
-      .servers
-      .update_one(
-        doc! { "_id": ObjectId::from_str(&server.id)? },
-        doc! { "$set": { "info.public_key": &self.public_key } },
-      )
-      .await
-      .context("Failed to update Server public key on database")?;
+    update_server_public_key(&server.id, &self.public_key).await?;
 
     let mut update =
       make_update(&server, Operation::UpdateServerKey, &args.user);

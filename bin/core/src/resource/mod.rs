@@ -79,6 +79,7 @@ pub use refresh::{
 pub use repo::{
   refresh_repo_state_cache, spawn_repo_state_refresh_loop,
 };
+pub use server::{rotate_server_keys, update_server_public_key};
 
 /// Implement on each Komodo resource for common methods
 pub trait KomodoResource {

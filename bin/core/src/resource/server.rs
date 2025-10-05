@@ -1,5 +1,10 @@
+use std::str::FromStr;
+
 use anyhow::Context;
-use database::mungos::mongodb::{Collection, bson::doc};
+use database::mungos::mongodb::{
+  Collection,
+  bson::{doc, oid::ObjectId},
+};
 use indexmap::IndexSet;
 use komodo_client::entities::{
   Operation, ResourceTarget, ResourceTargetVariant, komodo_timestamp,
@@ -14,9 +19,11 @@ use komodo_client::entities::{
   update::Update,
   user::User,
 };
+use periphery_client::api;
 
 use crate::{
   config::core_config,
+  helpers::periphery_client,
   monitor::update_cache_for_server,
   state::{
     action_states, db_client, periphery_connections,
@@ -251,4 +258,35 @@ impl super::KomodoResource for Server {
     );
     Ok(())
   }
+}
+
+pub async fn update_server_public_key(
+  server_id: &str,
+  public_key: &str,
+) -> anyhow::Result<()> {
+  db_client()
+    .servers
+    .update_one(
+      doc! { "_id": ObjectId::from_str(server_id)? },
+      doc! { "$set": { "info.public_key": public_key } },
+    )
+    .await
+    .context("Failed to update Server public key on database")?;
+  Ok(())
+}
+
+/// Rotates Periphery keys and updates
+/// `server.info.public_key` to match new public key.
+/// Does so without making a specific update.
+pub async fn rotate_server_keys(
+  server: &Server,
+) -> anyhow::Result<()> {
+  let periphery = periphery_client(&server).await?;
+  let public_key = periphery
+    .request(api::keys::RotatePrivateKey {})
+    .await
+    .context("Failed to rotate Periphery private key")?
+    .public_key;
+  update_server_public_key(&server.id, &public_key).await?;
+  Ok(())
 }

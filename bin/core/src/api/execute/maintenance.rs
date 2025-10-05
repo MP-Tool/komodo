@@ -6,16 +6,13 @@ use database::mungos::{find::find_collect, mongodb::bson::doc};
 use formatting::{bold, format_serror};
 use futures::StreamExt;
 use komodo_client::{
-  api::{
-    execute::{
-      BackupCoreDatabase, ClearRepoCache, GlobalAutoUpdate,
-      RotateAllServerKeys,
-    },
-    write::RotateServerKeys,
+  api::execute::{
+    BackupCoreDatabase, ClearRepoCache, GlobalAutoUpdate,
+    RotateAllServerKeys,
   },
   entities::{
     deployment::DeploymentState, server::ServerState,
-    stack::StackState, user::system_user,
+    stack::StackState,
   },
 };
 use reqwest::StatusCode;
@@ -24,12 +21,12 @@ use serror::AddStatusCodeError;
 use tokio::sync::Mutex;
 
 use crate::{
-  api::{
-    execute::{ExecuteArgs, pull_deployment_inner, pull_stack_inner},
-    write::WriteArgs,
+  api::execute::{
+    ExecuteArgs, pull_deployment_inner, pull_stack_inner,
   },
   config::core_config,
   helpers::update::update_update,
+  resource::rotate_server_keys,
   state::{
     db_client, deployment_status_cache, server_status_cache,
     stack_status_cache,
@@ -326,6 +323,12 @@ impl Resolve<ExecuteArgs> for GlobalAutoUpdate {
 
 //
 
+/// Makes sure the method can only be called once at a time
+fn global_rotate_lock() -> &'static Mutex<()> {
+  static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+  LOCK.get_or_init(Default::default)
+}
+
 impl Resolve<ExecuteArgs> for RotateAllServerKeys {
   async fn resolve(
     self,
@@ -337,6 +340,10 @@ impl Resolve<ExecuteArgs> for RotateAllServerKeys {
           .status_code(StatusCode::FORBIDDEN),
       );
     }
+
+    let _lock = global_rotate_lock()
+      .try_lock()
+      .context("Rotate All Server Keys already in progress...")?;
 
     let mut update = update.clone();
 
@@ -378,12 +385,7 @@ impl Resolve<ExecuteArgs> for RotateAllServerKeys {
         );
         continue;
       }
-      match (RotateServerKeys { server: server.id })
-        .resolve(&WriteArgs {
-          user: system_user().to_owned(),
-        })
-        .await
-      {
+      match rotate_server_keys(&server).await {
         Ok(_) => {
           let _ = write!(
             &mut log,
@@ -395,12 +397,11 @@ impl Resolve<ExecuteArgs> for RotateAllServerKeys {
           update.push_error_log(
             "Key Rotation Failure",
             format_serror(
-              &e.error
-                .context(format!(
-                  "Failed to rotate {} keys",
-                  bold(&server.name)
-                ))
-                .into(),
+              &e.context(format!(
+                "Failed to rotate {} keys",
+                bold(&server.name)
+              ))
+              .into(),
             ),
           );
         }
