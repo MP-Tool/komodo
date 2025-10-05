@@ -9,7 +9,9 @@ use periphery_client::api::keys::{
 };
 use resolver_api::Resolve;
 
-use crate::config::{core_public_keys, periphery_config};
+use crate::config::{
+  core_public_keys, periphery_config, periphery_private_key,
+};
 
 //
 
@@ -19,7 +21,7 @@ impl Resolve<super::Args> for RotatePrivateKey {
     _: &super::Args,
   ) -> serror::Result<RotatePrivateKeyResponse> {
     let config = periphery_config();
-    let public_key = match config.private_key.as_ref() {
+    let keys = match config.private_key.as_ref() {
       Some(private_key) => match private_key.strip_prefix("file:") {
         None => EncodedKeyPair::from_private_key(private_key)?,
         Some(path) => generate_write_keys(path)?,
@@ -27,10 +29,13 @@ impl Resolve<super::Args> for RotatePrivateKey {
       None => generate_write_keys(
         config.root_directory.join("keys/periphery.key"),
       )?,
-    }
-    .public
-    .into_inner();
-    Ok(RotatePrivateKeyResponse { public_key })
+    };
+    // Store new private key for next auth
+    periphery_private_key()
+      .store(Arc::new(keys.private.into_inner()));
+    Ok(RotatePrivateKeyResponse {
+      public_key: keys.public.into_inner(),
+    })
   }
 }
 

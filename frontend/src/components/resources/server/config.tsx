@@ -1,6 +1,7 @@
 import { Config } from "@components/config";
 import { MaintenanceWindows } from "@components/config/maintenance";
-import { ConfigList } from "@components/config/util";
+import { ConfigInput, ConfigList } from "@components/config/util";
+import { ConfirmButton } from "@components/util";
 import {
   useInvalidate,
   useLocalStorage,
@@ -9,7 +10,9 @@ import {
   useWrite,
 } from "@lib/hooks";
 import { Types } from "komodo_client";
+import { RotateCcwKey } from "lucide-react";
 import { ReactNode } from "react";
+import { useServer } from ".";
 
 export const ServerConfig = ({
   id,
@@ -20,6 +23,7 @@ export const ServerConfig = ({
 }) => {
   const { canWrite } = usePermissions({ type: "Server", id });
   const invalidate = useInvalidate();
+  const is_connected = useServer(id)?.info.state === Types.ServerState.Ok;
   const config = useRead("GetServer", { server: id }).data?.config;
   const global_disabled =
     useRead("GetCoreInfo", {}).data?.ui_write_disabled ?? false;
@@ -33,6 +37,10 @@ export const ServerConfig = ({
       invalidate(["ListAlerts"]);
     },
   });
+  const { mutate: rotate, isPending: rotatePending } = useWrite(
+    "RotateServerPrivateKey"
+  );
+
   if (!config) return null;
 
   const disabled = global_disabled || !canWrite;
@@ -69,12 +77,30 @@ export const ServerConfig = ({
                   "Optional. A custom private key used to authenticate Periphery connection. The associated public key must match Periphery 'core_public_key'. If not provided, will use 'private_key' in Core config. Max length of 32 characters.",
                 placeholder: "custom-private-key",
               },
-              periphery_public_key: {
-                label: "Periphery Public Key",
-                description:
-                  "If provided, the associated private key must be set as Periphery 'private_key'. For Periphery -> Core connection, either this or using 'periphery_public_key' in Core config is required for Periphery to be able to connect.",
-                placeholder: "custom-public-key",
-              },
+              periphery_public_key: (public_key, set) => (
+                <ConfigInput
+                  label="Periphery Public Key"
+                  description="If provided, the associated private key must be set as Periphery 'private_key'. For Periphery -> Core connection, either this or using 'periphery_public_key' in Core config is required for Periphery to be able to connect."
+                  placeholder="custom-public-key"
+                  value={public_key}
+                  onChange={(periphery_public_key) =>
+                    set({ periphery_public_key })
+                  }
+                  inputRight={
+                    !disabled && (
+                      <ConfirmButton
+                        title="Rotate"
+                        icon={<RotateCcwKey className="w-4 h-4" />}
+                        className="max-w-[120px]"
+                        onClick={() => rotate({ server: id })}
+                        loading={rotatePending}
+                        disabled={!is_connected}
+                      />
+                    )
+                  }
+                  disabled={disabled}
+                />
+              ),
             },
           },
           {
