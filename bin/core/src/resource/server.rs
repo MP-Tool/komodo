@@ -1,6 +1,5 @@
 use anyhow::Context;
 use database::mungos::mongodb::{Collection, bson::doc};
-use formatting::format_serror;
 use indexmap::IndexSet;
 use komodo_client::entities::{
   Operation, ResourceTarget, ResourceTargetVariant, komodo_timestamp,
@@ -18,9 +17,7 @@ use komodo_client::entities::{
 
 use crate::{
   config::core_config,
-  connection::PeripheryConnectionArgs,
   monitor::update_cache_for_server,
-  periphery::PeripheryClient,
   state::{
     action_states, db_client, periphery_connections,
     server_status_cache,
@@ -164,29 +161,8 @@ impl super::KomodoResource for Server {
 
   async fn post_update(
     updated: &Self,
-    update: &mut Update,
+    _update: &mut Update,
   ) -> anyhow::Result<()> {
-    if updated.config.enabled {
-      // Init periphery client to trigger reconnection
-      // if relevant parameters change.
-      if let Err(e) = PeripheryClient::new(
-        PeripheryConnectionArgs::from_server(updated),
-        &updated.config.passkey,
-      )
-      .await
-      .with_context(|| {
-        format!(
-          "Failed to get client handle after update for Server {}",
-          updated.id
-        )
-      }) {
-        warn!("{e:#}");
-        update
-          .push_simple_log("Post Update", format_serror(&e.into()));
-      };
-    } else {
-      periphery_connections().remove(&updated.id).await;
-    }
     update_cache_for_server(updated, true).await;
     Ok(())
   }

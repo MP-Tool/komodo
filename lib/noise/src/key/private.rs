@@ -47,6 +47,7 @@ impl Pkcs8PrivateKey {
     path: P,
   ) -> anyhow::Result<()> {
     let path = path.as_ref();
+    tracing::info!("Writing private key to {path:?}");
     std::fs::write(path, self.as_pem()).with_context(|| {
       format!("Failed to write private key pem to {path:?}")
     })

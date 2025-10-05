@@ -55,7 +55,6 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@ui/hover-card";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -435,56 +434,54 @@ export const ServerComponents: RequiredResourceComponents = {
       if (!server?.info.attempted_public_key) return null;
 
       return (
-        <Tooltip>
-          <TooltipTrigger>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger disabled={!canWrite}>
-                <Card className="px-3 py-2 bg-destructive/75 hover:bg-destructive transition-colors cursor-pointer">
-                  <div className="text-sm text-nowrap overflow-hidden overflow-ellipsis">
-                    Invalid Pubkey
-                  </div>
-                </Card>
-              </DialogTrigger>
-              <DialogContent className="w-[90vw] max-w-[700px]">
-                <DialogHeader>
-                  <DialogTitle>Confirm {server.name} public key?</DialogTitle>
-                  <DialogDescription>
-                    Public Key: {server.info.attempted_public_key}
-                  </DialogDescription>
-                </DialogHeader>
-                <div></div>
-                <DialogFooter>
-                  <Button
-                    className="w-[200px]"
-                    variant="secondary"
-                    onClick={() =>
-                      mutate({
-                        id,
-                        config: {
-                          periphery_public_key:
-                            server.info.attempted_public_key,
-                        },
-                      })
-                    }
-                    disabled={isPending}
-                  >
-                    {isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      "Confirm"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </TooltipTrigger>
-          <TooltipContent>
-            <div className="grid gap-2">
-              Core failed to validate Periphery public key.
-              {canWrite ? " Click to validate." : ""}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger disabled={!canWrite}>
+            <Card
+              className={cn(
+                "px-3 py-2 bg-destructive/75 hover:bg-destructive transition-colors",
+                canWrite && "cursor-pointer"
+              )}
+            >
+              <div className="text-sm text-nowrap overflow-hidden overflow-ellipsis">
+                Invalid Pubkey
+              </div>
+            </Card>
+          </DialogTrigger>
+          <DialogContent className="w-[90vw] max-w-[700px]">
+            <DialogHeader>
+              <DialogTitle>Confirm {server.name} public key?</DialogTitle>
+            </DialogHeader>
+            <div className="text-muted-foreground text-sm">
+              <div>
+                Public Key: <span className="text-foreground">{server.info.attempted_public_key}</span>
+              </div>
+              {!server.info.address && (
+                <div>Note. May take a few moments for status to update.</div>
+              )}
             </div>
-          </TooltipContent>
-        </Tooltip>
+            <DialogFooter>
+              <Button
+                className="w-[200px]"
+                variant="secondary"
+                onClick={() =>
+                  mutate({
+                    id,
+                    config: {
+                      periphery_public_key: server.info.attempted_public_key,
+                    },
+                  })
+                }
+                disabled={isPending}
+              >
+                {isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Confirm"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       );
     },
   },

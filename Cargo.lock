@@ -3302,6 +3302,7 @@ dependencies = [
  "serde_json",
  "snow",
  "spki",
+ "tracing",
 ]
 
 [[package]]

@@ -28,7 +28,10 @@ use crate::{
   config::core_config,
   helpers::periphery_client,
   monitor::{alert::check_alerts, record::record_server_stats},
-  state::{db_client, deployment_status_cache, repo_status_cache},
+  state::{
+    db_client, deployment_status_cache, periphery_connections,
+    repo_status_cache,
+  },
 };
 
 use self::helpers::{
@@ -174,6 +177,7 @@ pub async fn update_cache_for_server(server: &Server, force: bool) {
       None,
     )
     .await;
+    periphery_connections().remove(&server.id).await;
     return;
   }
 
