@@ -1,11 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
-use axum::http::HeaderValue;
 use periphery_client::CONNECTION_RETRY_SECONDS;
-use rustls::{ClientConfig, client::danger::ServerCertVerifier};
 use serror::{deserialize_error_bytes, serialize_error_bytes};
-use tokio_tungstenite::Connector;
 use transport::{
   MessageState,
   auth::{
@@ -49,7 +46,10 @@ impl PeripheryConnectionArgs<'_> {
     tokio::spawn(async move {
       loop {
         let ws = tokio::select! {
-          ws = connect_websocket(&endpoint) => ws,
+          ws = TungsteniteWebsocket::connect_maybe_tls_insecure(
+            &endpoint,
+            endpoint.starts_with("wss"),
+          ) => ws,
           _ = connection.cancel.cancelled() => {
             break
           }
@@ -58,7 +58,7 @@ impl PeripheryConnectionArgs<'_> {
         let (mut socket, accept) = match ws {
           Ok(res) => res,
           Err(e) => {
-            connection.set_error(e).await;
+            connection.set_error(e.error).await;
             tokio::time::sleep(Duration::from_secs(
               CONNECTION_RETRY_SECONDS,
             ))
@@ -181,99 +181,5 @@ async fn handle_passkey_login(
     Err(e)
   } else {
     Ok(())
-  }
-}
-
-async fn connect_websocket(
-  url: &str,
-) -> anyhow::Result<(TungsteniteWebsocket, HeaderValue)> {
-  let (ws, mut response) = if url.starts_with("wss") {
-    tokio_tungstenite::connect_async_tls_with_config(
-      url,
-      None,
-      false,
-      Some(Connector::Rustls(Arc::new(
-        ClientConfig::builder()
-          .dangerous()
-          .with_custom_certificate_verifier(Arc::new(
-            InsecureVerifier,
-          ))
-          .with_no_client_auth(),
-      ))),
-    )
-    .await
-    .with_context(|| {
-      format!("failed to connect to websocket | url: {url}")
-    })?
-  } else {
-    tokio_tungstenite::connect_async(url).await.with_context(
-      || format!("failed to connect to websocket | url: {url}"),
-    )?
-  };
-
-  let accept = response
-    .headers_mut()
-    .remove("sec-websocket-accept")
-    .context("sec-websocket-accept")?;
-
-  Ok((TungsteniteWebsocket(ws), accept))
-}
-
-#[derive(Debug)]
-struct InsecureVerifier;
-
-impl ServerCertVerifier for InsecureVerifier {
-  fn verify_server_cert(
-    &self,
-    _end_entity: &rustls::pki_types::CertificateDer<'_>,
-    _intermediates: &[rustls::pki_types::CertificateDer<'_>],
-    _server_name: &rustls::pki_types::ServerName<'_>,
-    _ocsp_response: &[u8],
-    _now: rustls::pki_types::UnixTime,
-  ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error>
-  {
-    Ok(rustls::client::danger::ServerCertVerified::assertion())
-  }
-
-  fn verify_tls12_signature(
-    &self,
-    _message: &[u8],
-    _cert: &rustls::pki_types::CertificateDer<'_>,
-    _dss: &rustls::DigitallySignedStruct,
-  ) -> Result<
-    rustls::client::danger::HandshakeSignatureValid,
-    rustls::Error,
-  > {
-    Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
-  }
-
-  fn verify_tls13_signature(
-    &self,
-    _message: &[u8],
-    _cert: &rustls::pki_types::CertificateDer<'_>,
-    _dss: &rustls::DigitallySignedStruct,
-  ) -> Result<
-    rustls::client::danger::HandshakeSignatureValid,
-    rustls::Error,
-  > {
-    Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
-  }
-
-  fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-    vec![
-      rustls::SignatureScheme::RSA_PKCS1_SHA1,
-      rustls::SignatureScheme::ECDSA_SHA1_Legacy,
-      rustls::SignatureScheme::RSA_PKCS1_SHA256,
-      rustls::SignatureScheme::ECDSA_NISTP256_SHA256,
-      rustls::SignatureScheme::RSA_PKCS1_SHA384,
-      rustls::SignatureScheme::ECDSA_NISTP384_SHA384,
-      rustls::SignatureScheme::RSA_PKCS1_SHA512,
-      rustls::SignatureScheme::ECDSA_NISTP521_SHA512,
-      rustls::SignatureScheme::RSA_PSS_SHA256,
-      rustls::SignatureScheme::RSA_PSS_SHA384,
-      rustls::SignatureScheme::RSA_PSS_SHA512,
-      rustls::SignatureScheme::ED25519,
-      rustls::SignatureScheme::ED448,
-    ]
   }
 }

@@ -5,7 +5,6 @@ use axum::http::{HeaderValue, StatusCode};
 use bytes::Bytes;
 use periphery_client::CONNECTION_RETRY_SECONDS;
 use serror::deserialize_error_bytes;
-use tokio_tungstenite::tungstenite;
 use transport::{
   MessageState,
   auth::{
@@ -214,22 +213,12 @@ async fn connect_websocket(
   url: &str,
   connect_as: &str,
 ) -> anyhow::Result<(TungsteniteWebsocket, HeaderValue)> {
-  let (ws, mut response) = tokio_tungstenite::connect_async(url)
+  TungsteniteWebsocket::connect_maybe_tls_insecure(url, periphery_config().core_tls_insecure_skip_verify)
     .await
-    .map_err(|e| match e {
-      tungstenite::Error::Http(response) => match response.status() {
-        StatusCode::NOT_FOUND => anyhow!("404 Not Found: Server '{connect_as}' does not exist."),
-        StatusCode::BAD_REQUEST => anyhow!("400 Bad Request: Server '{connect_as}' is disabled or configured to make Core → Periphery connection"),
-        StatusCode::UNAUTHORIZED => anyhow!("401 Unauthorized: Only one Server connected as '{connect_as}' is allowed. Or the Core reverse proxy needs to forward host and websocket headers."),
-        _ => anyhow::Error::from(tungstenite::Error::Http(response)),
-      },
-      e => anyhow::Error::from(e),
+    .map_err(|e| match e.status {
+      StatusCode::NOT_FOUND => anyhow!("404 Not Found: Server '{connect_as}' does not exist."),
+      StatusCode::BAD_REQUEST => anyhow!("400 Bad Request: Server '{connect_as}' is disabled or configured to make Core → Periphery connection"),
+      StatusCode::UNAUTHORIZED => anyhow!("401 Unauthorized: Only one Server connected as '{connect_as}' is allowed. Or the Core reverse proxy needs to forward host and websocket headers."),
+      _ => e.error,
     })
-    .with_context(|| format!("Failed to connect to {url}"))?;
-  let accept = response
-    .headers_mut()
-    .remove("sec-websocket-accept")
-    .context("sec-websocket-accept")
-    .context("Headers do not contain Sec-Websocket-Accept")?;
-  Ok((TungsteniteWebsocket(ws), accept))
 }

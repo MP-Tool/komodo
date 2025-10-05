@@ -152,6 +152,8 @@ pub struct Env {
   /// Override `core_addresses`
   #[serde(alias = "periphery_core_address")]
   pub periphery_core_addresses: Option<Vec<String>>,
+  /// Override `core_tls_insecure_skip_verify`
+  pub periphery_core_tls_insecure_skip_verify: Option<bool>,
   /// Override `connect_as`
   pub periphery_connect_as: Option<String>,
   /// Override `server_enabled`
@@ -260,6 +262,11 @@ pub struct PeripheryConfig {
     skip_serializing_if = "Option::is_none"
   )]
   pub core_addresses: Option<Vec<String>>,
+
+  /// Allow Periphery to connect to Core
+  /// without validating the Core certs
+  #[serde(default)]
+  pub core_tls_insecure_skip_verify: bool,
 
   /// Server name / id to connect as
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -437,6 +444,7 @@ impl Default for PeripheryConfig {
       core_public_keys: None,
       passkeys: None,
       core_addresses: None,
+      core_tls_insecure_skip_verify: Default::default(),
       connect_as: None,
       server_enabled: default_server_enabled(),
       port: default_periphery_port(),
@@ -485,6 +493,8 @@ impl PeripheryConfig {
         passkeys.iter().map(|p| empty_or_redacted(p)).collect()
       }),
       core_addresses: self.core_addresses.clone(),
+      core_tls_insecure_skip_verify: self
+        .core_tls_insecure_skip_verify,
       connect_as: self.connect_as.clone(),
       server_enabled: self.server_enabled,
       port: self.port,
