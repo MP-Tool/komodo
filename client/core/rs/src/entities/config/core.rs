@@ -394,7 +394,7 @@ pub struct CoreConfig {
   pub enable_fancy_toml: bool,
 
   /// If defined, ensure an enabled first server exists with the name.
-  /// If None and "first_server" is defined, will default to "Local".
+  /// If None and "first_server_address" is defined, will default to "Local".
   /// Set this and not 'first_server_address' for Periphery -> Core Server.
   /// Default: None
   #[serde(skip_serializing_if = "Option::is_none")]

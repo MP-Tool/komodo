@@ -49,7 +49,7 @@ async fn app() -> anyhow::Result<()> {
     }
     (Some(_), None) => {
       warn!(
-        "'core_addresses' are defined for outbound connection, but missing 'connect_as' (PERIPHERY_CONNECT_AS)"
+        "'core_addresses' are defined for outbound connection, but missing 'connect_as' (PERIPHERY_CONNECT_AS)."
       );
     }
     _ => {}
