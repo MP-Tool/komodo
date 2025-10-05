@@ -69,6 +69,9 @@ export const Onboarding = () => {
             type="Server"
             selected={row.original.copy_server}
             templates={Types.TemplatesQueryBehavior.Include}
+            onSelect={(copy_server) =>
+              mutate({ public_key: row.original.public_key, copy_server })
+            }
           />
         ),
       },
