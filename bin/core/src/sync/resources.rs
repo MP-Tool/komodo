@@ -823,6 +823,7 @@ impl ExecuteResourceSync for Procedure {
         let id = match crate::resource::create::<Procedure>(
           &name,
           resource.config.clone(),
+          None,
           sync_user(),
         )
         .await

@@ -16,7 +16,7 @@ impl Resolve<WriteArgs> for CreateProcedure {
     self,
     WriteArgs { user }: &WriteArgs,
   ) -> serror::Result<CreateProcedureResponse> {
-    resource::create::<Procedure>(&self.name, self.config, user).await
+    resource::create::<Procedure>(&self.name, self.config, None, user).await
   }
 }
 
@@ -33,7 +33,7 @@ impl Resolve<WriteArgs> for CopyProcedure {
         PermissionLevel::Write.into(),
       )
       .await?;
-    resource::create::<Procedure>(&self.name, config.into(), user)
+    resource::create::<Procedure>(&self.name, config.into(), None, user)
       .await
   }
 }

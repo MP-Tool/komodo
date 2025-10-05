@@ -353,6 +353,7 @@ export declare enum Operation {
     None = "None",
     CreateServer = "CreateServer",
     UpdateServer = "UpdateServer",
+    UpdateServerKey = "UpdateServerKey",
     DeleteServer = "DeleteServer",
     RenameServer = "RenameServer",
     StartContainer = "StartContainer",
@@ -2250,12 +2251,6 @@ export interface ServerConfig {
      */
     enabled: boolean;
     /**
-     * The expected public key associated with
-     * private key of the periphery agent.
-     * If this is empty, falls back to 'periphery_public_key'
-     */
-    periphery_public_key?: string;
-    /**
      * Deprecated. Use private / public keys instead.
      * An optional override passkey to use
      * to authenticate with periphery agent.
@@ -2311,6 +2306,11 @@ export interface ServerInfo {
      * it will be stored here to accept the connection later on.
      */
     attempted_public_key?: string;
+    /**
+     * The expected public key associated with
+     * private key of the periphery agent.
+     */
+    public_key?: string;
 }
 export type Server = Resource<ServerConfig, ServerInfo>;
 export type GetServerResponse = Server;
@@ -4827,6 +4827,8 @@ export interface CopyServer {
     name: string;
     /** The id of the server to copy. */
     id: string;
+    /** Initial public key to assign to Server. */
+    public_key?: string;
 }
 /**
  * Creates a new stack with given `name` and the configuration
@@ -5057,6 +5059,8 @@ export interface CreateServer {
     name: string;
     /** Optional partial config to initialize the server with. */
     config?: _PartialServerConfig;
+    /** Initial public key to assign to Server. */
+    public_key?: string;
 }
 /**
  * **Admin only.** Create a service user.
@@ -7397,7 +7401,7 @@ export interface RotateAllServerKeys {
 }
 /**
  * Rotates the private / public keys for the server.
- * Response: [NoData]
+ * Response: [Update]
  */
 export interface RotateServerKeys {
     /** Server Id or name */
@@ -8030,6 +8034,16 @@ export interface UpdateServer {
     id: string;
     /** The partial config update to apply. */
     config: _PartialServerConfig;
+}
+/**
+ * Updates the Server with an explicit Public Key.
+ * Response: [Update]
+ */
+export interface UpdateServerPublicKey {
+    /** Server Id or name */
+    server: string;
+    /** Spki base64 public key */
+    public_key: string;
 }
 /**
  * **Admin only.** Update a service user's description.
@@ -8970,6 +8984,9 @@ export type WriteRequest = {
 } | {
     type: "UpdateServer";
     params: UpdateServer;
+} | {
+    type: "UpdateServerPublicKey";
+    params: UpdateServerPublicKey;
 } | {
     type: "RenameServer";
     params: RenameServer;

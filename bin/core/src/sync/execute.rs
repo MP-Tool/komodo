@@ -144,6 +144,7 @@ pub trait ExecuteResourceSync: ResourceSyncTrait {
       let id = match crate::resource::create::<Self>(
         &resource.name,
         resource.config,
+        None,
         sync_user(),
       )
       .await

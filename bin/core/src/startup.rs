@@ -229,6 +229,7 @@ async fn ensure_first_server_and_builder() {
       enabled: Some(true),
       ..Default::default()
     },
+    public_key: None,
   })
   .resolve(&WriteArgs {
     user: system_user().to_owned(),

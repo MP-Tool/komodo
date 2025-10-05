@@ -133,9 +133,7 @@ impl<'a> PeripheryConnectionArgs<'a> {
     Self {
       id: &server.id,
       address: optional_str(&server.config.address),
-      periphery_public_key: optional_str(
-        &server.config.periphery_public_key,
-      ),
+      periphery_public_key: optional_str(&server.info.public_key),
     }
   }
 

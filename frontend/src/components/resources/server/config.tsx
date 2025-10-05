@@ -2,17 +2,11 @@ import { Config } from "@components/config";
 import { MaintenanceWindows } from "@components/config/maintenance";
 import { ConfigInput, ConfigList } from "@components/config/util";
 import { ConfirmButton } from "@components/util";
-import {
-  useInvalidate,
-  useLocalStorage,
-  usePermissions,
-  useRead,
-  useWrite,
-} from "@lib/hooks";
+import { useLocalStorage, usePermissions, useRead, useWrite } from "@lib/hooks";
 import { Types } from "komodo_client";
-import { RotateCcwKey } from "lucide-react";
-import { ReactNode } from "react";
-import { useServer } from ".";
+import { RotateCcwKey, Save } from "lucide-react";
+import { ReactNode, useEffect, useState } from "react";
+import { useFullServer, useServer } from ".";
 
 export const ServerConfig = ({
   id,
@@ -22,21 +16,24 @@ export const ServerConfig = ({
   titleOther: ReactNode;
 }) => {
   const { canWrite } = usePermissions({ type: "Server", id });
-  const invalidate = useInvalidate();
   const is_connected = useServer(id)?.info.state === Types.ServerState.Ok;
-  const config = useRead("GetServer", { server: id }).data?.config;
+  const server = useFullServer(id);
+  const config = server?.config;
+  const [public_key, set_public_key] = useState("");
+  useEffect(() => {
+    if (server?.info?.public_key) {
+      set_public_key(server.info.public_key);
+    }
+  }, [server?.info?.public_key]);
   const global_disabled =
     useRead("GetCoreInfo", {}).data?.ui_write_disabled ?? false;
   const [update, set] = useLocalStorage<Partial<Types.ServerConfig>>(
     `server-${id}-update-v1`,
     {}
   );
-  const { mutateAsync } = useWrite("UpdateServer", {
-    onSuccess: () => {
-      // In case of disabling to resolve unreachable alert
-      invalidate(["ListAlerts"]);
-    },
-  });
+  const { mutateAsync } = useWrite("UpdateServer");
+  const { mutate: update_public_key, isPending: updatePublicPending } =
+    useWrite("UpdateServerPublicKey");
   const { mutate: rotate, isPending: rotatePending } =
     useWrite("RotateServerKeys");
 
@@ -70,25 +67,35 @@ export const ServerConfig = ({
             label: "Auth",
             labelHidden: true,
             components: {
-              periphery_public_key: (public_key, set) => (
+              enabled: () => (
                 <ConfigInput
                   label="Periphery Public Key"
                   description="If provided, the associated private key must be set as Periphery 'private_key'. For Periphery -> Core connection, either this or using 'periphery_public_key' in Core config is required for Periphery to be able to connect."
                   placeholder="custom-public-key"
                   value={public_key}
-                  onChange={(periphery_public_key) =>
-                    set({ periphery_public_key })
-                  }
+                  onChange={(public_key) => set_public_key(public_key)}
                   inputRight={
                     !disabled && (
-                      <ConfirmButton
-                        title="Rotate"
-                        icon={<RotateCcwKey className="w-4 h-4" />}
-                        className="max-w-[120px]"
-                        onClick={() => rotate({ server: id })}
-                        loading={rotatePending}
-                        disabled={!is_connected}
-                      />
+                      <div className="flex items-center gap-2">
+                        <ConfirmButton
+                          title="Save"
+                          icon={<Save className="w-4 h-4" />}
+                          className="max-w-[120px]"
+                          onClick={() =>
+                            update_public_key({ server: id, public_key })
+                          }
+                          loading={updatePublicPending}
+                          disabled={public_key === server?.info?.public_key}
+                        />
+                        <ConfirmButton
+                          title="Rotate"
+                          icon={<RotateCcwKey className="w-4 h-4" />}
+                          className="max-w-[120px]"
+                          onClick={() => rotate({ server: id })}
+                          loading={rotatePending}
+                          disabled={!is_connected}
+                        />
+                      </div>
                     )
                   }
                   disabled={disabled}

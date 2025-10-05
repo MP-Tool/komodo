@@ -421,7 +421,7 @@ export const ServerComponents: RequiredResourceComponents = {
       const server = useServer(id);
       const { canWrite } = usePermissions({ type: "Server", id });
       const [open, setOpen] = useState(false);
-      const { mutate, isPending } = useWrite("UpdateServer", {
+      const { mutate, isPending } = useWrite("UpdateServerPublicKey", {
         onSuccess: () => {
           toast({ title: "Confirmed Server public key" });
           setOpen(false);
@@ -453,7 +453,10 @@ export const ServerComponents: RequiredResourceComponents = {
             </DialogHeader>
             <div className="text-muted-foreground text-sm">
               <div>
-                Public Key: <span className="text-foreground">{server.info.attempted_public_key}</span>
+                Public Key:{" "}
+                <span className="text-foreground">
+                  {server.info.attempted_public_key}
+                </span>
               </div>
               {!server.info.address && (
                 <div>Note. May take a few moments for status to update.</div>
@@ -465,10 +468,8 @@ export const ServerComponents: RequiredResourceComponents = {
                 variant="secondary"
                 onClick={() =>
                   mutate({
-                    id,
-                    config: {
-                      periphery_public_key: server.info.attempted_public_key,
-                    },
+                    server: id,
+                    public_key: server.info.attempted_public_key!,
                   })
                 }
                 disabled={isPending}

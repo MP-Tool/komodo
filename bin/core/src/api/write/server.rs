@@ -1,11 +1,14 @@
+use std::str::FromStr;
+
 use anyhow::Context;
-use formatting::format_serror;
+use database::mungos::mongodb::bson::{doc, oid::ObjectId};
+use formatting::{bold, format_serror};
 use komodo_client::{
   api::write::*,
   entities::{
     NoData, Operation,
     permission::PermissionLevel,
-    server::{PartialServerConfig, Server},
+    server::{Server, ServerInfo},
     to_docker_compatible_name,
     update::{Update, UpdateStatus},
   },
@@ -20,6 +23,7 @@ use crate::{
   },
   permission::get_check_permissions,
   resource,
+  state::db_client,
 };
 
 use super::WriteArgs;
@@ -30,7 +34,16 @@ impl Resolve<WriteArgs> for CreateServer {
     self,
     WriteArgs { user }: &WriteArgs,
   ) -> serror::Result<Server> {
-    resource::create::<Server>(&self.name, self.config, user).await
+    resource::create::<Server>(
+      &self.name,
+      self.config,
+      self.public_key.map(|public_key| ServerInfo {
+        public_key,
+        ..Default::default()
+      }),
+      user,
+    )
+    .await
   }
 }
 
@@ -47,7 +60,16 @@ impl Resolve<WriteArgs> for CopyServer {
     )
     .await?;
 
-    resource::create::<Server>(&self.name, config.into(), user).await
+    resource::create::<Server>(
+      &self.name,
+      config.into(),
+      self.public_key.map(|public_key| ServerInfo {
+        public_key,
+        ..Default::default()
+      }),
+      user,
+    )
+    .await
   }
 }
 
@@ -199,9 +221,50 @@ impl Resolve<WriteArgs> for DeleteAllTerminals {
 
 //
 
+impl Resolve<WriteArgs> for UpdateServerPublicKey {
+  #[instrument(name = "UpdateServerPublicKey", skip(args))]
+  async fn resolve(
+    self,
+    args: &WriteArgs,
+  ) -> Result<Self::Response, Self::Error> {
+    let server = get_check_permissions::<Server>(
+      &self.server,
+      &args.user,
+      PermissionLevel::Write.into(),
+    )
+    .await?;
+
+    db_client()
+      .servers
+      .update_one(
+        doc! { "_id": ObjectId::from_str(&server.id)? },
+        doc! { "$set": { "info.public_key": &self.public_key } },
+      )
+      .await
+      .context("Failed to update Server public key on database")?;
+
+    let mut update =
+      make_update(&server, Operation::UpdateServerKey, &args.user);
+
+    update.push_simple_log(
+      "Update Server Public Key",
+      format!("Public key updated to {}", bold(&self.public_key)),
+    );
+    update.finalize();
+    update.id = add_update(update.clone()).await?;
+
+    Ok(update)
+  }
+}
+
+//
+
 impl Resolve<WriteArgs> for RotateServerKeys {
   #[instrument(name = "RotateServerPrivateKey", skip(args))]
-  async fn resolve(self, args: &WriteArgs) -> serror::Result<NoData> {
+  async fn resolve(
+    self,
+    args: &WriteArgs,
+  ) -> Result<Self::Response, Self::Error> {
     let server = get_check_permissions::<Server>(
       &self.server,
       &args.user,
@@ -211,23 +274,18 @@ impl Resolve<WriteArgs> for RotateServerKeys {
 
     let periphery = periphery_client(&server).await?;
 
-    let periphery_public_key = periphery
+    let public_key = periphery
       .request(api::keys::RotatePrivateKey {})
       .await
       .context("Failed to rotate Periphery private key")?
       .public_key
       .into();
 
-    UpdateServer {
-      id: server.id,
-      config: PartialServerConfig {
-        periphery_public_key,
-        ..Default::default()
-      },
+    UpdateServerPublicKey {
+      server: server.id,
+      public_key,
     }
     .resolve(args)
-    .await?;
-
-    Ok(NoData {})
+    .await
   }
 }

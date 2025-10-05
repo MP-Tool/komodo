@@ -459,6 +459,7 @@ pub async fn get_id_to_resource_map<T: KomodoResource>(
 pub async fn create<T: KomodoResource>(
   name: &str,
   mut config: T::PartialConfig,
+  info: Option<T::Info>,
   user: &User,
 ) -> serror::Result<Resource<T::Config, T::Info>> {
   if !T::user_can_create(user) {
@@ -517,7 +518,11 @@ pub async fn create<T: KomodoResource>(
     template: Default::default(),
     tags: Default::default(),
     config: config.into(),
-    info: T::default_info().await?,
+    info: if let Some(info) = info {
+      info
+    } else {
+      T::default_info().await?
+    },
     base_permission: PermissionLevel::None.into(),
     updated_at: start_ts,
   };

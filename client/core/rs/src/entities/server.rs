@@ -68,6 +68,10 @@ pub struct ServerInfo {
   /// it will be stored here to accept the connection later on.
   #[serde(default)]
   pub attempted_public_key: String,
+  /// The expected public key associated with
+  /// private key of the periphery agent.
+  #[serde(default)]
+  pub public_key: String,
 }
 
 #[typeshare(serialized_as = "Partial<ServerConfig>")]
@@ -104,13 +108,6 @@ pub struct ServerConfig {
   #[builder(default = "default_enabled()")]
   #[partial_default(default_enabled())]
   pub enabled: bool,
-
-  /// The expected public key associated with
-  /// private key of the periphery agent.
-  /// If this is empty, falls back to 'periphery_public_key'
-  #[serde(default)]
-  #[builder(default)]
-  pub periphery_public_key: String,
 
   /// Deprecated. Use private / public keys instead.
   /// An optional override passkey to use
@@ -287,7 +284,6 @@ impl Default for ServerConfig {
       send_disk_alerts: default_send_alerts(),
       send_version_mismatch_alerts: default_send_alerts(),
       region: Default::default(),
-      periphery_public_key: Default::default(),
       passkey: Default::default(),
       cpu_warning: default_cpu_warning(),
       cpu_critical: default_cpu_critical(),

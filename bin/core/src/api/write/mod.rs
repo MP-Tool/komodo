@@ -92,6 +92,7 @@ pub enum WriteRequest {
   CreateTerminal(CreateTerminal),
   DeleteTerminal(DeleteTerminal),
   DeleteAllTerminals(DeleteAllTerminals),
+  UpdateServerPublicKey(UpdateServerPublicKey),
   RotateServerKeys(RotateServerKeys),
 
   // ==== STACK ====

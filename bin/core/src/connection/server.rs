@@ -12,7 +12,7 @@ use komodo_client::{
   api::write::CreateServer,
   entities::{
     onboarding_key::OnboardingKey,
-    server::{Server, ServerConfig},
+    server::{PartialServerConfig, Server},
     user::system_user,
   },
 };
@@ -184,9 +184,9 @@ async fn onboard_server_handler(
       });
 
     // Post onboarding login 1: Receive public key
-    let periphery_public_key = match res
+    let public_key = match res
     {
-      Ok(public_key_bytes) => public_key_bytes,
+      Ok(public_key) => public_key,
       Err(e) => {
         warn!("Server {server_query} failed to onboard | failed to receive Server public key | {e:#}");
         return;
@@ -194,11 +194,7 @@ async fn onboard_server_handler(
     };
 
     let config = if onboarding_key.copy_server.is_empty() {
-      ServerConfig {
-        periphery_public_key,
-        enabled: true,
-        ..Default::default()
-      }
+      PartialServerConfig::default()
     } else {
       let config = match db_client().servers.find_one(id_or_name_filter(&onboarding_key.copy_server)).await {
         Ok(Some(server)) => server.config,
@@ -211,16 +207,16 @@ async fn onboard_server_handler(
           Default::default()
         }
       };
-      ServerConfig {
-        periphery_public_key,
-        enabled: true,
-        address: String::new(),
-        ..config
+      PartialServerConfig {
+        enabled: Some(true),
+        address: None,
+        ..config.into()
       }
     };
 
-    let request = CreateServer { name: server_query, config: config.into() };
-    let server = match request.resolve(&WriteArgs { user: system_user().to_owned() }).await {
+    let request = CreateServer { name: server_query, config, public_key: Some(public_key) };
+    let args = WriteArgs { user: system_user().to_owned() };
+    let server = match request.resolve(&args).await {
       Ok(server) => server,
       Err(e) => {
         warn!("Server onboarding flow failed at Server creation | {:#}", e.error);

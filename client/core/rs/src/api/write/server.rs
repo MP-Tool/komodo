@@ -27,6 +27,8 @@ pub struct CreateServer {
   /// Optional partial config to initialize the server with.
   #[serde(default)]
   pub config: _PartialServerConfig,
+  /// Initial public key to assign to Server.
+  pub public_key: Option<String>,
 }
 
 //
@@ -45,6 +47,8 @@ pub struct CopyServer {
   pub name: String,
   /// The id of the server to copy.
   pub id: String,
+  /// Initial public key to assign to Server.
+  pub public_key: Option<String>,
 }
 
 //
@@ -209,14 +213,32 @@ pub struct DeleteAllTerminals {
 
 //
 
-/// Rotates the private / public keys for the server.
-/// Response: [NoData]
+/// Updates the Server with an explicit Public Key.
+/// Response: [Update]
 #[typeshare]
 #[derive(
   Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
 )]
 #[empty_traits(KomodoWriteRequest)]
-#[response(NoData)]
+#[response(Update)]
+#[error(serror::Error)]
+pub struct UpdateServerPublicKey {
+  /// Server Id or name
+  pub server: String,
+  /// Spki base64 public key
+  pub public_key: String,
+}
+
+//
+
+/// Rotates the private / public keys for the server.
+/// Response: [Update]
+#[typeshare]
+#[derive(
+  Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
+)]
+#[empty_traits(KomodoWriteRequest)]
+#[response(Update)]
 #[error(serror::Error)]
 pub struct RotateServerKeys {
   /// Server Id or name

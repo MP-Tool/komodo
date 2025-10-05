@@ -51,7 +51,7 @@ impl Resolve<WriteArgs> for CreateStack {
     self,
     WriteArgs { user }: &WriteArgs,
   ) -> serror::Result<Stack> {
-    resource::create::<Stack>(&self.name, self.config, user).await
+    resource::create::<Stack>(&self.name, self.config, None, user).await
   }
 }
 
@@ -68,7 +68,7 @@ impl Resolve<WriteArgs> for CopyStack {
     )
     .await?;
 
-    resource::create::<Stack>(&self.name, config.into(), user).await
+    resource::create::<Stack>(&self.name, config.into(), None, user).await
   }
 }
 

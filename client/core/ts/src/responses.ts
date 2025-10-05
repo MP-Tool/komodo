@@ -223,7 +223,8 @@ export type WriteResponses = {
   CreateTerminal: Types.NoData;
   DeleteTerminal: Types.NoData;
   DeleteAllTerminals: Types.NoData;
-  RotateServerKeys: Types.NoData;
+  UpdateServerPublicKey: Types.Update;
+  RotateServerKeys: Types.Update;
 
   // ==== STACK ====
   CreateStack: Types.Stack;

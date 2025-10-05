@@ -1047,6 +1047,7 @@ pub enum Operation {
   // server
   CreateServer,
   UpdateServer,
+  UpdateServerKey,
   DeleteServer,
   RenameServer,
   StartContainer,

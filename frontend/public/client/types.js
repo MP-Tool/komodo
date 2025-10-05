@@ -67,6 +67,7 @@ export var Operation;
     Operation["None"] = "None";
     Operation["CreateServer"] = "CreateServer";
     Operation["UpdateServer"] = "UpdateServer";
+    Operation["UpdateServerKey"] = "UpdateServerKey";
     Operation["DeleteServer"] = "DeleteServer";
     Operation["RenameServer"] = "RenameServer";
     Operation["StartContainer"] = "StartContainer";
