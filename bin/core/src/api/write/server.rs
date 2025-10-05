@@ -199,7 +199,7 @@ impl Resolve<WriteArgs> for DeleteAllTerminals {
 
 //
 
-impl Resolve<WriteArgs> for RotateServerPrivateKey {
+impl Resolve<WriteArgs> for RotateServerKeys {
   #[instrument(name = "RotateServerPrivateKey", skip(args))]
   async fn resolve(self, args: &WriteArgs) -> serror::Result<NoData> {
     let server = get_check_permissions::<Server>(

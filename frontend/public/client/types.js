@@ -171,6 +171,7 @@ export var Operation;
     Operation["ClearRepoCache"] = "ClearRepoCache";
     Operation["BackupCoreDatabase"] = "BackupCoreDatabase";
     Operation["GlobalAutoUpdate"] = "GlobalAutoUpdate";
+    Operation["RotateAllServerKeys"] = "RotateAllServerKeys";
     Operation["CreateVariable"] = "CreateVariable";
     Operation["UpdateVariableValue"] = "UpdateVariableValue";
     Operation["DeleteVariable"] = "DeleteVariable";

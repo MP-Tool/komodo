@@ -43,20 +43,10 @@ port = 9120
 bind_ip = "[::]"
 
 ## Default private key to use with Noise handshake to authenticate with Periphery agents.
-## If not provided, will use random default, and the public key can be queried using /read/GetCoreInfo
-## Note. The private key used can be overridden for individual Servers / Builders
+## Note. The private key used can be overridden for individual Servers / Builders.
 ## Env: KOMODO_PRIVATE_KEY or KOMODO_PRIVATE_KEY_FILE
-## Default: Random 32 bytes in memory. Changes every restart.
-private_key = "default-core-pk"
-
-## Default accepted public key to allow Periphery to connect.
-## Core gains knowledge of the Periphery public key through the noise handshake.
-## If not provided, Periphery -> Core connected Servers must
-## configure accepted public keys individually.
-## Note: If used, the public key can still be overridden on individual Servers / Builders
-## Env: KOMODO_PERIPHERY_PUBLIC_KEY
-## Default: None
-# periphery_public_key = "pEkD8DWfrGCmoJa35m0gZkNksZsTZMAXwcqVwT1fbwY="
+## Default: file:/config/keys/core.key
+private_key = "file:/config/keys/core.key"
 
 ## Deprecated. Legacy v1 compatibility.
 ## Users should upgrade to private / public key authentication.

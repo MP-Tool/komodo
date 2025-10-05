@@ -35,8 +35,7 @@ use transport::{
 };
 
 use crate::{
-  config::{core_private_key, periphery_public_keys},
-  periphery::ConnectionChannels,
+  config::core_private_key, periphery::ConnectionChannels,
   state::db_client,
 };
 
@@ -96,7 +95,6 @@ pub struct PeripheryConnectionArgs<'a> {
   /// Usually the server id
   pub id: &'a str,
   pub address: Option<&'a str>,
-  core_private_key: Option<&'a str>,
   periphery_public_key: Option<&'a str>,
 }
 
@@ -106,43 +104,26 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
     &self,
     public_key: String,
   ) -> anyhow::Result<Self::ValidationResult> {
-    // Make sure all cases get the same error,
-    // including what the public key should be.
-    let invalid_error = || {
-      spawn_update_attempted_public_key(
-        self.id.to_string(),
-        Some(public_key.clone()),
-      );
-      anyhow!("{public_key} is invalid")
-        .context(
-          "Ensure public key matches configured Periphery Public Key",
-        )
-        .context("Core failed to validate Periphery public key")
-    };
-    // Handle explicit public key
-    if let Some(expected) = self.periphery_public_key {
-      return if public_key == expected {
-        Ok(public_key)
-      } else {
-        Err(invalid_error())
-      };
-    }
-    // Core -> Periphery connections with no explicit
-    // Periphery public key are not validated.
-    if self.address.is_some() {
-      return Ok(public_key);
-    }
-    // Periphery -> Core connections fall back to
-    // 'periphery_public_keys' in Core config.
-    let expected =
-      periphery_public_keys().ok_or_else(invalid_error)?;
-    if expected
-      .iter()
-      .any(|expected| public_key == expected.as_str())
-    {
-      Ok(public_key)
-    } else {
-      Err(invalid_error())
+    let core_to_periphery = self.address.is_some();
+    match (self.periphery_public_key, core_to_periphery) {
+      // The key matches expected.
+      (Some(expected), _) if public_key == expected => Ok(public_key),
+      // Core -> Periphery connections with no explicit
+      // Periphery public key are not validated.
+      (None, true) => Ok(public_key),
+      // Auth failed.
+      (Some(_), _) | (None, false) => {
+        spawn_update_attempted_public_key(
+          self.id.to_string(),
+          Some(public_key.clone()),
+        );
+        let e = anyhow!("{public_key} is invalid")
+          .context(
+            "Ensure public key matches configured Periphery Public Key",
+          )
+          .context("Core failed to validate Periphery public key");
+        Err(e)
+      }
     }
   }
 }
@@ -152,7 +133,6 @@ impl<'a> PeripheryConnectionArgs<'a> {
     Self {
       id: &server.id,
       address: optional_str(&server.config.address),
-      core_private_key: optional_str(&server.config.core_private_key),
       periphery_public_key: optional_str(
         &server.config.periphery_public_key,
       ),
@@ -166,7 +146,6 @@ impl<'a> PeripheryConnectionArgs<'a> {
     Self {
       id,
       address: optional_str(&config.address),
-      core_private_key: optional_str(&config.core_private_key),
       periphery_public_key: optional_str(
         &config.periphery_public_key,
       ),
@@ -181,7 +160,6 @@ impl<'a> PeripheryConnectionArgs<'a> {
     Self {
       id,
       address: Some(address),
-      core_private_key: optional_str(&config.core_private_key),
       periphery_public_key: optional_str(
         &config.periphery_public_key,
       ),
@@ -192,7 +170,6 @@ impl<'a> PeripheryConnectionArgs<'a> {
     OwnedPeripheryConnectionArgs {
       id: self.id.to_string(),
       address: self.address.map(str::to_string),
-      core_private_key: self.core_private_key.map(str::to_string),
       periphery_public_key: self
         .periphery_public_key
         .map(str::to_string),
@@ -214,8 +191,6 @@ pub struct OwnedPeripheryConnectionArgs {
   /// Specify outbound connection address.
   /// Inbound connections have this as None
   pub address: Option<String>,
-  /// The private key to use, or None for core private key
-  pub core_private_key: Option<String>,
   /// The public key to expect Periphery to have.
   /// If None, must have 'periphery_public_keys' set
   /// in Core config, or will error
@@ -227,7 +202,6 @@ impl OwnedPeripheryConnectionArgs {
     PeripheryConnectionArgs {
       id: &self.id,
       address: self.address.as_deref(),
-      core_private_key: self.core_private_key.as_deref(),
       periphery_public_key: self.periphery_public_key.as_deref(),
     }
   }
@@ -312,15 +286,10 @@ impl PeripheryConnection {
     socket: &mut W,
     identifiers: ConnectionIdentifiers<'_>,
   ) -> anyhow::Result<()> {
-    let private_key = self
-      .args
-      .core_private_key
-      .as_ref()
-      .unwrap_or(core_private_key());
     L::login(LoginFlowArgs {
       socket,
       identifiers,
-      private_key,
+      private_key: core_private_key(),
       public_key_validator: self.args.borrow(),
     })
     .await?;

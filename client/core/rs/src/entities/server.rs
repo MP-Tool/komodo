@@ -105,13 +105,6 @@ pub struct ServerConfig {
   #[partial_default(default_enabled())]
   pub enabled: bool,
 
-  /// An optional override private key to use
-  /// to authenticate with Periphery agent.
-  /// If this is empty, will use private key in core config.
-  #[serde(default)]
-  #[builder(default)]
-  pub core_private_key: String,
-
   /// The expected public key associated with
   /// private key of the periphery agent.
   /// If this is empty, falls back to 'periphery_public_key'
@@ -294,7 +287,6 @@ impl Default for ServerConfig {
       send_disk_alerts: default_send_alerts(),
       send_version_mismatch_alerts: default_send_alerts(),
       region: Default::default(),
-      core_private_key: Default::default(),
       periphery_public_key: Default::default(),
       passkey: Default::default(),
       cpu_warning: default_cpu_warning(),

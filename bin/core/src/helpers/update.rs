@@ -520,6 +520,9 @@ pub async fn init_execution_update(
     ExecuteRequest::GlobalAutoUpdate(_data) => {
       (Operation::GlobalAutoUpdate, ResourceTarget::system())
     }
+    ExecuteRequest::RotateAllServerKeys(_data) => {
+      (Operation::RotateAllServerKeys, ResourceTarget::system())
+    }
   };
 
   let mut update = make_update(target, operation, user);

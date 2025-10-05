@@ -37,9 +37,8 @@ export const ServerConfig = ({
       invalidate(["ListAlerts"]);
     },
   });
-  const { mutate: rotate, isPending: rotatePending } = useWrite(
-    "RotateServerPrivateKey"
-  );
+  const { mutate: rotate, isPending: rotatePending } =
+    useWrite("RotateServerKeys");
 
   if (!config) return null;
 
@@ -71,12 +70,6 @@ export const ServerConfig = ({
             label: "Auth",
             labelHidden: true,
             components: {
-              core_private_key: {
-                label: "Core Private Key",
-                description:
-                  "Optional. A custom private key used to authenticate Periphery connection. The associated public key must match Periphery 'core_public_key'. If not provided, will use 'private_key' in Core config. Max length of 32 characters.",
-                placeholder: "custom-private-key",
-              },
               periphery_public_key: (public_key, set) => (
                 <ConfigInput
                   label="Periphery Public Key"

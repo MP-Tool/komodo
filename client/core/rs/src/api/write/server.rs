@@ -209,7 +209,7 @@ pub struct DeleteAllTerminals {
 
 //
 
-/// Rotate the private key on the server.
+/// Rotates the private / public keys for the server.
 /// Response: [NoData]
 #[typeshare]
 #[derive(
@@ -218,7 +218,7 @@ pub struct DeleteAllTerminals {
 #[empty_traits(KomodoWriteRequest)]
 #[response(NoData)]
 #[error(serror::Error)]
-pub struct RotateServerPrivateKey {
+pub struct RotateServerKeys {
   /// Server Id or name
   pub server: String,
 }

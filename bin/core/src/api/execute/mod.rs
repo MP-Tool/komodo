@@ -149,6 +149,7 @@ pub enum ExecuteRequest {
   ClearRepoCache(ClearRepoCache),
   BackupCoreDatabase(BackupCoreDatabase),
   GlobalAutoUpdate(GlobalAutoUpdate),
+  RotateAllServerKeys(RotateAllServerKeys),
 }
 
 pub fn router() -> Router {

@@ -223,7 +223,7 @@ export type WriteResponses = {
   CreateTerminal: Types.NoData;
   DeleteTerminal: Types.NoData;
   DeleteAllTerminals: Types.NoData;
-  RotateServerPrivateKey: Types.NoData;
+  RotateServerKeys: Types.NoData;
 
   // ==== STACK ====
   CreateStack: Types.Stack;
@@ -426,4 +426,5 @@ export type ExecuteResponses = {
   ClearRepoCache: Types.Update;
   BackupCoreDatabase: Types.Update;
   GlobalAutoUpdate: Types.Update;
+  RotateAllServerKeys: Types.Update;
 };

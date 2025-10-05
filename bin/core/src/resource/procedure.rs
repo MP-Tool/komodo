@@ -774,6 +774,13 @@ async fn validate_config(
             ));
           }
         }
+        Execution::RotateAllServerKeys(_params) => {
+          if !user.admin {
+            return Err(anyhow!(
+              "Non admin user cannot trigger rotate all server keys"
+            ));
+          }
+        }
         Execution::Sleep(_) => {}
       }
     }

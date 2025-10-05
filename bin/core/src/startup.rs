@@ -12,7 +12,8 @@ use komodo_client::{
   api::{
     auth::SignUpLocalUser,
     execute::{
-      BackupCoreDatabase, Execution, GlobalAutoUpdate, RunAction,
+      BackupCoreDatabase, Execution, GlobalAutoUpdate,
+      RotateAllServerKeys, RunAction,
     },
     write::{
       CreateBuilder, CreateProcedure, CreateServer, CreateTag,
@@ -418,6 +419,58 @@ async fn ensure_init_user_and_resources() {
     {
       warn!(
         "Failed to update global auto update Procedure tags / description | {:#}",
+        e.error
+      );
+    }
+  }.await;
+
+  // RotateAllServerKeys
+  async {
+    let Ok(config) = ProcedureConfig::builder()
+      .stages(vec![ProcedureStage {
+        name: String::from("Stage 1"),
+        enabled: true,
+        executions: vec![
+          EnabledExecution {
+            execution: Execution::RotateAllServerKeys(RotateAllServerKeys {}),
+            enabled: true
+          }
+        ]
+      }])
+      .schedule(String::from("Every day at 06:00"))
+      .build()
+      .inspect_err(|e| error!("Failed to initialize Server key rotation Procedure | Failed to build Procedure | {e:?}")) else {
+      return;
+    };
+    let procedure = match (CreateProcedure {
+      name: String::from("Rotate Server Keys"),
+      config: config.into(),
+    })
+    .resolve(&write_args)
+    .await
+    {
+      Ok(procedure) => procedure,
+      Err(e) => {
+        error!(
+          "Failed to initialize Server key rotation Procedure | Failed to create Procedure | {:#}",
+          e.error
+        );
+        return;
+      }
+    };
+    if let Err(e) = (UpdateResourceMeta {
+      target: ResourceTarget::Procedure(procedure.id),
+      tags: Some(default_tags.clone()),
+      description: Some(String::from(
+        "Rotates all currently connected Server keys.",
+      )),
+      template: None,
+    })
+    .resolve(&write_args)
+    .await
+    {
+      warn!(
+        "Failed to update Server key rotation Procedure tags / description | {:#}",
         e.error
       );
     }

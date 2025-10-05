@@ -58,7 +58,7 @@ pub fn load_maybe_generate_private_key(
     .with_context(|| format!("Invalid private key path: {path:?}"))?
   {
     // Already exists, load it
-    std::fs::read_to_string(&path).with_context(|| {
+    std::fs::read_to_string(path).with_context(|| {
       format!("Failed to read private key at {path:?}")
     })
   } else {
@@ -71,17 +71,9 @@ pub fn generate_write_keys(
   path: impl AsRef<Path>,
 ) -> anyhow::Result<EncodedKeyPair> {
   let path = path.as_ref();
-  // Ensure the parent directory exists
-  if let Some(parent) = path.parent() {
-    std::fs::create_dir_all(parent).with_context(|| {
-      format!(
-        "Failed to create private key parent directory {parent:?}"
-      )
-    })?;
-  }
   // Generate and write pems to path
   let keys = EncodedKeyPair::generate()?;
-  keys.private.write_pem(&path)?;
+  keys.private.write_pem(path)?;
   keys.public.write_pem(path.with_extension("pub"))?;
   Ok(keys)
 }

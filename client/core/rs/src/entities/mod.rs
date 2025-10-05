@@ -42,6 +42,8 @@ pub mod deployment;
 pub mod docker;
 /// Subtypes of [LogConfig][logger::LogConfig].
 pub mod logger;
+/// Subtypes of [CreationKey][creation_key::CreationKey]
+pub mod onboarding_key;
 /// Subtypes of [Permission][permission::Permission].
 pub mod permission;
 /// Subtypes of [Procedure][procedure::Procedure].
@@ -56,8 +58,6 @@ pub mod resource;
 pub mod schedule;
 /// Subtypes of [Server][server::Server].
 pub mod server;
-/// Subtypes of [CreationKey][creation_key::CreationKey]
-pub mod onboarding_key;
 /// Subtypes of [Stack][stack::Stack]
 pub mod stack;
 /// Subtypes for server stats reporting.
@@ -1173,6 +1173,7 @@ pub enum Operation {
   ClearRepoCache,
   BackupCoreDatabase,
   GlobalAutoUpdate,
+  RotateAllServerKeys,
 
   // variable
   CreateVariable,

@@ -163,6 +163,7 @@ pub enum Execution {
   ClearRepoCache(ClearRepoCache),
   BackupCoreDatabase(BackupCoreDatabase),
   GlobalAutoUpdate(GlobalAutoUpdate),
+  RotateAllServerKeys(RotateAllServerKeys),
 
   // SLEEP
   Sleep(Sleep),

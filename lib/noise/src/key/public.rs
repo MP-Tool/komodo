@@ -48,6 +48,14 @@ impl SpkiPublicKey {
     path: P,
   ) -> anyhow::Result<()> {
     let path = path.as_ref();
+    // Ensure the parent directory exists
+    if let Some(parent) = path.parent() {
+      std::fs::create_dir_all(parent).with_context(|| {
+        format!(
+          "Failed to create private key parent directory {parent:?}"
+        )
+      })?;
+    }
     tracing::info!("Writing public key to {path:?}");
     std::fs::write(path, self.as_pem()).with_context(|| {
       format!("Failed to write private key pem to {path:?}")

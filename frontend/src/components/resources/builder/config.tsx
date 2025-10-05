@@ -135,12 +135,6 @@ const AwsBuilderConfig = ({ id }: { id: string }) => {
             label: "Auth",
             labelHidden: true,
             components: {
-              core_private_key: {
-                label: "Core Private Key",
-                description:
-                  "Optional. A custom private key used to authenticate Periphery connection. The associated public key must match Periphery 'core_public_key'. If not provided, will use 'private_key' in Core config. Max length of 32 characters.",
-                placeholder: "custom-private-key",
-              },
               periphery_public_key: {
                 label: "Periphery Public Key",
                 description:
@@ -353,12 +347,6 @@ const UrlBuilderConfig = ({ id }: { id: string }) => {
             label: "Auth",
             labelHidden: true,
             components: {
-              core_private_key: {
-                label: "Core Private Key",
-                description:
-                  "Optional. A custom private key used to authenticate Periphery connection. The associated public key must match Periphery 'core_public_key'. If not provided, will use 'private_key' in Core config. Max length of 32 characters.",
-                placeholder: "custom-private-key",
-              },
               periphery_public_key: {
                 label: "Periphery Public Key",
                 description:

@@ -8,7 +8,7 @@ use crate::entities::update::Update;
 
 use super::KomodoExecuteRequest;
 
-/// Clears all repos from the Core repo cache. Admin only.
+/// **Admin only.** Clears all repos from the Core repo cache.
 /// Response: [Update]
 #[typeshare]
 #[derive(
@@ -26,8 +26,10 @@ use super::KomodoExecuteRequest;
 #[error(serror::Error)]
 pub struct ClearRepoCache {}
 
-/// Backs up the Komodo Core database to compressed jsonl files.
-/// Admin only. Response: [Update]
+//
+
+/// **Admin only.** Backs up the Komodo Core database to compressed jsonl files.
+/// Response: [Update]
 ///
 /// Mount a folder to `/backups`, and Core will use it to create
 /// timestamped database dumps, which can be restored using
@@ -50,9 +52,11 @@ pub struct ClearRepoCache {}
 #[error(serror::Error)]
 pub struct BackupCoreDatabase {}
 
-/// Trigger a global poll for image updates on Stacks and Deployments
+//
+
+/// **Admin only.** Trigger a global poll for image updates on Stacks and Deployments
 /// with `poll_for_updates` or `auto_update` enabled.
-/// Admin only. Response: [Update]
+/// Response: [Update]
 ///
 /// 1. `docker compose pull` any Stacks / Deployments with `poll_for_updates` or `auto_update` enabled. This will pick up any available updates.
 /// 2. Redeploy Stacks / Deployments that have updates found and 'auto_update' enabled.
@@ -71,3 +75,23 @@ pub struct BackupCoreDatabase {}
 #[response(Update)]
 #[error(serror::Error)]
 pub struct GlobalAutoUpdate {}
+
+//
+
+/// **Admin only.** Rotates all connected Server keys.
+/// Response: [Update]
+#[typeshare]
+#[derive(
+  Debug,
+  Clone,
+  PartialEq,
+  Serialize,
+  Deserialize,
+  Resolve,
+  EmptyTraits,
+  Parser,
+)]
+#[empty_traits(KomodoExecuteRequest)]
+#[response(Update)]
+#[error(serror::Error)]
+pub struct RotateAllServerKeys {}

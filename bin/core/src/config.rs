@@ -42,36 +42,6 @@ pub fn core_public_key() -> &'static String {
   })
 }
 
-pub fn periphery_public_keys() -> Option<&'static [SpkiPublicKey]> {
-  static PERIPHERY_PUBLIC_KEYS: OnceLock<Option<Vec<SpkiPublicKey>>> =
-    OnceLock::new();
-  PERIPHERY_PUBLIC_KEYS
-    .get_or_init(|| {
-      core_config().periphery_public_keys.as_ref().map(
-        |public_keys| {
-          public_keys
-            .iter()
-            .map(|public_key| {
-              let maybe_pem = if let Some(path) =
-                public_key.strip_prefix("file:")
-              {
-                std::fs::read_to_string(path)
-                  .with_context(|| {
-                    format!("Failed to read public key at {path:?}")
-                  })
-                  .unwrap()
-              } else {
-                public_key.clone()
-              };
-              SpkiPublicKey::from_maybe_pem(&maybe_pem).unwrap()
-            })
-            .collect()
-        },
-      )
-    })
-    .as_deref()
-}
-
 pub fn core_connection_query() -> &'static String {
   static CORE_HOSTNAME: OnceLock<String> = OnceLock::new();
   CORE_HOSTNAME.get_or_init(|| {
@@ -245,8 +215,6 @@ pub fn core_config() -> &'static CoreConfig {
       },
 
       // Non secrets
-      periphery_public_keys: env.komodo_periphery_public_keys
-        .or(config.periphery_public_keys),
       title: env.komodo_title.unwrap_or(config.title),
       host: env.komodo_host.unwrap_or(config.host),
       port: env.komodo_port.unwrap_or(config.port),

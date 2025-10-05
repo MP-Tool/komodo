@@ -1,16 +1,21 @@
-use std::sync::OnceLock;
+use std::{fmt::Write as _, sync::OnceLock};
 
 use anyhow::{Context, anyhow};
 use command::run_komodo_command;
 use database::mungos::{find::find_collect, mongodb::bson::doc};
 use formatting::{bold, format_serror};
+use futures::StreamExt;
 use komodo_client::{
-  api::execute::{
-    BackupCoreDatabase, ClearRepoCache, GlobalAutoUpdate,
+  api::{
+    execute::{
+      BackupCoreDatabase, ClearRepoCache, GlobalAutoUpdate,
+      RotateAllServerKeys,
+    },
+    write::RotateServerKeys,
   },
   entities::{
     deployment::DeploymentState, server::ServerState,
-    stack::StackState,
+    stack::StackState, user::system_user,
   },
 };
 use reqwest::StatusCode;
@@ -19,8 +24,9 @@ use serror::AddStatusCodeError;
 use tokio::sync::Mutex;
 
 use crate::{
-  api::execute::{
-    ExecuteArgs, pull_deployment_inner, pull_stack_inner,
+  api::{
+    execute::{ExecuteArgs, pull_deployment_inner, pull_stack_inner},
+    write::WriteArgs,
   },
   config::core_config,
   helpers::update::update_update,
@@ -311,6 +317,97 @@ impl Resolve<ExecuteArgs> for GlobalAutoUpdate {
       }
     }
 
+    update.finalize();
+    update_update(update.clone()).await?;
+
+    Ok(update)
+  }
+}
+
+//
+
+impl Resolve<ExecuteArgs> for RotateAllServerKeys {
+  async fn resolve(
+    self,
+    ExecuteArgs { user, update }: &ExecuteArgs,
+  ) -> Result<Self::Response, Self::Error> {
+    if !user.admin {
+      return Err(
+        anyhow!("This method is admin only.")
+          .status_code(StatusCode::FORBIDDEN),
+      );
+    }
+
+    let mut update = update.clone();
+
+    update_update(update.clone()).await?;
+
+    let mut servers = db_client()
+      .servers
+      .find(doc! { "config.enabled": true })
+      .await
+      .context("Failed to query servers from database")?;
+
+    let server_status_cache = server_status_cache();
+
+    let mut log = String::new();
+
+    while let Some(server) = servers.next().await {
+      let server = match server {
+        Ok(server) => server,
+        Err(e) => {
+          warn!("Failed to parse Server | {e:#}");
+          continue;
+        }
+      };
+      let Some(status) = server_status_cache.get(&server.id).await
+      else {
+        let _ = write!(
+          &mut log,
+          "\nSkipping {}: No Status ⚠️",
+          bold(&server.name)
+        );
+        continue;
+      };
+      if !matches!(status.state, ServerState::Ok) {
+        let _ = write!(
+          &mut log,
+          "\nSkipping {}: {} ⚠️",
+          bold(&server.name),
+          status.state
+        );
+        continue;
+      }
+      match (RotateServerKeys { server: server.id })
+        .resolve(&WriteArgs {
+          user: system_user().to_owned(),
+        })
+        .await
+      {
+        Ok(_) => {
+          let _ = write!(
+            &mut log,
+            "\nRotated keys for {} ✅",
+            bold(&server.name)
+          );
+        }
+        Err(e) => {
+          update.push_error_log(
+            "Key Rotation Failure",
+            format_serror(
+              &e.error
+                .context(format!(
+                  "Failed to rotate {} keys",
+                  bold(&server.name)
+                ))
+                .into(),
+            ),
+          );
+        }
+      }
+    }
+
+    update.push_simple_log("Rotate Server Keys", log);
     update.finalize();
     update_update(update.clone()).await?;
 

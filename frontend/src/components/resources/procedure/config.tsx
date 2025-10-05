@@ -134,7 +134,7 @@ export const ProcedureConfig = ({ id }: { id: string }) => {
     useRead("GetCoreInfo", {}).data?.ui_write_disabled ?? false;
   const [update, set] = useLocalStorage<Partial<Types.ProcedureConfig>>(
     `procedure-${id}-update-v1`,
-    {},
+    {}
   );
   const { mutateAsync } = useWrite("UpdateProcedure");
   const { integrations } = useWebhookIntegrations();
@@ -177,7 +177,7 @@ export const ProcedureConfig = ({ id }: { id: string }) => {
                         setStage={(stage) =>
                           set({
                             stages: stages.map((s, i) =>
-                              index === i ? stage : s,
+                              index === i ? stage : s
                             ),
                           })
                         }
@@ -557,7 +557,7 @@ const Stage = ({
                                 ].params,
                             },
                           } as Types.EnabledExecution)
-                        : item,
+                        : item
                     ),
                   })
                 }
@@ -589,7 +589,7 @@ const Stage = ({
                               ...item,
                               execution: { type, params },
                             }
-                          : item,
+                          : item
                       ) as Types.EnabledExecution[],
                     })
                   }
@@ -624,7 +624,7 @@ const Stage = ({
                     setStage({
                       ...stage,
                       executions: stage.executions!.filter(
-                        (_, i) => i !== index,
+                        (_, i) => i !== index
                       ),
                     })
                   }
@@ -651,7 +651,7 @@ const Stage = ({
                     setStage({
                       ...stage,
                       executions: stage.executions!.map((item, i) =>
-                        i === index ? { ...item, enabled: !enabled } : item,
+                        i === index ? { ...item, enabled: !enabled } : item
                       ),
                     })
                   }
@@ -676,7 +676,7 @@ const ExecutionTypeSelector = ({
   disabled: boolean;
 }) => {
   const execution_types = Object.keys(TARGET_COMPONENTS).filter(
-    (c) => !["None"].includes(c),
+    (c) => !["None"].includes(c)
   );
 
   const [open, setOpen] = useState(false);
@@ -1678,6 +1678,10 @@ const TARGET_COMPONENTS: ExecutionConfigs = {
     Component: () => <></>,
   },
   GlobalAutoUpdate: {
+    params: {},
+    Component: () => <></>,
+  },
+  RotateAllServerKeys: {
     params: {},
     Component: () => <></>,
   },

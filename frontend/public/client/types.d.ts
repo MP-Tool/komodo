@@ -457,6 +457,7 @@ export declare enum Operation {
     ClearRepoCache = "ClearRepoCache",
     BackupCoreDatabase = "BackupCoreDatabase",
     GlobalAutoUpdate = "GlobalAutoUpdate",
+    RotateAllServerKeys = "RotateAllServerKeys",
     CreateVariable = "CreateVariable",
     UpdateVariableValue = "UpdateVariableValue",
     DeleteVariable = "DeleteVariable",
@@ -1018,6 +1019,9 @@ export type Execution =
 } | {
     type: "GlobalAutoUpdate";
     params: GlobalAutoUpdate;
+} | {
+    type: "RotateAllServerKeys";
+    params: RotateAllServerKeys;
 } | {
     type: "Sleep";
     params: Sleep;
@@ -2245,12 +2249,6 @@ export interface ServerConfig {
      * Default: false
      */
     enabled: boolean;
-    /**
-     * An optional override private key to use
-     * to authenticate with Periphery agent.
-     * If this is empty, will use private key in core config.
-     */
-    core_private_key?: string;
     /**
      * The expected public key associated with
      * private key of the periphery agent.
@@ -4195,11 +4193,6 @@ export interface AwsBuilderConfig {
     /** The user data to deploy the instance with. */
     user_data?: string;
     /**
-     * A custom private key to use to authenticate with the Periphery agent.
-     * Otherwise, use the default Core private key.
-     */
-    core_private_key?: string;
-    /**
      * An expected public key associated with Periphery private key.
      * If empty, doesn't validate Periphery public key.
      */
@@ -4212,8 +4205,8 @@ export interface AwsBuilderConfig {
     secrets?: string[];
 }
 /**
- * Backs up the Komodo Core database to compressed jsonl files.
- * Admin only. Response: [Update]
+ * **Admin only.** Backs up the Komodo Core database to compressed jsonl files.
+ * Response: [Update]
  *
  * Mount a folder to `/backups`, and Core will use it to create
  * timestamped database dumps, which can be restored using
@@ -4460,7 +4453,7 @@ export interface CancelRepoBuild {
     repo: string;
 }
 /**
- * Clears all repos from the Core repo cache. Admin only.
+ * **Admin only.** Clears all repos from the Core repo cache.
  * Response: [Update]
  */
 export interface ClearRepoCache {
@@ -6393,9 +6386,9 @@ export interface GetVersionResponse {
     version: string;
 }
 /**
- * Trigger a global poll for image updates on Stacks and Deployments
+ * **Admin only.** Trigger a global poll for image updates on Stacks and Deployments
  * with `poll_for_updates` or `auto_update` enabled.
- * Admin only. Response: [Update]
+ * Response: [Update]
  *
  * 1. `docker compose pull` any Stacks / Deployments with `poll_for_updates` or `auto_update` enabled. This will pick up any available updates.
  * 2. Redeploy Stacks / Deployments that have updates found and 'auto_update' enabled.
@@ -7397,10 +7390,16 @@ export interface RestartStack {
     services?: string[];
 }
 /**
- * Rotate the private key on the server.
+ * **Admin only.** Rotates all connected Server keys.
+ * Response: [Update]
+ */
+export interface RotateAllServerKeys {
+}
+/**
+ * Rotates the private / public keys for the server.
  * Response: [NoData]
  */
-export interface RotateServerPrivateKey {
+export interface RotateServerKeys {
     /** Server Id or name */
     server: string;
 }
@@ -8132,11 +8131,6 @@ export interface UrlBuilderConfig {
     /** The address of the Periphery agent */
     address: string;
     /**
-     * A custom private key to use to authenticate with the Periphery agent.
-     * Otherwise, use the default Core private key.
-     */
-    core_private_key?: string;
-    /**
      * An expected public key associated with Periphery private key.
      * If empty, doesn't validate Periphery public key.
      */
@@ -8403,6 +8397,9 @@ export type ExecuteRequest = {
 } | {
     type: "GlobalAutoUpdate";
     params: GlobalAutoUpdate;
+} | {
+    type: "RotateAllServerKeys";
+    params: RotateAllServerKeys;
 };
 /**
  * One representative IANA zone for each distinct base UTC offset in the tz database.
@@ -8989,8 +8986,8 @@ export type WriteRequest = {
     type: "DeleteAllTerminals";
     params: DeleteAllTerminals;
 } | {
-    type: "RotateServerPrivateKey";
-    params: RotateServerPrivateKey;
+    type: "RotateServerKeys";
+    params: RotateServerKeys;
 } | {
     type: "CreateStack";
     params: CreateStack;

@@ -230,6 +230,9 @@ pub async fn handle(
     Execution::GlobalAutoUpdate(data) => {
       println!("{}: {data:?}", "Data".dimmed())
     }
+    Execution::RotateAllServerKeys(data) => {
+      println!("{}: {data:?}", "Data".dimmed())
+    }
     Execution::Sleep(data) => {
       println!("{}: {data:?}", "Data".dimmed())
     }
@@ -491,6 +494,10 @@ pub async fn handle(
       .await
       .map(|u| ExecutionResult::Single(u.into())),
     Execution::GlobalAutoUpdate(request) => client
+      .execute(request)
+      .await
+      .map(|u| ExecutionResult::Single(u.into())),
+    Execution::RotateAllServerKeys(request) => client
       .execute(request)
       .await
       .map(|u| ExecutionResult::Single(u.into())),
