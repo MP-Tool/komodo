@@ -43,7 +43,8 @@ port = 9120
 bind_ip = "[::]"
 
 ## Default private key to use with Noise handshake to authenticate with Periphery agents.
-## Note. The private key used can be overridden for individual Servers / Builders.
+## If using `file:/path/to/file` and the file doesn't exist yet,
+## Core will generate and write new key to the path.
 ## Env: KOMODO_PRIVATE_KEY or KOMODO_PRIVATE_KEY_FILE
 ## Default: file:/config/keys/core.key
 private_key = "file:/config/keys/core.key"
@@ -53,18 +54,18 @@ private_key = "file:/config/keys/core.key"
 ## Env: KOMODO_PASSKEY
 # passkey = "default-passkey"
 
-## Ensure a server with this address exists on Core
-## upon first startup. Example: `https://periphery:8120`
-## Env: KOMODO_FIRST_SERVER
-## Optional, no default.
-# first_server = ""
-
 ## Give the first server a custom name.
-## If this is set but 'first_server' is not,
-## will assume inbound connection.
+## If this is set but 'first_server_address' is not,
+## will assume Periphery -> Core connection.
 ## Env: KOMODO_FIRST_SERVER_NAME
 ## Default: None
-# first_server_name = "Local"
+# first_server_name = "${HOSTNAME}"
+
+## Ensure a server with this address exists on Core
+## upon first startup. Example: `https://periphery:8120`
+## Env: KOMODO_FIRST_SERVER_ADDRESS
+## Optional, no default.
+# first_server_address = ""
 
 ## Disables write support on resources in the UI.
 ## This protects users that that would normally have write priviledges during their UI usage,

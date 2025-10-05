@@ -20,87 +20,6 @@
 ##   - YAML: https://it-tools.tech/toml-to-yaml
 ##   - JSON: https://it-tools.tech/toml-to-json
 
-########
-# AUTH #
-########
-
-## The private key used with the Noise handshake.
-## Env: PERIPHERY_PRIVATE_KEY or PERIPHERY_PRIVATE_KEY_FILE
-## Default: Random 32 bytes in memory. Changes every restart.
-private_key = "default-periphery-pk"
-
-## Accepted public keys to allow Core(s) to connect.
-## Periphery gains knowledge of the Core public key through the noise handshake.
-## If not provided, inbound connections will not be authenticated.
-## Env: PERIPHERY_CORE_PUBLIC_KEYS
-# core_public_keys = "sFIibtOSCFLQelO4b4x6VoYIddkRn9Tj1Nas2eR1ME0="
-
-## Deprecated. Legacy v1 compatibility.
-## Users should upgrade to private / public key authentication.
-## Env: PERIPHERY_PASSKEYS
-# passkeys = ["default-passkey"]
-
-#################
-# OUTBOUND MODE #
-#################
-
-## The address of Komodo Core. Must be reachable from this host.
-## If provided, Periphery will operate in outbound mode.
-## Env: PERIPHERY_CORE_ADDRESS
-## Default: None
-# core_address = "demo.komo.do"
-
-## The Server this Periphery agent should connect as.
-## Must match an existing Server name or id.
-## Env: PERIPHERY_CONNECT_AS
-## Default: None
-# connect_as = "server-name"
-
-################
-# INBOUND MODE #
-################
-
-## Enable the inbound connection server for
-## Core -> Periphery connection.
-## Env: PERIHERY_SERVER_ENABLED
-## Default: true
-server_enabled = true
-
-## Optional. The port the server runs on.
-## Env: PERIPHERY_PORT
-## Default: 8120
-port = 8120
-
-## The IP address the periphery server will bind to.
-## The default will allow it to accept external IPv4 and IPv6 connections.
-## Env: PERIPHERY_BIND_IP
-## Default: [::]
-bind_ip = "[::]"
-
-## Optional. Limit the ip addresses which can connect to Periphery.
-## Supports Ipv4 / Ipv6 addresses and subnets.
-## Examples: allowed_ips = ["::ffff:12.34.56.78", "10.0.10.0/24"]
-## Env: PERIPHERY_ALLOWED_IPS
-## Default: empty, which will not block any request by ip.
-allowed_ips = []
-
-## Enable HTTPS server using the given key and cert.
-## If true and a key / cert at the given paths are not found, 
-## self signed keys will be generated using openssl.
-## Env: PERIPHERY_SSL_ENABLED
-## Default: true
-ssl_enabled = true
-
-## Path to the ssl key.
-## Env: PERIPHERY_SSL_KEY_FILE
-## Default: ${root_directory}/ssl/key.pem
-# ssl_key_file = "/etc/komodo/ssl/key.pem"
-
-## Path to the ssl cert.
-## Env: PERIPHERY_SSL_CERT_FILE
-## Default: ${root_directory}/ssl/cert.pem
-# ssl_cert_file = "/etc/komodo/ssl/cert.pem"
-
 ###########
 # GENERAL #
 ###########
@@ -171,6 +90,92 @@ include_disk_mounts = []
 ## Env: PERIPHERY_EXCLUDE_DISK_MOUNTS
 ## Default: empty, which won't exclude any disks.
 exclude_disk_mounts = []
+
+########
+# AUTH #
+########
+
+## The private key used with the Noise handshake.
+## If using `file:/path/to/file` and the file doesn't exist yet,
+## Periphery will generate and write new key to the path.
+## Env: PERIPHERY_PRIVATE_KEY or PERIPHERY_PRIVATE_KEY_FILE
+## Default: "file:${root_directory}/keys/periphery.key"
+## Image Default: "file:/config/keys/periphery.key" (matching Core image)
+# private_key = "file:/path/to/file"
+
+## Accepted public keys to allow Core(s) to connect.
+## Periphery gains knowledge of the Core public key through the noise handshake.
+## If neither these nor passkeys provided, inbound connections will not be authenticated.
+## Accepts Spki base64 DER directly and PEM file. Use `file:/path/to/core.pub` to load from file.
+## Env: PERIPHERY_CORE_PUBLIC_KEYS
+## Optional, no default.
+# core_public_keys = "MCowBQYDK2VuAyEATZgrjGHeF0KJUe0+n77+qAWOg3YzEzXOmQWaRgO3OGQ=, file:/path/to/key2.pub"
+
+## Deprecated. Legacy v1 compatibility.
+## Users should upgrade to private / public key authentication.
+## Env: PERIPHERY_PASSKEYS
+# passkeys = ["default-passkey"]
+
+#################
+# OUTBOUND MODE #
+#################
+
+## The address of Komodo Core. Must be reachable from this host.
+## If provided, Periphery will operate in outbound mode.
+## Env: PERIPHERY_CORE_ADDRESS
+## Default: None
+# core_address = "demo.komo.do"
+
+## The Server this Periphery agent should connect as.
+## Must match an existing Server name or id.
+## Env: PERIPHERY_CONNECT_AS
+## Default: None
+# connect_as = "server-name"
+
+################
+# INBOUND MODE #
+################
+
+## Enable the inbound connection server for
+## Core -> Periphery connection.
+## Env: PERIHERY_SERVER_ENABLED
+## Default: true
+server_enabled = true
+
+## Optional. The port the server runs on.
+## Env: PERIPHERY_PORT
+## Default: 8120
+port = 8120
+
+## The IP address the periphery server will bind to.
+## The default will allow it to accept external IPv4 and IPv6 connections.
+## Env: PERIPHERY_BIND_IP
+## Default: [::]
+bind_ip = "[::]"
+
+## Optional. Limit the ip addresses which can connect to Periphery.
+## Supports Ipv4 / Ipv6 addresses and subnets.
+## Examples: allowed_ips = ["::ffff:12.34.56.78", "10.0.10.0/24"]
+## Env: PERIPHERY_ALLOWED_IPS
+## Default: empty, which will not block any request by ip.
+allowed_ips = []
+
+## Enable HTTPS server using the given key and cert.
+## If true and a key / cert at the given paths are not found, 
+## self signed keys will be generated using openssl.
+## Env: PERIPHERY_SSL_ENABLED
+## Default: true
+ssl_enabled = true
+
+## Path to the ssl key.
+## Env: PERIPHERY_SSL_KEY_FILE
+## Default: ${root_directory}/ssl/key.pem
+# ssl_key_file = "/etc/komodo/ssl/key.pem"
+
+## Path to the ssl cert.
+## Env: PERIPHERY_SSL_CERT_FILE
+## Default: ${root_directory}/ssl/cert.pem
+# ssl_cert_file = "/etc/komodo/ssl/cert.pem"
 
 ###########
 # LOGGING #

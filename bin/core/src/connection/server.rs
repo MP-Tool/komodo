@@ -9,7 +9,7 @@ use axum::{
 use bytes::Bytes;
 use database::mungos::mongodb::bson::{doc, oid::ObjectId};
 use komodo_client::{
-  api::write::CreateServer,
+  api::write::{CreateServer, UpdateResourceMeta},
   entities::{
     onboarding_key::OnboardingKey,
     server::{PartialServerConfig, Server},
@@ -217,9 +217,10 @@ async fn onboard_server_handler(
       }
     };
 
-    let request = CreateServer { name: server_query, config, public_key: Some(public_key) };
     let args = WriteArgs { user: system_user().to_owned() };
-    let server = match request.resolve(&args).await {
+
+    let create = CreateServer { name: server_query, config, public_key: Some(public_key) };
+    let server = match create.resolve(&args).await {
       Ok(server) => server,
       Err(e) => {
         warn!("Server onboarding flow failed at Server creation | {:#}", e.error);
@@ -227,6 +228,23 @@ async fn onboard_server_handler(
           .send_error(&e.error)
           .await
           .context("Failed to send Server creation failed to client")
+        {
+          // Log additional error
+          warn!("{e:#}");
+        }
+        return;
+      }
+    };
+
+    let meta = UpdateResourceMeta { target: (&server).into(), tags: Some(onboarding_key.tags), description: None, template: None };
+    match meta.resolve(&args).await {
+      Ok(server) => server,
+      Err(e) => {
+        warn!("Server onboarding flow failed at Server meta update | {:#}", e.error);
+        if let Err(e) = socket
+          .send_error(&e.error)
+          .await
+          .context("Failed to send Server meta update failed to client")
         {
           // Log additional error
           warn!("{e:#}");
