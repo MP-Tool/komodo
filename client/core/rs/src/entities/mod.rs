@@ -36,8 +36,6 @@ pub mod build;
 pub mod builder;
 /// [core config][config::core] and [periphery config][config::periphery]
 pub mod config;
-/// Subtypes of [CreationKey][creation_key::CreationKey]
-pub mod server_onboarding_key;
 /// Subtypes of [Deployment][deployment::Deployment].
 pub mod deployment;
 /// Networks, Images, Containers.
@@ -58,6 +56,8 @@ pub mod resource;
 pub mod schedule;
 /// Subtypes of [Server][server::Server].
 pub mod server;
+/// Subtypes of [CreationKey][creation_key::CreationKey]
+pub mod onboarding_key;
 /// Subtypes of [Stack][stack::Stack]
 pub mod stack;
 /// Subtypes for server stats reporting.

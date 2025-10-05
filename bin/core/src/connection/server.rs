@@ -11,15 +11,13 @@ use database::mungos::mongodb::bson::{doc, oid::ObjectId};
 use komodo_client::{
   api::write::CreateServer,
   entities::{
+    onboarding_key::OnboardingKey,
     server::{Server, ServerConfig},
-    server_onboarding_key::ServerOnboardingKey,
     user::system_user,
   },
 };
 use resolver_api::Resolve;
-use serror::{
-  AddStatusCode, AddStatusCodeError, serialize_error_bytes,
-};
+use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
   MessageState, PeripheryConnectionQuery,
   auth::{
@@ -159,7 +157,7 @@ async fn onboard_server_handler(
       return;
     };
 
-    let creation_key = match ServerLoginFlow::login(LoginFlowArgs {
+    let onboarding_key = match ServerLoginFlow::login(LoginFlowArgs {
       socket: &mut socket,
       identifiers: identifiers.build(query.as_bytes()),
       private_key: core_private_key(),
@@ -167,19 +165,26 @@ async fn onboard_server_handler(
     })
     .await
     {
-      Ok(creation_key) => creation_key,
+      Ok(onboarding_key) => onboarding_key,
       Err(e) => {
-        debug!("Server {server_query} failed to onboard via creation key | {e:#}");
+        debug!("Server {server_query} failed to onboard | {e:#}");
         return;
       }
     };
 
-    // Post onboarding login 1: Receive public key
-    let periphery_public_key = match socket
-      .recv_bytes_with_timeout(Duration::from_secs(2))
+    let res = socket
+      .recv_bytes()
+      .with_timeout(Duration::from_secs(2))
       .await
-      .and_then(|public_key_bytes| String::from_utf8(public_key_bytes.into())
-      .context("Public key bytes are not valid utf8"))
+      .and_then(|res| {
+        res.and_then(|public_key_bytes| {
+          String::from_utf8(public_key_bytes.into())
+            .context("Public key bytes are not valid utf8")
+        })
+      });
+
+    // Post onboarding login 1: Receive public key
+    let periphery_public_key = match res
     {
       Ok(public_key_bytes) => public_key_bytes,
       Err(e) => {
@@ -187,56 +192,94 @@ async fn onboard_server_handler(
         return;
       }
     };
-    
-    let config = ServerConfig {
-      periphery_public_key,
-      enabled: true,
-      ..creation_key.default_config
+
+    let config = if onboarding_key.copy_server.is_empty() {
+      ServerConfig {
+        periphery_public_key,
+        enabled: true,
+        ..Default::default()
+      }
+    } else {
+      let config = match db_client().servers.find_one(id_or_name_filter(&onboarding_key.copy_server)).await {
+        Ok(Some(server)) => server.config,
+        Ok(None) => {
+          warn!("Server onboarding: Failed to find Server {}", onboarding_key.copy_server);
+          Default::default()
+        }
+        Err(e) => {
+          warn!("Failed to query database for onboarding key 'copy_server' | {e:?}");
+          Default::default()
+        }
+      };
+      ServerConfig {
+        periphery_public_key,
+        enabled: true,
+        address: String::new(),
+        ..config
+      }
     };
 
     let request = CreateServer { name: server_query, config: config.into() };
-    if let Err(e) = request.resolve(&WriteArgs { user: system_user().to_owned() }).await {
-      warn!("Server onboarding flow failed at Server creation | {:#}", e.error);
-      let mut bytes = serialize_error_bytes(&e.error);
-      bytes.push(MessageState::Failed.as_byte());
-      if let Err(e) = socket
-        .send(bytes.into())
-        .await
-        .context("Failed to send Server creation failed to client")
-      {
-        // Log additional error
-        warn!("{e:#}");
-      }
-    } else {
-      if let Err(e) = socket
-        .send(MessageState::Successful.into())
-        .await
-        .context("Failed to send Server creation successful to client")
-      {
-        // Log additional error
-        warn!("{e:#}");
+    let server = match request.resolve(&WriteArgs { user: system_user().to_owned() }).await {
+      Ok(server) => server,
+      Err(e) => {
+        warn!("Server onboarding flow failed at Server creation | {:#}", e.error);
+        if let Err(e) = socket
+          .send_error(&e.error)
+          .await
+          .context("Failed to send Server creation failed to client")
+        {
+          // Log additional error
+          warn!("{e:#}");
+        }
+        return;
       }
     };
+
+    if let Err(e) = socket
+      .send(MessageState::Successful.into())
+      .await
+      .context("Failed to send Server creation successful to client")
+    {
+      // Log additional error
+      warn!("{e:#}");
+    }
 
     // Server created, close and trigger reconnect
     // and handling using existing server handler.
     let _ = socket.close(None).await;
+
+    // Add the server to onboarding key "Onboarded"
+    let res = db_client()
+      .onboarding_keys
+      .update_one(
+        doc! { "public_key": &onboarding_key.public_key },
+        doc! { "$push": { "onboarded": server.id } },
+      ).await;
+    if let Err(e) = res {
+      warn!("Failed to update onboarding key 'onboarded' | {e:?}");
+    }
   }))
 }
 
 struct CreationKeyValidator;
 
 impl PublicKeyValidator for CreationKeyValidator {
-  type ValidationResult = ServerOnboardingKey;
+  type ValidationResult = OnboardingKey;
   async fn validate(
     &self,
     public_key: String,
   ) -> anyhow::Result<Self::ValidationResult> {
-    db_client()
-      .server_onboarding_keys
+    let onboarding_key = db_client()
+      .onboarding_keys
       .find_one(doc! { "public_key": &public_key })
       .await
       .context("Failed to query database for Server onboarding keys")?
-      .context("Matching Server onboarding key not found")
+      .context("Matching Server onboarding key not found")?;
+    if onboarding_key.enabled {
+      Ok(onboarding_key)
+    } else {
+      Err(anyhow!("Onboarding key is disabled"))
+    }
   }
 }

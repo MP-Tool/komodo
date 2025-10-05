@@ -3,20 +3,20 @@ use resolver_api::Resolve;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
-use crate::entities::server_onboarding_key::ServerOnboardingKey;
+use crate::entities::onboarding_key::OnboardingKey;
 
 use super::KomodoReadRequest;
 
-/// **Admin only.** Gets list of creation keys.
-/// Response: [ListServerOnboardingKeysResponse]
+/// **Admin only.** Gets list of onboarding keys.
+/// Response: [ListOnboardingKeysResponse]
 #[typeshare]
 #[derive(
   Debug, Clone, Serialize, Deserialize, Resolve, EmptyTraits,
 )]
 #[empty_traits(KomodoReadRequest)]
-#[response(ListServerOnboardingKeysResponse)]
+#[response(ListOnboardingKeysResponse)]
 #[error(serror::Error)]
-pub struct ListServerOnboardingKeys {}
+pub struct ListOnboardingKeys {}
 
 #[typeshare]
-pub type ListServerOnboardingKeysResponse = Vec<ServerOnboardingKey>;
+pub type ListOnboardingKeysResponse = Vec<OnboardingKey>;

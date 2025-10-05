@@ -23,12 +23,21 @@ import {
 } from "@ui/dropdown-menu";
 import { Section } from "@components/layouts";
 import { DataTable, SortableHeader } from "@ui/data-table";
-import { fmt_date } from "@lib/formatting";
+import { fmt_date_with_minutes } from "@lib/formatting";
+import { Switch } from "@ui/switch";
 
 export const Onboarding = () => {
   useSetTitle("Onboarding");
-  const { data } = useRead("ListServerOnboardingKeys", {});
+  const { toast } = useToast();
+  const { data } = useRead("ListOnboardingKeys", {});
   const keys = data ?? [];
+  const invalidate = useInvalidate();
+  const { mutate } = useWrite("UpdateOnboardingKey", {
+    onSuccess: () => {
+      invalidate(["ListOnboardingKeys"]);
+      toast({ title: "Updated onboarding key" });
+    },
+  });
   return (
     <Section
       title="Server Onboarding Keys"
@@ -54,7 +63,7 @@ export const Onboarding = () => {
             ),
             cell: ({ row }) =>
               row.original.expires
-                ? fmt_date(new Date(row.original.expires))
+                ? fmt_date_with_minutes(new Date(row.original.expires))
                 : "Never",
           },
           {
@@ -62,7 +71,22 @@ export const Onboarding = () => {
             header: ({ column }) => (
               <SortableHeader column={column} title="Created At" />
             ),
-            cell: ({ row }) => fmt_date(new Date(row.original.created_at)),
+            cell: ({ row }) =>
+              fmt_date_with_minutes(new Date(row.original.created_at)),
+          },
+          {
+            accessorKey: "enabled",
+            header: ({ column }) => (
+              <SortableHeader column={column} title="Enabled" />
+            ),
+            cell: ({ row }) => (
+              <Switch
+                checked={row.original.enabled}
+                onCheckedChange={(enabled) =>
+                  mutate({ public_key: row.original.public_key, enabled })
+                }
+              />
+            ),
           },
           {
             accessorKey: "public_key",
@@ -89,10 +113,10 @@ const CreateKey = () => {
   const [expires, setExpires] = useState<ExpiresOptions>("never");
   const [submitted, setSubmitted] = useState<{ private_key: string }>();
   const invalidate = useInvalidate();
-  const { mutate, isPending } = useWrite("CreateServerOnboardingKey", {
+  const { mutate, isPending } = useWrite("CreateOnboardingKey", {
     onSuccess: ({ private_key }) => {
       toast({ title: "Onboarding Key Created" });
-      invalidate(["ListServerOnboardingKeys"]);
+      invalidate(["ListOnboardingKeys"]);
       setSubmitted({ private_key });
     },
   });
@@ -135,7 +159,7 @@ const CreateKey = () => {
             </DialogHeader>
             <div className="py-8 flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                Private Key
+                Key
                 <Input
                   className="w-72"
                   value={submitted.private_key}
@@ -170,7 +194,7 @@ const CreateKey = () => {
                 />
               </div>
               <div className="flex items-center justify-between">
-                Key
+                Pre-Existing Key
                 <Input
                   className="w-72"
                   value={privateKey}
@@ -232,9 +256,9 @@ const CreateKey = () => {
 const DeleteKey = ({ public_key }: { public_key: string }) => {
   const invalidate = useInvalidate();
   const { toast } = useToast();
-  const { mutate, isPending } = useWrite("DeleteServerOnboardingKey", {
+  const { mutate, isPending } = useWrite("DeleteOnboardingKey", {
     onSuccess: () => {
-      invalidate(["ListServerOnboardingKeys"]);
+      invalidate(["ListOnboardingKeys"]);
       toast({ title: "Onboarding Key Deleted" });
     },
   });

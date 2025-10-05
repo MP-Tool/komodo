@@ -1,7 +1,8 @@
 use komodo_client::entities::{
   docker::{
     image::{Image, ImageHistoryResponseItem},
-    network::Network, volume::Volume,
+    network::Network,
+    volume::Volume,
   },
   update::Log,
 };

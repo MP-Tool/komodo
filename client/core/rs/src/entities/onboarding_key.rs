@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
-use crate::entities::server::ServerConfig;
-
 use super::I64;
 
 /// An public key used to authenticate new Periphery -> Core connections
@@ -17,10 +15,14 @@ use super::I64;
   feature = "mongo",
   derive(mongo_indexed::derive::MongoIndexed)
 )]
-pub struct ServerOnboardingKey {
+pub struct OnboardingKey {
   /// Unique public key associated the creation private key.
   #[cfg_attr(feature = "mongo", unique_index)]
   pub public_key: String,
+
+  /// Disable the onboarding key when not in use.
+  #[cfg_attr(feature = "mongo", index)]
+  pub enabled: bool,
 
   /// Name associated with the api key for management
   pub name: String,
@@ -35,8 +37,9 @@ pub struct ServerOnboardingKey {
   pub expires: I64,
 
   /// Default tags to give to Servers created with this key.
-  pub default_tags: Vec<String>,
+  pub tags: Vec<String>,
 
-  /// The default [ServerConfig] to give to these Servers.
-  pub default_config: ServerConfig,
+  /// Optional. If specified, copy this Server config when initializing
+  /// the Server.
+  pub copy_server: String,
 }

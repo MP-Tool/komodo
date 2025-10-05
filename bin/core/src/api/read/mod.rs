@@ -40,7 +40,6 @@ mod alert;
 mod alerter;
 mod build;
 mod builder;
-mod server_onboarding_key;
 mod deployment;
 mod permission;
 mod procedure;
@@ -48,6 +47,7 @@ mod provider;
 mod repo;
 mod schedule;
 mod server;
+mod onboarding_key;
 mod stack;
 mod sync;
 mod tag;
@@ -230,8 +230,8 @@ enum ReadRequest {
   GetDockerRegistryAccount(GetDockerRegistryAccount),
   ListDockerRegistryAccounts(ListDockerRegistryAccounts),
 
-  // ==== SERVER ONBOARDING KEY ====
-  ListServerOnboardingKeys(ListServerOnboardingKeys),
+  // ==== ONBOARDING KEY ====
+  ListOnboardingKeys(ListOnboardingKeys),
 }
 
 pub fn router() -> Router {

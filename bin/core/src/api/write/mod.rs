@@ -23,13 +23,13 @@ mod alerter;
 mod build;
 mod builder;
 mod deployment;
+mod onboarding_key;
 mod permissions;
 mod procedure;
 mod provider;
 mod repo;
 mod resource;
 mod server;
-mod server_onboarding_key;
 mod service_user;
 mod stack;
 mod sync;
@@ -194,9 +194,10 @@ pub enum WriteRequest {
   UpdateDockerRegistryAccount(UpdateDockerRegistryAccount),
   DeleteDockerRegistryAccount(DeleteDockerRegistryAccount),
 
-  // ==== SERVER ONBOARDING KEY ====
-  CreateServerOnboardingKey(CreateServerOnboardingKey),
-  DeleteServerOnboardingKey(DeleteServerOnboardingKey),
+  // ==== ONBOARDING KEY ====
+  CreateOnboardingKey(CreateOnboardingKey),
+  UpdateOnboardingKey(UpdateOnboardingKey),
+  DeleteOnboardingKey(DeleteOnboardingKey),
 }
 
 pub fn router() -> Router {

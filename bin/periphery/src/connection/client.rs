@@ -70,8 +70,9 @@ pub async fn handler(
     // Receive whether to use Server connection flow vs Server onboarding flow.
 
     let flow_bytes = match socket
-      .recv_bytes_with_timeout(Duration::from_secs(2))
-      .await
+      .recv_bytes()
+      .with_timeout(Duration::from_secs(2))
+      .await?
       .context("Failed to receive login flow indicator")
     {
       Ok(flow_bytes) => flow_bytes,
@@ -186,8 +187,9 @@ async fn handle_onboarding(
     .context("Failed to send public key bytes")?;
 
   let res = socket
-    .recv_bytes_with_timeout(Duration::from_secs(2))
-    .await
+    .recv_bytes()
+    .with_timeout(Duration::from_secs(2))
+    .await?
     .context("Failed to receive Server creation result")?;
 
   match res.last().map(|byte| MessageState::from_byte(*byte)) {

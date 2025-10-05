@@ -9,7 +9,8 @@ use tokio_tungstenite::{
 };
 
 use super::{
-  Websocket, WebsocketMessage, WebsocketReceiver, WebsocketSender,
+  MaybeWithTimeout, Websocket, WebsocketMessage, WebsocketReceiver,
+  WebsocketSender,
 };
 
 pub type InnerWebsocket = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -28,10 +29,19 @@ impl Websocket for TungsteniteWebsocket {
     )
   }
 
-  async fn recv(
+  fn recv(
     &mut self,
-  ) -> Result<WebsocketMessage<Self::CloseFrame>, Self::Error> {
-    try_next(&mut self.0).await
+  ) -> MaybeWithTimeout<
+    impl Future<
+      Output = Result<
+        WebsocketMessage<Self::CloseFrame>,
+        Self::Error,
+      >,
+    >,
+  > {
+    MaybeWithTimeout {
+      inner: try_next(&mut self.0),
+    }
   }
 
   async fn send(

@@ -254,6 +254,14 @@ impl super::KomodoResource for Server {
       .await
       .context("failed to close deleted server alerts")?;
 
+    let _ = db_client()
+      .onboarding_keys
+      .update_many(
+        doc! { "onboarded": &id },
+        doc! { "$pull": { "onboarded": &id } },
+      )
+      .await;
+
     Ok(())
   }
 

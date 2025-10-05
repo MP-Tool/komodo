@@ -104,8 +104,9 @@ impl PeripheryConnection {
   ) -> anyhow::Result<()> {
     // Get the required auth type
     let bytes = socket
-      .recv_bytes_with_timeout(Duration::from_secs(2))
-      .await
+      .recv_bytes()
+      .with_timeout(Duration::from_secs(2))
+      .await?
       .context("Failed to receive login type indicator")?;
 
     match bytes.iter().as_slice() {

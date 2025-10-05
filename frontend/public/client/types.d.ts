@@ -1265,90 +1265,6 @@ export type DeleteApiKeyResponse = NoData;
 export type DeleteBuildWebhookResponse = NoData;
 export type DeleteDockerRegistryAccountResponse = DockerRegistryAccount;
 export type DeleteGitProviderAccountResponse = GitProviderAccount;
-export type DeleteProcedureResponse = Procedure;
-export type DeleteRepoWebhookResponse = NoData;
-/** Server configuration. */
-export interface ServerConfig {
-    /**
-     * The ws/s address of the periphery client.
-     * If unset, Server expects Periphery -> Core connection.
-     */
-    address?: string;
-    /**
-     * The address to use with links for containers on the server.
-     * If empty, will use the 'address' for links.
-     */
-    external_address?: string;
-    /** An optional region label */
-    region?: string;
-    /**
-     * Whether a server is enabled.
-     * If a server is disabled,
-     * you won't be able to perform any actions on it or see deployment's status.
-     * Default: false
-     */
-    enabled: boolean;
-    /**
-     * An optional override private key to use
-     * to authenticate with Periphery agent.
-     * If this is empty, will use private key in core config.
-     */
-    core_private_key?: string;
-    /**
-     * The expected public key associated with
-     * private key of the periphery agent.
-     * If this is empty, falls back to 'periphery_public_key'
-     */
-    periphery_public_key?: string;
-    /**
-     * Deprecated. Use private / public keys instead.
-     * An optional override passkey to use
-     * to authenticate with periphery agent.
-     * If this is empty, will use passkey in core config.
-     */
-    passkey?: string;
-    /**
-     * Sometimes the system stats reports a mount path that is not desired.
-     * Use this field to filter it out from the report.
-     */
-    ignore_mounts?: string[];
-    /**
-     * Whether to monitor any server stats beyond passing health check.
-     * default: true
-     */
-    stats_monitoring: boolean;
-    /**
-     * Whether to trigger 'docker image prune -a -f' every 24 hours.
-     * default: true
-     */
-    auto_prune: boolean;
-    /** Configure quick links that are displayed in the resource header */
-    links?: string[];
-    /** Whether to send alerts about the servers reachability */
-    send_unreachable_alerts: boolean;
-    /** Whether to send alerts about the servers CPU status */
-    send_cpu_alerts: boolean;
-    /** Whether to send alerts about the servers MEM status */
-    send_mem_alerts: boolean;
-    /** Whether to send alerts about the servers DISK status */
-    send_disk_alerts: boolean;
-    /** Whether to send alerts about the servers version mismatch with core */
-    send_version_mismatch_alerts: boolean;
-    /** The percentage threshhold which triggers WARNING state for CPU. */
-    cpu_warning: number;
-    /** The percentage threshhold which triggers CRITICAL state for CPU. */
-    cpu_critical: number;
-    /** The percentage threshhold which triggers WARNING state for MEM. */
-    mem_warning: number;
-    /** The percentage threshhold which triggers CRITICAL state for MEM. */
-    mem_critical: number;
-    /** The percentage threshhold which triggers WARNING state for DISK. */
-    disk_warning: number;
-    /** The percentage threshhold which triggers CRITICAL state for DISK. */
-    disk_critical: number;
-    /** Scheduled maintenance windows during which alerts will be suppressed. */
-    maintenance_windows?: MaintenanceWindow[];
-}
 /**
  * An public key used to authenticate new Periphery -> Core connections
  * to join Komodo as a newly created Server.
@@ -1357,9 +1273,11 @@ export interface ServerConfig {
  * While the public key is stored, the private key will only be returned to the user,
  * The private key will not be stored or available afterwards, just like the api key "secret".
  */
-export interface ServerOnboardingKey {
+export interface OnboardingKey {
     /** Unique public key associated the creation private key. */
     public_key: string;
+    /** Disable the onboarding key when not in use. */
+    enabled: boolean;
     /** Name associated with the api key for management */
     name: string;
     /** The [Server](crate::entities::server::Server) ids onboarded by this Creation Key */
@@ -1369,11 +1287,16 @@ export interface ServerOnboardingKey {
     /** Expiry of key, or 0 if never expires */
     expires: I64;
     /** Default tags to give to Servers created with this key. */
-    default_tags: string[];
-    /** The default [ServerConfig] to give to these Servers. */
-    default_config: ServerConfig;
+    tags: string[];
+    /**
+     * Optional. If specified, copy this Server config when initializing
+     * the Server.
+     */
+    copy_server: string;
 }
-export type DeleteServerOnboardingKeyResponse = ServerOnboardingKey;
+export type DeleteOnboardingKeyResponse = OnboardingKey;
+export type DeleteProcedureResponse = Procedure;
+export type DeleteRepoWebhookResponse = NoData;
 export type DeleteStackWebhookResponse = NoData;
 export type DeleteSyncWebhookResponse = NoData;
 export type DeleteUserResponse = User;
@@ -2301,6 +2224,88 @@ export interface ServerActionState {
     stopping_containers: boolean;
 }
 export type GetServerActionStateResponse = ServerActionState;
+/** Server configuration. */
+export interface ServerConfig {
+    /**
+     * The ws/s address of the periphery client.
+     * If unset, Server expects Periphery -> Core connection.
+     */
+    address?: string;
+    /**
+     * The address to use with links for containers on the server.
+     * If empty, will use the 'address' for links.
+     */
+    external_address?: string;
+    /** An optional region label */
+    region?: string;
+    /**
+     * Whether a server is enabled.
+     * If a server is disabled,
+     * you won't be able to perform any actions on it or see deployment's status.
+     * Default: false
+     */
+    enabled: boolean;
+    /**
+     * An optional override private key to use
+     * to authenticate with Periphery agent.
+     * If this is empty, will use private key in core config.
+     */
+    core_private_key?: string;
+    /**
+     * The expected public key associated with
+     * private key of the periphery agent.
+     * If this is empty, falls back to 'periphery_public_key'
+     */
+    periphery_public_key?: string;
+    /**
+     * Deprecated. Use private / public keys instead.
+     * An optional override passkey to use
+     * to authenticate with periphery agent.
+     * If this is empty, will use passkey in core config.
+     */
+    passkey?: string;
+    /**
+     * Sometimes the system stats reports a mount path that is not desired.
+     * Use this field to filter it out from the report.
+     */
+    ignore_mounts?: string[];
+    /**
+     * Whether to monitor any server stats beyond passing health check.
+     * default: true
+     */
+    stats_monitoring: boolean;
+    /**
+     * Whether to trigger 'docker image prune -a -f' every 24 hours.
+     * default: true
+     */
+    auto_prune: boolean;
+    /** Configure quick links that are displayed in the resource header */
+    links?: string[];
+    /** Whether to send alerts about the servers reachability */
+    send_unreachable_alerts: boolean;
+    /** Whether to send alerts about the servers CPU status */
+    send_cpu_alerts: boolean;
+    /** Whether to send alerts about the servers MEM status */
+    send_mem_alerts: boolean;
+    /** Whether to send alerts about the servers DISK status */
+    send_disk_alerts: boolean;
+    /** Whether to send alerts about the servers version mismatch with core */
+    send_version_mismatch_alerts: boolean;
+    /** The percentage threshhold which triggers WARNING state for CPU. */
+    cpu_warning: number;
+    /** The percentage threshhold which triggers CRITICAL state for CPU. */
+    cpu_critical: number;
+    /** The percentage threshhold which triggers WARNING state for MEM. */
+    mem_warning: number;
+    /** The percentage threshhold which triggers CRITICAL state for MEM. */
+    mem_critical: number;
+    /** The percentage threshhold which triggers WARNING state for DISK. */
+    disk_warning: number;
+    /** The percentage threshhold which triggers CRITICAL state for DISK. */
+    disk_critical: number;
+    /** Scheduled maintenance windows during which alerts will be suppressed. */
+    maintenance_windows?: MaintenanceWindow[];
+}
 export interface ServerInfo {
     /**
      * If a Periphery fails to authenticate to Core
@@ -3710,6 +3715,7 @@ export interface GitProvider {
     accounts: ProviderAccount[];
 }
 export type ListGitProvidersFromConfigResponse = GitProvider[];
+export type ListOnboardingKeysResponse = OnboardingKey[];
 export type UserTarget = 
 /** User Id */
 {
@@ -3879,7 +3885,6 @@ export interface Schedule {
 }
 export type ListSchedulesResponse = Schedule[];
 export type ListSecretsResponse = string[];
-export type ListServerOnboardingKeysResponse = ServerOnboardingKey[];
 export declare enum ServerState {
     /** Server health check passing. */
     Ok = "Ok",
@@ -4107,6 +4112,7 @@ export interface StackQuerySpecifics {
 export type StackQuery = ResourceQuery<StackQuerySpecifics>;
 export type UpdateDockerRegistryAccountResponse = DockerRegistryAccount;
 export type UpdateGitProviderAccountResponse = GitProviderAccount;
+export type UpdateOnboardingKeyResponse = OnboardingKey;
 export type UpdatePermissionOnResourceTypeResponse = NoData;
 export type UpdatePermissionOnTargetResponse = NoData;
 export type UpdateProcedureResponse = Procedure;
@@ -4983,6 +4989,39 @@ export interface CreateNetwork {
     /** The name of the network to create. */
     name: string;
 }
+/**
+ * **Admin only.** Create a Server onboarding key.
+ * Response: [CreateOnboardingKeyResponse].
+ *
+ * Note. The 'periphery_public_key' on default Server config will
+ * be overridden with the actual public key once its generated by Periphery
+ * as part of the onboarding flow.
+ */
+export interface CreateOnboardingKey {
+    /** The name for the creation key */
+    name: string;
+    /**
+     * A unix timestamp in millseconds specifying api key expire time.
+     * Default is 0, which means no expiry.
+     */
+    expires?: I64;
+    /**
+     * Optionally specify an existing private key, otherwise
+     * generate fresh key.
+     */
+    private_key?: string;
+    /** Default tags to apply to Servers created using this key. */
+    tags?: string[];
+    /** Optional. New Servers copy this Server's config. */
+    copy_server?: string;
+}
+/** The response for [CreateServerOnboardingKey] */
+export interface CreateOnboardingKeyResponse {
+    /** pkcs8 encoded private key */
+    private_key: string;
+    /** The created ServerOnboardingKey */
+    created: OnboardingKey;
+}
 /** Create a procedure. Response: [Procedure]. */
 export interface CreateProcedure {
     /** The name given to newly created build. */
@@ -5025,39 +5064,6 @@ export interface CreateServer {
     name: string;
     /** Optional partial config to initialize the server with. */
     config?: _PartialServerConfig;
-}
-/**
- * **Admin only.** Create a Server onboarding key.
- * Response: [CreateServerOnboardingKeyResponse].
- *
- * Note. The 'periphery_public_key' on default Server config will
- * be overridden with the actual public key once its generated by Periphery
- * as part of the onboarding flow.
- */
-export interface CreateServerOnboardingKey {
-    /** The name for the creation key */
-    name: string;
-    /**
-     * A unix timestamp in millseconds specifying api key expire time.
-     * Default is 0, which means no expiry.
-     */
-    expires?: I64;
-    /**
-     * Optionally specify an existing private key, otherwise
-     * generate fresh key.
-     */
-    private_key?: string;
-    /** Default tags to apply to Servers created using this key. */
-    default_tags?: string[];
-    /** Default config to apply to Servers created using this key */
-    default_config?: _PartialServerConfig;
-}
-/** The response for [CreateServerOnboardingKey] */
-export interface CreateServerOnboardingKeyResponse {
-    /** pkcs8 encoded private key */
-    private_key: string;
-    /** The created ServerOnboardingKey */
-    created: ServerOnboardingKey;
 }
 /**
  * **Admin only.** Create a service user.
@@ -5287,6 +5293,13 @@ export interface DeleteNetwork {
     name: string;
 }
 /**
+ * **Admin only.** Delete an onboarding key.
+ * Response: The deleted [OnboardingKey].
+ */
+export interface DeleteOnboardingKey {
+    public_key: string;
+}
+/**
  * Deletes the procedure at the given id, and returns the deleted procedure.
  * Response: [Procedure]
  */
@@ -5327,13 +5340,6 @@ export interface DeleteResourceSync {
 export interface DeleteServer {
     /** The id or name of the server to delete. */
     id: string;
-}
-/**
- * **Admin only.** Delete a creation key.
- * Response: The deleted [ServerOnboardingKey].
- */
-export interface DeleteServerOnboardingKey {
-    public_key: string;
 }
 /**
  * Deletes the stack at the given id, and returns the deleted stack.
@@ -6742,6 +6748,12 @@ export interface ListGitProvidersFromConfig {
     target?: ResourceTarget;
 }
 /**
+ * **Admin only.** Gets list of onboarding keys.
+ * Response: [ListOnboardingKeysResponse]
+ */
+export interface ListOnboardingKeys {
+}
+/**
  * List permissions for the calling user.
  * Does not include any permissions on UserGroups they may be a part of.
  * Response: [ListPermissionsResponse]
@@ -6783,12 +6795,6 @@ export interface ListSecrets {
      * providers available on that specific resource.
      */
     target?: ResourceTarget;
-}
-/**
- * **Admin only.** Gets list of creation keys.
- * Response: [ListServerOnboardingKeysResponse]
- */
-export interface ListServerOnboardingKeys {
 }
 /** List servers matching optional query. Response: [ListServersResponse]. */
 export interface ListServers {
@@ -7884,6 +7890,24 @@ export interface UpdateGitProviderAccount {
     account: _PartialGitProviderAccount;
 }
 /**
+ * **Admin only.** Delete an onboarding key.
+ * Response: The deleted [OnboardingKey].
+ */
+export interface UpdateOnboardingKey {
+    /** The onboarding public key. */
+    public_key: string;
+    /** Update the key enabled state. */
+    enabled?: boolean;
+    /** Update the key name */
+    name?: string;
+    /** Update the onboarding key expire time. */
+    expires?: I64;
+    /** Update the tags */
+    tags?: string[];
+    /** Update the copy server */
+    copy_server?: string;
+}
+/**
  * **Admin only.** Update a user or user groups base permission level on a resource type.
  * Response: [NoData].
  */
@@ -8815,8 +8839,8 @@ export type ReadRequest = {
     type: "ListDockerRegistryAccounts";
     params: ListDockerRegistryAccounts;
 } | {
-    type: "ListServerOnboardingKeys";
-    params: ListServerOnboardingKeys;
+    type: "ListOnboardingKeys";
+    params: ListOnboardingKeys;
 };
 /** The specific types of permission that a User or UserGroup can have on a resource. */
 export declare enum SpecificPermission {
@@ -9188,11 +9212,14 @@ export type WriteRequest = {
     type: "DeleteDockerRegistryAccount";
     params: DeleteDockerRegistryAccount;
 } | {
-    type: "CreateServerOnboardingKey";
-    params: CreateServerOnboardingKey;
+    type: "CreateOnboardingKey";
+    params: CreateOnboardingKey;
 } | {
-    type: "DeleteServerOnboardingKey";
-    params: DeleteServerOnboardingKey;
+    type: "UpdateOnboardingKey";
+    params: UpdateOnboardingKey;
+} | {
+    type: "DeleteOnboardingKey";
+    params: DeleteOnboardingKey;
 };
 export type WsLoginMessage = {
     type: "Jwt";

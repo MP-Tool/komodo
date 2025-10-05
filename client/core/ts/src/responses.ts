@@ -178,8 +178,8 @@ export type ReadResponses = {
   GetDockerRegistryAccount: Types.GetDockerRegistryAccountResponse;
   ListDockerRegistryAccounts: Types.ListDockerRegistryAccountsResponse;
 
-  // ==== SERVER ONBOARDING KEY ====
-  ListServerOnboardingKeys: Types.ListServerOnboardingKeysResponse;
+  // ==== ONBOARDING KEY ====
+  ListOnboardingKeys: Types.ListOnboardingKeysResponse;
 };
 
 export type WriteResponses = {
@@ -325,9 +325,10 @@ export type WriteResponses = {
   UpdateDockerRegistryAccount: Types.UpdateDockerRegistryAccountResponse;
   DeleteDockerRegistryAccount: Types.DeleteDockerRegistryAccountResponse;
 
-  // ==== SERVER ONBOARDING KEY ====
-  CreateServerOnboardingKey: Types.CreateServerOnboardingKeyResponse;
-  DeleteServerOnboardingKey: Types.DeleteServerOnboardingKeyResponse;
+  // ==== ONBOARDING KEY ====
+  CreateOnboardingKey: Types.CreateOnboardingKeyResponse;
+  UpdateOnboardingKey: Types.UpdateOnboardingKeyResponse;
+  DeleteOnboardingKey: Types.DeleteOnboardingKeyResponse;
 };
 
 export type ExecuteResponses = {

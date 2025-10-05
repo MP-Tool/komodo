@@ -14,7 +14,6 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use bytes::Bytes;
 use noise::{NoiseHandshake, key::SpkiPublicKey};
 use rand::RngCore;
-use serror::{deserialize_error_bytes, serialize_error_bytes};
 use sha2::{Digest, Sha256};
 use tracing::warn;
 
@@ -72,49 +71,32 @@ impl LoginFlow for ServerLoginFlow {
 
       // Receive and read handshake_m1
       let handshake_m1 = socket
-        .recv_bytes_with_timeout(AUTH_TIMEOUT)
-        .await
-        .context("Failed to get handshake_m1")?;
-      match MessageState::from_byte(
-        *handshake_m1.last().context("handshake_m1 is empty")?,
-      ) {
-        MessageState::Successful => handshake
-          .read_message(&handshake_m1[..(handshake_m1.len() - 1)])
-          .context("Failed to read handshake_m1")?,
-        _ => {
-          return Err(deserialize_error_bytes(
-            &handshake_m1[..(handshake_m1.len() - 1)],
-          ));
-        }
-      }
+        .recv_result()
+        .with_timeout(AUTH_TIMEOUT)
+        .await?
+        .context("Failed to get handshake_m1")??;
+      handshake
+        .read_message(&handshake_m1)
+        .context("Failed to read handshake_m1")?;
 
       // Send handshake_m2
-      let mut handshake_m2 = handshake
+      let handshake_m2 = handshake
         .next_message()
         .context("Failed to write handshake_m2")?;
-      handshake_m2.push(MessageState::Successful.as_byte());
       socket
-        .send(handshake_m2.into())
+        .send_data(handshake_m2, MessageState::Successful)
         .await
         .context("Failed to send handshake_m2")?;
 
       // Receive and read handshake_m3
       let handshake_m3 = socket
-        .recv_bytes_with_timeout(AUTH_TIMEOUT)
-        .await
-        .context("Failed to get handshake_m3")?;
-      match MessageState::from_byte(
-        *handshake_m3.last().context("handshake_m3 is empty")?,
-      ) {
-        MessageState::Successful => handshake
-          .read_message(&handshake_m3[..(handshake_m3.len() - 1)])
-          .context("Failed to read handshake_m3")?,
-        _ => {
-          return Err(deserialize_error_bytes(
-            &handshake_m3[..(handshake_m3.len() - 1)],
-          ));
-        }
-      }
+        .recv_result()
+        .with_timeout(AUTH_TIMEOUT)
+        .await?
+        .context("Failed to get handshake_m3")??;
+      handshake
+        .read_message(&handshake_m3)
+        .context("Failed to read handshake_m3")?;
 
       // Server now has client public key
       let public_key =
@@ -135,10 +117,8 @@ impl LoginFlow for ServerLoginFlow {
         Ok(res)
       }
       Err(e) => {
-        let mut bytes = serialize_error_bytes(&e);
-        bytes.push(MessageState::Failed.as_byte());
         if let Err(e) = socket
-          .send(bytes.into())
+          .send_error(&e)
           .await
           .context("Failed to send login failed to client")
         {
@@ -168,8 +148,9 @@ impl LoginFlow for ClientLoginFlow {
     let res = async {
       // Receive nonce from server
       let nonce = socket
-        .recv_bytes_with_timeout(AUTH_TIMEOUT)
-        .await
+        .recv_bytes()
+        .with_timeout(AUTH_TIMEOUT)
+        .await?
         .context("Failed to receive connection nonce")?;
 
       let mut handshake = NoiseHandshake::new_initiator(
@@ -181,32 +162,23 @@ impl LoginFlow for ClientLoginFlow {
       .context("Failed to inialize handshake")?;
 
       // Send handshake_m1
-      let mut handshake_m1 = handshake
+      let handshake_m1 = handshake
         .next_message()
         .context("Failed to write handshake m1")?;
-      handshake_m1.push(MessageState::Successful.as_byte());
       socket
-        .send(handshake_m1.into())
+        .send_data(handshake_m1, MessageState::Successful)
         .await
         .context("Failed to send handshake_m1")?;
 
       // Receive and read handshake_m2
       let handshake_m2 = socket
-        .recv_bytes_with_timeout(AUTH_TIMEOUT)
-        .await
-        .context("Failed to get handshake_m2")?;
-      match MessageState::from_byte(
-        *handshake_m2.last().context("handshake_m2 is empty")?,
-      ) {
-        MessageState::Successful => handshake
-          .read_message(&handshake_m2[..(handshake_m2.len() - 1)])
-          .context("Failed to read handshake_m2")?,
-        _ => {
-          return Err(deserialize_error_bytes(
-            &handshake_m2[..(handshake_m2.len() - 1)],
-          ));
-        }
-      }
+        .recv_result()
+        .with_timeout(AUTH_TIMEOUT)
+        .await?
+        .context("Failed to get handshake_m2")??;
+      handshake
+        .read_message(&handshake_m2)
+        .context("Failed to read handshake_m2")?;
 
       // Client now has server public key.
       // Perform validation before proceeding.
@@ -218,39 +190,32 @@ impl LoginFlow for ClientLoginFlow {
         public_key_validator.validate(public_key).await?;
 
       // Send handshake_m3
-      let mut handshake_m3 = handshake
+      let handshake_m3 = handshake
         .next_message()
         .context("Failed to write handshake_m3")?;
-      handshake_m3.push(MessageState::Successful.as_byte());
       socket
-        .send(handshake_m3.into())
+        .send_data(handshake_m3, MessageState::Successful)
         .await
         .context("Failed to send handshake_m3")?;
 
-      // Receive login state message and return based on value
-      let state_msg = socket
-        .recv_bytes_with_timeout(AUTH_TIMEOUT)
-        .await
-        .context("Failed to receive authentication state message")?;
-      let state = state_msg.last().context(
-        "Authentication state message did not contain state byte",
-      )?;
-      match MessageState::from_byte(*state) {
-        MessageState::Successful => anyhow::Ok(validation_result),
-        _ => Err(deserialize_error_bytes(
-          &state_msg[..(state_msg.len() - 1)],
-        )),
-      }
+      // Receive login sucessful
+      socket
+        .recv_result()
+        .with_timeout(AUTH_TIMEOUT)
+        .await?
+        .context(
+          "Failed to receive authentication state message",
+        )??;
+
+      anyhow::Ok(validation_result)
     }
     .await;
 
     match res {
       Ok(res) => Ok(res),
       Err(e) => {
-        let mut bytes = serialize_error_bytes(&e);
-        bytes.push(MessageState::Failed.as_byte());
         if let Err(e) = socket
-          .send(bytes.into())
+          .send_error(&e)
           .await
           .context("Failed to send login failed to client")
         {
