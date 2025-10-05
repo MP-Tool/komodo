@@ -90,7 +90,9 @@ impl Resolve<ReadArgs> for GetServersSummary {
           res.unhealthy += 1;
         }
         ServerState::Disabled => {
-          res.disabled += 1;
+          if !server.template {
+            res.disabled += 1;
+          }
         }
       }
     }

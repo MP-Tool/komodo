@@ -26,6 +26,7 @@ import { DataTable, SortableHeader } from "@ui/data-table";
 import { fmt_date_with_minutes } from "@lib/formatting";
 import { Switch } from "@ui/switch";
 import { ResourceSelector, TagSelector } from "@components/resources/common";
+import { Types } from "komodo_client";
 
 export const Onboarding = () => {
   useSetTitle("Onboarding");
@@ -64,7 +65,11 @@ export const Onboarding = () => {
         accessorKey: "copy_server",
         header: "Template",
         cell: ({ row }) => (
-          <ResourceSelector type="Server" selected={row.original.copy_server} />
+          <ResourceSelector
+            type="Server"
+            selected={row.original.copy_server}
+            templates={Types.TemplatesQueryBehavior.Include}
+          />
         ),
       },
       {

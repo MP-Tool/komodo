@@ -142,7 +142,11 @@ impl Resolve<ReadArgs> for GetReposSummary {
         }
         (RepoState::Ok, _) => res.ok += 1,
         (RepoState::Failed, _) => res.failed += 1,
-        (RepoState::Unknown, _) => res.unknown += 1,
+        (RepoState::Unknown, _) => {
+          if !repo.template {
+            res.unknown += 1
+          }
+        }
         // will never come off the cache in the building state, since that comes from action states
         (RepoState::Cloning, _)
         | (RepoState::Pulling, _)

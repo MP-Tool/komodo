@@ -366,7 +366,11 @@ impl Resolve<ReadArgs> for GetStacksSummary {
         StackState::Running => res.running += 1,
         StackState::Stopped | StackState::Paused => res.stopped += 1,
         StackState::Down => res.down += 1,
-        StackState::Unknown => res.unknown += 1,
+        StackState::Unknown => {
+          if !stack.template {
+            res.unknown += 1
+          }
+        }
         _ => res.unhealthy += 1,
       }
     }

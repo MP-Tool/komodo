@@ -325,7 +325,9 @@ impl Resolve<ReadArgs> for GetDeploymentsSummary {
           res.not_deployed += 1;
         }
         DeploymentState::Unknown => {
-          res.unknown += 1;
+          if !deployment.template {
+            res.unknown += 1;
+          }
         }
         _ => {
           res.unhealthy += 1;
