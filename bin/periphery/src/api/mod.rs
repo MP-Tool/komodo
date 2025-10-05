@@ -229,7 +229,7 @@ impl Resolve<Args> for PollStatus {
     Ok(PollStatusResponse {
       periphery_info: PeripheryInformation {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        public_key: periphery_public_key().to_string(),
+        public_key: periphery_public_key().load().to_string(),
         terminals_disabled: config.disable_terminals,
         container_exec_disabled: config.disable_container_exec,
         stats_polling_rate: config.stats_polling_rate,

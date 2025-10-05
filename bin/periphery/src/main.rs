@@ -27,7 +27,7 @@ async fn app() -> anyhow::Result<()> {
   }
 
   // Init + log public key. Will crash if invalid private key here.
-  info!("Public Key: {}", periphery_public_key());
+  info!("Public Key: {}", periphery_public_key().load());
 
   rustls::crypto::aws_lc_rs::default_provider()
     .install_default()
