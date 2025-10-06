@@ -67,19 +67,36 @@ pub fn periphery_public_keys() -> Option<&'static [SpkiPublicKey]> {
         |public_keys| {
           public_keys
             .iter()
-            .map(|public_key| {
-              let maybe_pem = if let Some(path) =
+            .flat_map(|public_key| {
+              let (path, maybe_pem) = if let Some(path) =
                 public_key.strip_prefix("file:")
               {
-                std::fs::read_to_string(path)
-                  .with_context(|| {
-                    format!("Failed to read public key at {path:?}")
-                  })
-                  .unwrap()
+                match std::fs::read_to_string(path).with_context(
+                  || format!("Failed to read periphery public key at {path:?}"),
+                ) {
+                  Ok(public_key) => (Some(path), public_key),
+                  Err(e) => {
+                    warn!("{e:#}");
+                    return None;
+                  }
+                }
               } else {
-                public_key.clone()
+                (None, public_key.clone())
               };
-              SpkiPublicKey::from_maybe_pem(&maybe_pem).unwrap()
+              match SpkiPublicKey::from_maybe_pem(&maybe_pem) {
+                Ok(public_key) => Some(public_key),
+                Err(e) => {
+                  warn!(
+                    "Failed to read periphery public key{} | {e:#}",
+                    if let Some(path) = path {
+                      format!("at {path:?}")
+                    } else {
+                      String::new()
+                    }
+                  );
+                  None
+                }
+              }
             })
             .collect()
         },
