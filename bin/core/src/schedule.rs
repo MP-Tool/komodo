@@ -46,10 +46,10 @@ pub fn spawn_schedule_executor() {
         match next_run {
           Ok(next_run_time) if current_time >= next_run_time => {
             tokio::spawn(async move {
-              match &target {
+              match target {
                 ResourceTarget::Action(id) => {
                   let action = match crate::resource::get::<Action>(
-                    id,
+                    &id,
                   )
                   .await
                   {
@@ -61,6 +61,24 @@ pub fn spawn_schedule_executor() {
                       return;
                     }
                   };
+
+                  if action.config.schedule_alert {
+                    let alert = Alert {
+                      id: Default::default(),
+                      target: ResourceTarget::Action(id.clone()),
+                      ts: komodo_timestamp(),
+                      resolved_ts: Some(komodo_timestamp()),
+                      resolved: true,
+                      level: SeverityLevel::Ok,
+                      data: AlertData::ScheduleRun {
+                        resource_type: ResourceTargetVariant::Action,
+                        id: id.clone(),
+                        name: action.name.clone(),
+                      },
+                    };
+                    send_alerts(&[alert]).await
+                  }
+
                   let request =
                     ExecuteRequest::RunAction(RunAction {
                       action: id.clone(),
@@ -80,10 +98,12 @@ pub fn spawn_schedule_executor() {
                       return;
                     }
                   };
+
                   let ExecuteRequest::RunAction(request) = request
                   else {
                     unreachable!()
                   };
+
                   if let Err(e) = request
                     .resolve(&ExecuteArgs {
                       user: action_user().to_owned(),
@@ -95,28 +115,13 @@ pub fn spawn_schedule_executor() {
                       "Scheduled action run on {id} failed | {e:?}"
                     );
                   }
+
                   update_schedule(&action);
-                  if action.config.schedule_alert {
-                    let alert = Alert {
-                      id: Default::default(),
-                      target,
-                      ts: komodo_timestamp(),
-                      resolved_ts: Some(komodo_timestamp()),
-                      resolved: true,
-                      level: SeverityLevel::Ok,
-                      data: AlertData::ScheduleRun {
-                        resource_type: ResourceTargetVariant::Action,
-                        id: action.id,
-                        name: action.name,
-                      },
-                    };
-                    send_alerts(&[alert]).await
-                  }
                 }
                 ResourceTarget::Procedure(id) => {
                   let procedure = match crate::resource::get::<
                     Procedure,
-                  >(id)
+                  >(&id)
                   .await
                   {
                     Ok(procedure) => procedure,
@@ -127,6 +132,25 @@ pub fn spawn_schedule_executor() {
                       return;
                     }
                   };
+
+                  if procedure.config.schedule_alert {
+                    let alert = Alert {
+                      id: Default::default(),
+                      target: ResourceTarget::Procedure(id.clone()),
+                      ts: komodo_timestamp(),
+                      resolved_ts: Some(komodo_timestamp()),
+                      resolved: true,
+                      level: SeverityLevel::Ok,
+                      data: AlertData::ScheduleRun {
+                        resource_type:
+                          ResourceTargetVariant::Procedure,
+                        id: id.clone(),
+                        name: procedure.name.clone(),
+                      },
+                    };
+                    send_alerts(&[alert]).await
+                  }
+
                   let request =
                     ExecuteRequest::RunProcedure(RunProcedure {
                       procedure: id.clone(),
@@ -145,6 +169,7 @@ pub fn spawn_schedule_executor() {
                       return;
                     }
                   };
+
                   let ExecuteRequest::RunProcedure(request) = request
                   else {
                     unreachable!()
@@ -160,24 +185,8 @@ pub fn spawn_schedule_executor() {
                       "Scheduled procedure run on {id} failed | {e:?}"
                     );
                   }
+
                   update_schedule(&procedure);
-                  if procedure.config.schedule_alert {
-                    let alert = Alert {
-                      id: Default::default(),
-                      target,
-                      ts: komodo_timestamp(),
-                      resolved_ts: Some(komodo_timestamp()),
-                      resolved: true,
-                      level: SeverityLevel::Ok,
-                      data: AlertData::ScheduleRun {
-                        resource_type:
-                          ResourceTargetVariant::Procedure,
-                        id: procedure.id,
-                        name: procedure.name,
-                      },
-                    };
-                    send_alerts(&[alert]).await
-                  }
                 }
                 _ => unreachable!(),
               }
