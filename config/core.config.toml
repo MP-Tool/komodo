@@ -49,6 +49,18 @@ bind_ip = "[::]"
 ## Default: file:/config/keys/core.key
 private_key = "file:/config/keys/core.key"
 
+## Default accepted public key to allow Periphery to connect.
+## If not provided, Periphery -> Core connected Servers must
+## configure accepted public keys individually.
+##
+## Accepts public keys files using `file:/path/to/periphery.pub`
+##
+## Note: If used, the public key can still be overridden on individual Servers / Builders
+##
+## Env: KOMODO_PERIPHERY_PUBLIC_KEY
+## Default: None
+# periphery_public_key = "file:/config/keys/periphery.pub"
+
 ## Deprecated. Legacy v1 compatibility.
 ## Users should upgrade to private / public key authentication.
 ## Env: KOMODO_PASSKEY
