@@ -85,6 +85,7 @@ pub async fn launch_ec2_instance(
     use_public_ip,
     user_data,
     periphery_public_key: _,
+    insecure_tls: _,
     port: _,
     use_https: _,
     git_providers: _,

@@ -34,6 +34,7 @@ pub struct PeripheryClient {
 impl PeripheryClient {
   pub async fn new(
     args: PeripheryConnectionArgs<'_>,
+    insecure_tls: bool,
     // deprecated.
     passkey: &str,
   ) -> anyhow::Result<PeripheryClient> {
@@ -47,7 +48,11 @@ impl PeripheryClient {
         return Err(anyhow!("Server {id} is not connected"));
       }
       let channels = args
-        .spawn_client_connection(id.clone(), passkey.to_string())
+        .spawn_client_connection(
+          id.clone(),
+          insecure_tls,
+          passkey.to_string(),
+        )
         .await?;
       return Ok(PeripheryClient { id, channels });
     };
@@ -77,7 +82,11 @@ impl PeripheryClient {
     } else {
       // Core -> Periphery connection
       let channels = args
-        .spawn_client_connection(id.clone(), passkey.to_string())
+        .spawn_client_connection(
+          id.clone(),
+          insecure_tls,
+          passkey.to_string(),
+        )
         .await?;
       Ok(PeripheryClient { id, channels })
     }

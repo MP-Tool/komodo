@@ -438,6 +438,7 @@ async fn get_on_host_periphery(
           &ObjectId::new().to_hex(),
           &config,
         ),
+        config.insecure_tls,
         &config.passkey,
       )
       .await?;

@@ -141,6 +141,9 @@ const AwsBuilderConfig = ({ id }: { id: string }) => {
                   "If provided, the associated private key must be set as Periphery 'private_key'. For Periphery -> Core connection, either this or using 'periphery_public_key' in Core config is required for Periphery to be able to connect.",
                 placeholder: "custom-public-key",
               },
+              insecure_tls: {
+                description: "Skip Periphery TLS certificate validation.",
+              },
             },
           },
           {
@@ -313,19 +316,24 @@ const ServerBuilderConfig = ({ id }: { id: string }) => {
 const UrlBuilderConfig = ({ id }: { id: string }) => {
   const { canWrite } = usePermissions({ type: "Builder", id });
   const config = useRead("GetBuilder", { builder: id }).data?.config;
+
   const [update, set] = useLocalStorage<Partial<Types.UrlBuilderConfig>>(
     `url-builder-${id}-update-v1`,
     {}
   );
   const { mutateAsync } = useWrite("UpdateBuilder");
+
   if (!config) return null;
 
   const disabled = !canWrite;
+  const params = config.params as Types.UrlBuilderConfig;
+  const address = update.address ?? params.address;
+  const tls_address = !!address && !address.startsWith("ws://");
 
   return (
     <Config
       disabled={disabled}
-      original={config.params as Types.UrlBuilderConfig}
+      original={params}
       update={update}
       set={set}
       onSave={async () => {
@@ -352,6 +360,10 @@ const UrlBuilderConfig = ({ id }: { id: string }) => {
                 description:
                   "If provided, the associated private key must be set as Periphery 'private_key'. For Periphery -> Core connection, either this or using 'periphery_public_key' in Core config is required for Periphery to be able to connect.",
                 placeholder: "custom-public-key",
+              },
+              insecure_tls: {
+                hidden: !tls_address,
+                description: "Skip Periphery TLS certificate validation.",
               },
             },
           },

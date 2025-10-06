@@ -194,6 +194,7 @@ pub async fn periphery_client(
   }
   PeripheryClient::new(
     PeripheryConnectionArgs::from_server(server),
+    server.config.insecure_tls,
     &server.config.passkey,
   )
   .await

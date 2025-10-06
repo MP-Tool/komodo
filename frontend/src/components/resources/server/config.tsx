@@ -40,6 +40,8 @@ export const ServerConfig = ({
   if (!config) return null;
 
   const disabled = global_disabled || !canWrite;
+  const address = update.address ?? config.address;
+  const tls_address = !!address && !address.startsWith("ws://");
 
   return (
     <Config
@@ -111,6 +113,10 @@ export const ServerConfig = ({
                 description:
                   "For Core -> Periphery connnection mode, specify address of periphery in your network.",
                 placeholder: "12.34.56.78:8120",
+              },
+              insecure_tls: {
+                hidden: !tls_address,
+                description: "Skip Periphery TLS certificate validation.",
               },
               external_address: {
                 description:

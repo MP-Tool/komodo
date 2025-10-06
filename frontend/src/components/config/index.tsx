@@ -90,6 +90,7 @@ export const ConfigLayout = <
 };
 
 export type PrimitiveConfigArgs = {
+  hidden?: boolean;
   placeholder?: string;
   label?: string;
   boldLabel?: boolean;
@@ -376,6 +377,7 @@ export const ConfigAgain = <
             typeof component === "object"
               ? (component as PrimitiveConfigArgs)
               : undefined;
+          if (args?.hidden) return null;
           switch (typeof value) {
             case "string":
               return (

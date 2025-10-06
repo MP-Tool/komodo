@@ -89,6 +89,15 @@ pub struct ServerConfig {
   #[builder(default)]
   pub address: String,
 
+  /// Only relevant for Core -> Periphery connections.
+  /// Whether to skip Periphery tls certificate validation.
+  /// This defaults to true because Periphery generates self-signed certificates by default,
+  /// but if you use valid certs you can switch this to false.
+  #[serde(default = "default_insecure_tls")]
+  #[builder(default = "default_insecure_tls()")]
+  #[partial_default(default_insecure_tls())]
+  pub insecure_tls: bool,
+
   /// The address to use with links for containers on the server.
   /// If empty, will use the 'address' for links.
   #[serde(default)]
@@ -228,6 +237,11 @@ impl ServerConfig {
   }
 }
 
+fn default_insecure_tls() -> bool {
+  // Peripheries use self signed certs by default
+  true
+}
+
 fn default_enabled() -> bool {
   false
 }
@@ -272,6 +286,7 @@ impl Default for ServerConfig {
   fn default() -> Self {
     Self {
       address: Default::default(),
+      insecure_tls: default_insecure_tls(),
       external_address: Default::default(),
       enabled: default_enabled(),
       ignore_mounts: Default::default(),

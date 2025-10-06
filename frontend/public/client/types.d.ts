@@ -2239,6 +2239,13 @@ export interface ServerConfig {
      */
     address?: string;
     /**
+     * Only relevant for Core -> Periphery connections.
+     * Whether to skip Periphery tls certificate validation.
+     * This defaults to true because Periphery generates self-signed certificates by default,
+     * but if you use valid certs you can switch this to false.
+     */
+    insecure_tls: boolean;
+    /**
      * The address to use with links for containers on the server.
      * If empty, will use the 'address' for links.
      */
@@ -4199,6 +4206,8 @@ export interface AwsBuilderConfig {
      * If empty, doesn't validate Periphery public key.
      */
     periphery_public_key?: string;
+    /** Whether to validate the Periphery tls certificates. */
+    insecure_tls: boolean;
     /** Which git providers are available on the AMI */
     git_providers?: GitProvider[];
     /** Which docker registries are available on the AMI. */
@@ -4208,7 +4217,7 @@ export interface AwsBuilderConfig {
 }
 /**
  * **Admin only.** Backs up the Komodo Core database to compressed jsonl files.
- * Response: [Update]
+ * Response: [Update]. Aliases: `backup-database`, `backup-db`, `backup`.
  *
  * Mount a folder to `/backups`, and Core will use it to create
  * timestamped database dumps, which can be restored using
@@ -6396,7 +6405,7 @@ export interface GetVersionResponse {
 /**
  * **Admin only.** Trigger a global poll for image updates on Stacks and Deployments
  * with `poll_for_updates` or `auto_update` enabled.
- * Response: [Update]
+ * Response: [Update]. Alias: `auto-update`.
  *
  * 1. `docker compose pull` any Stacks / Deployments with `poll_for_updates` or `auto_update` enabled. This will pick up any available updates.
  * 2. Redeploy Stacks / Deployments that have updates found and 'auto_update' enabled.
@@ -7399,7 +7408,7 @@ export interface RestartStack {
 }
 /**
  * **Admin only.** Rotates all connected Server keys.
- * Response: [Update]
+ * Response: [Update]. Alias: `rotate-keys`.
  */
 export interface RotateAllServerKeys {
 }
@@ -7570,7 +7579,10 @@ export interface SearchStackLog {
     /** Enable `--timestamps` */
     timestamps?: boolean;
 }
-/** Send a custom alert message to configured Alerters. Response: [Update] */
+/**
+ * Send a custom alert message to configured Alerters. Response: [Update].
+ * Alias: `alert`
+ */
 export interface SendAlert {
     /** The alert level. */
     level?: SeverityLevel;
@@ -8155,6 +8167,8 @@ export interface UrlBuilderConfig {
      * If empty, doesn't validate Periphery public key.
      */
     periphery_public_key?: string;
+    /** Whether to validate the Periphery tls certificates. */
+    insecure_tls: boolean;
     /**
      * Deprecated. Use private / public keys instead.
      * An optional override passkey to use

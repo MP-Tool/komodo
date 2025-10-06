@@ -25,6 +25,7 @@ impl PeripheryConnectionArgs<'_> {
   pub async fn spawn_client_connection(
     self,
     id: String,
+    insecure: bool,
     passkey: String,
   ) -> anyhow::Result<Arc<ConnectionChannels>> {
     let Some(address) = self.address else {
@@ -48,7 +49,7 @@ impl PeripheryConnectionArgs<'_> {
         let ws = tokio::select! {
           ws = TungsteniteWebsocket::connect_maybe_tls_insecure(
             &endpoint,
-            endpoint.starts_with("wss"),
+            insecure && endpoint.starts_with("wss"),
           ) => ws,
           _ = connection.cancel.cancelled() => {
             break

@@ -53,6 +53,7 @@ pub async fn get_builder_periphery(
           &ObjectId::new().to_hex(),
           &config,
         ),
+        config.insecure_tls,
         &config.passkey,
       )
       .await?;
@@ -114,6 +115,7 @@ async fn get_aws_builder(
       &periphery_address,
       &config,
     ),
+    config.insecure_tls,
     "",
   )
   .await?;
