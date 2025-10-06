@@ -39,20 +39,16 @@ async fn app() -> anyhow::Result<()> {
   let mut handles = FuturesUnordered::new();
 
   // Spawn client side connections
-  match (&config.core_addresses, &config.connect_as) {
-    (Some(addresses), Some(connect_as)) => {
-      for address in addresses {
-        handles.push(tokio::spawn(connection::client::handler(
-          address, connect_as,
-        )));
-      }
+  if !config.core_addresses.is_empty() && config.connect_as.is_empty()
+  {
+    warn!(
+      "'core_addresses' are defined for outbound connection, but missing 'connect_as' (PERIPHERY_CONNECT_AS)."
+    );
+  } else {
+    for address in &config.core_addresses {
+      handles
+        .push(tokio::spawn(connection::client::handler(address)));
     }
-    (Some(_), None) => {
-      warn!(
-        "'core_addresses' are defined for outbound connection, but missing 'connect_as' (PERIPHERY_CONNECT_AS)."
-      );
-    }
-    _ => {}
   }
 
   // Spawn server connection handler

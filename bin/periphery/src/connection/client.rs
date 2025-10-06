@@ -21,13 +21,13 @@ use crate::{
   connection::{CorePublicKeyValidator, core_channels},
 };
 
-pub async fn handler(
-  address: &str,
-  connect_as: &str,
-) -> anyhow::Result<()> {
+pub async fn handler(address: &str) -> anyhow::Result<()> {
   let address = fix_ws_address(address);
   let identifiers = AddressConnectionIdentifiers::extract(&address)?;
-  let query = format!("server={}", urlencoding::encode(connect_as));
+  let query = format!(
+    "server={}",
+    urlencoding::encode(&periphery_config().connect_as)
+  );
   let endpoint = format!("{address}/ws/periphery?{query}");
 
   info!("Initiating outbound connection to {endpoint}");
@@ -47,7 +47,7 @@ pub async fn handler(
 
   loop {
     let (mut socket, accept) =
-      match connect_websocket(&endpoint, connect_as).await {
+      match connect_websocket(&endpoint).await {
         Ok(res) => res,
         Err(e) => {
           if !already_logged_connection_error {
@@ -129,9 +129,7 @@ pub async fn handler(
       }
       // Creation
       &[1] => {
-        if let Err(e) =
-          handle_onboarding(connect_as, socket, identifiers).await
-        {
+        if let Err(e) = handle_onboarding(socket, identifiers).await {
           if !already_logged_onboarding_error {
             error!("{e:#}");
             already_logged_onboarding_error = true;
@@ -162,14 +160,14 @@ pub async fn handler(
 }
 
 async fn handle_onboarding(
-  connect_as: &str,
   mut socket: TungsteniteWebsocket,
   identifiers: ConnectionIdentifiers<'_>,
 ) -> anyhow::Result<()> {
-  let onboarding_key = periphery_config()
+  let config = periphery_config();
+  let onboarding_key = config
     .onboarding_key
     .as_deref()
-    .with_context(|| format!("Server {connect_as} does not exist, and no PERIPHERY_ONBOARDING_KEY is provided."))?;
+    .with_context(|| format!("Server {} does not exist, and no PERIPHERY_ONBOARDING_KEY is provided.", config.connect_as))?;
 
   ClientLoginFlow::login(LoginFlowArgs {
     private_key: onboarding_key,
@@ -196,7 +194,8 @@ async fn handle_onboarding(
   match res.last().map(|byte| MessageState::from_byte(*byte)) {
     Some(MessageState::Successful) => {
       info!(
-        "Server onboarding flow for '{connect_as}' successful ✅"
+        "Server onboarding flow for '{}' successful ✅",
+        config.connect_as
       );
       Ok(())
     }
@@ -211,14 +210,14 @@ async fn handle_onboarding(
 
 async fn connect_websocket(
   url: &str,
-  connect_as: &str,
 ) -> anyhow::Result<(TungsteniteWebsocket, HeaderValue)> {
-  TungsteniteWebsocket::connect_maybe_tls_insecure(url, periphery_config().core_tls_insecure_skip_verify)
+  let config = periphery_config();
+  TungsteniteWebsocket::connect_maybe_tls_insecure(url, config.core_tls_insecure_skip_verify)
     .await
     .map_err(|e| match e.status {
-      StatusCode::NOT_FOUND => anyhow!("404 Not Found: Server '{connect_as}' does not exist."),
-      StatusCode::BAD_REQUEST => anyhow!("400 Bad Request: Server '{connect_as}' is disabled or configured to make Core → Periphery connection"),
-      StatusCode::UNAUTHORIZED => anyhow!("401 Unauthorized: Only one Server connected as '{connect_as}' is allowed. Or the Core reverse proxy needs to forward host and websocket headers."),
+      StatusCode::NOT_FOUND => anyhow!("404 Not Found: Server '{}' does not exist.", config.connect_as),
+      StatusCode::BAD_REQUEST => anyhow!("400 Bad Request: Server '{}' is disabled or configured to make Core → Periphery connection", config.connect_as),
+      StatusCode::UNAUTHORIZED => anyhow!("401 Unauthorized: Only one Server connected as '{}' is allowed. Or the Core reverse proxy needs to forward host and websocket headers.", config.connect_as),
       _ => e.error,
     })
 }

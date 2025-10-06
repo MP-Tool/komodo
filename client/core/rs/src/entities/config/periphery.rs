@@ -18,7 +18,10 @@ use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
-  deserializers::{ForgivingVec, option_string_list_deserializer},
+  deserializers::{
+    ForgivingVec, option_string_list_deserializer,
+    string_list_deserializer,
+  },
   entities::{
     Timelength,
     logger::{LogConfig, LogLevel, StdioLogMode},
@@ -258,10 +261,9 @@ pub struct PeripheryConfig {
   #[serde(
     default,
     alias = "core_address",
-    deserialize_with = "option_string_list_deserializer",
-    skip_serializing_if = "Option::is_none"
+    deserialize_with = "string_list_deserializer"
   )]
-  pub core_addresses: Option<Vec<String>>,
+  pub core_addresses: Vec<String>,
 
   /// Allow Periphery to connect to Core
   /// without validating the Core certs
@@ -269,8 +271,8 @@ pub struct PeripheryConfig {
   pub core_tls_insecure_skip_verify: bool,
 
   /// Server name / id to connect as
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub connect_as: Option<String>,
+  #[serde(default)]
+  pub connect_as: String,
 
   // ======================
   // = INBOUND CONNECTION =
@@ -443,9 +445,9 @@ impl Default for PeripheryConfig {
       onboarding_key: None,
       core_public_keys: None,
       passkeys: None,
-      core_addresses: None,
+      core_addresses: Default::default(),
       core_tls_insecure_skip_verify: Default::default(),
-      connect_as: None,
+      connect_as: Default::default(),
       server_enabled: default_server_enabled(),
       port: default_periphery_port(),
       bind_ip: default_periphery_bind_ip(),

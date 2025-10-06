@@ -164,11 +164,13 @@ pub fn periphery_config() -> &'static PeripheryConfig {
       .or(config.passkeys),
       core_addresses: env
         .periphery_core_addresses
-        .or(config.core_addresses),
+        .unwrap_or(config.core_addresses),
       core_tls_insecure_skip_verify: env
         .periphery_core_tls_insecure_skip_verify
         .unwrap_or(config.core_tls_insecure_skip_verify),
-      connect_as: env.periphery_connect_as.or(config.connect_as),
+      connect_as: env
+        .periphery_connect_as
+        .unwrap_or(config.connect_as),
       server_enabled: env
         .periphery_server_enabled
         .unwrap_or(config.server_enabled),

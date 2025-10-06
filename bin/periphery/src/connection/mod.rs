@@ -92,10 +92,10 @@ async fn handle_socket<W: Websocket>(
   info!(
     "Logged in to Komodo Core {} websocket{}",
     args.core,
-    if config.core_addresses.is_some()
-      && let Some(connect_as) = &config.connect_as
+    if !config.core_addresses.is_empty()
+      && !config.connect_as.is_empty()
     {
-      format!(" as Server {connect_as}")
+      format!(" as Server {}", config.connect_as)
     } else {
       String::new()
     }
