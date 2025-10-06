@@ -349,7 +349,7 @@ async fn v1_downgrade(yes: bool) -> anyhow::Result<()> {
     config.database.db_name,
   );
 
-  crate::command::wait_for_enter("start backup", yes)?;
+  crate::command::wait_for_enter("run downgrade", yes)?;
 
   let db = database::init(&config.database).await?;
 
@@ -357,6 +357,8 @@ async fn v1_downgrade(yes: bool) -> anyhow::Result<()> {
     .update_many(doc! {}, doc! { "$set": { "info": null } })
     .await
     .context("Failed to downgrade Server schema")?;
+
+  info!("V1 Downgrade complete. Ready to downgrade to komodo-core:1 ✅");
 
   Ok(())
 }
