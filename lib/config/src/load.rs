@@ -2,6 +2,7 @@ use std::{
   fs::File,
   io::Read,
   path::{Path, PathBuf},
+  str::FromStr,
 };
 
 use colored::Colorize;
@@ -149,7 +150,7 @@ pub fn load_parse_config_file<T: DeserializeOwned>(
     }
   })?;
   // Interpolate environment variables matching `${VAR}` syntax (not `$VAR` to avoid edge cases).
-  let contents = interpolate_env(&contents);
+  let contents = interpolate_env_and_shell(&contents);
   let config = match file.extension().and_then(|e| e.to_str()) {
     Some("toml") => {
       toml::from_str(&contents).map_err(|e| Error::ParseToml {
@@ -177,19 +178,68 @@ pub fn load_parse_config_file<T: DeserializeOwned>(
   Ok(config)
 }
 
-/// Only supports '${VAR}' syntax
-fn interpolate_env(input: &str) -> String {
-  let re = regex::Regex::new(r"\$\{([A-Za-z0-9_]+)\}").unwrap();
-  let first_pass = re
+/// - Supports '${VAR}' -> Env var extended
+/// - Supports '$(shell command)' -> 'echo $(shell command)'
+fn interpolate_env_and_shell(input: &str) -> String {
+  let env_regex =
+    regex::Regex::new(r"\$\{([A-Za-z0-9_]+)\}").unwrap();
+  let first_env_pass = env_regex
     .replace_all(input, |caps: &regex::Captures| {
       let var_name = &caps[1];
-      std::env::var(var_name).unwrap_or_default()
+      try_get_env_extended(var_name)
     })
     .into_owned();
+
   // Do it twice in case any env vars expand again to env vars
-  re.replace_all(&first_pass, |caps: &regex::Captures| {
-    let var_name = &caps[1];
-    std::env::var(var_name).unwrap_or_default()
-  })
-  .into_owned()
+  let second_env_pass = env_regex
+    .replace_all(&first_env_pass, |caps: &regex::Captures| {
+      let var_name = &caps[1];
+      try_get_env_extended(var_name)
+    })
+    .into_owned();
+
+  // Interpolate $(shell command) syntax
+  let shell_regex =
+    regex::Regex::new(r"\$\(([A-Za-z0-9_]+)\)").unwrap();
+  let shell_pass = shell_regex
+    .replace_all(&second_env_pass, |caps: &regex::Captures| {
+      let command = &caps[1];
+      let Ok(output) = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .output()
+      else {
+        return String::new();
+      };
+      String::from_utf8(output.stdout)
+        .map(|value| value.trim().to_string())
+        .unwrap_or_default()
+    })
+    .into_owned();
+
+  shell_pass
+}
+
+fn try_get_env_extended(var_name: &str) -> String {
+  if let Ok(value) = std::env::var(var_name)
+    && !value.is_empty()
+  {
+    return value;
+  }
+  // Prefer bash
+  let shell = if PathBuf::from_str("/bin/bash").unwrap().exists() {
+    "bash"
+  } else {
+    "sh"
+  };
+  let Ok(output) = std::process::Command::new(shell)
+    .arg("-c")
+    .arg(format!("echo ${var_name}"))
+    .output()
+  else {
+    return String::new();
+  };
+  String::from_utf8(output.stdout)
+    .map(|value| value.trim().to_string())
+    .unwrap_or_default()
 }
