@@ -194,8 +194,6 @@ async fn onboard_server_handler(
       }
     };
 
-    
-
     let server_id = match create_server_maybe_builder(
       server_query,
       public_key,
@@ -257,14 +255,23 @@ async fn create_server_maybe_builder(
       ..Default::default()
     }
   } else {
-    let config = match db_client().servers.find_one(id_or_name_filter(&copy_server)).await {
+    let config = match db_client()
+      .servers
+      .find_one(id_or_name_filter(&copy_server))
+      .await
+    {
       Ok(Some(server)) => server.config,
       Ok(None) => {
-        warn!("Server onboarding: Failed to find Server {}", copy_server);
+        warn!(
+          "Server onboarding: Failed to find Server {}",
+          copy_server
+        );
         Default::default()
       }
       Err(e) => {
-        warn!("Failed to query database for onboarding key 'copy_server' | {e:?}");
+        warn!(
+          "Failed to query database for onboarding key 'copy_server' | {e:?}"
+        );
         Default::default()
       }
     };

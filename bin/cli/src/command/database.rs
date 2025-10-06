@@ -358,7 +358,9 @@ async fn v1_downgrade(yes: bool) -> anyhow::Result<()> {
     .await
     .context("Failed to downgrade Server schema")?;
 
-  info!("V1 Downgrade complete. Ready to downgrade to komodo-core:1 ✅");
+  info!(
+    "V1 Downgrade complete. Ready to downgrade to komodo-core:1 ✅"
+  );
 
   Ok(())
 }
