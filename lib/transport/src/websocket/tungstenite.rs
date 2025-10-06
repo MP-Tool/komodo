@@ -142,9 +142,9 @@ impl TungsteniteWebsocket {
     insecure: bool,
   ) -> serror::Result<(Self, HeaderValue)> {
     if insecure {
-      Self::connect(url).await
-    } else {
       Self::connect_tls_insecure(url).await
+    } else {
+      Self::connect(url).await
     }
   }
 
