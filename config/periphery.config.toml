@@ -132,6 +132,11 @@ exclude_disk_mounts = []
 ## Default: None
 # connect_as = "server-name"
 
+## Make Onboarding Keys in Server settings.
+## Not needed if connecting as Server that already exists.
+## Env: PERIPHERY_ONBOARDING_KEY
+# onboarding_key = "MC4CAQAwBQYDK2VuBCIEIHPHNA/0M9ejFviE2y4dpyczAvnAwPWDQtGGGhEJ2G6K"
+
 ################
 # INBOUND MODE #
 ################
