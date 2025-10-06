@@ -19,6 +19,7 @@ use crate::auth::auth_request;
 use super::Variant;
 
 mod action;
+mod alert;
 mod alerter;
 mod build;
 mod builder;
@@ -200,6 +201,9 @@ pub enum WriteRequest {
   CreateOnboardingKey(CreateOnboardingKey),
   UpdateOnboardingKey(UpdateOnboardingKey),
   DeleteOnboardingKey(DeleteOnboardingKey),
+
+  // ==== ALERT ====
+  CloseAlert(CloseAlert),
 }
 
 pub fn router() -> Router {

@@ -246,6 +246,7 @@ export type WriteResponses = {
     CreateOnboardingKey: Types.CreateOnboardingKeyResponse;
     UpdateOnboardingKey: Types.UpdateOnboardingKeyResponse;
     DeleteOnboardingKey: Types.DeleteOnboardingKeyResponse;
+    CloseAlert: Types.NoData;
 };
 export type ExecuteResponses = {
     StartContainer: Types.Update;

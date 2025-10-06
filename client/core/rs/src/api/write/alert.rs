@@ -1,0 +1,22 @@
+use derive_empty_traits::EmptyTraits;
+use resolver_api::Resolve;
+use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
+
+use crate::{api::write::KomodoWriteRequest, entities::NoData};
+
+//
+
+/// **Admin only.** Close the Alert at the given id.
+/// Response: [NoData]
+#[typeshare]
+#[derive(
+  Debug, Clone, Serialize, Deserialize, Resolve, EmptyTraits,
+)]
+#[empty_traits(KomodoWriteRequest)]
+#[response(NoData)]
+#[error(serror::Error)]
+pub struct CloseAlert {
+  /// The id of the Alert to close.
+  pub id: String,
+}

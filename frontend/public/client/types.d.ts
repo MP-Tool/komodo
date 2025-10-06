@@ -4485,6 +4485,14 @@ export interface CloneRepo {
     repo: string;
 }
 /**
+ * **Admin only.** Close the Alert at the given id.
+ * Response: [NoData]
+ */
+export interface CloseAlert {
+    /** The id of the Alert to close. */
+    id: string;
+}
+/**
  * Exports matching resources, and writes to the target sync's resource file. Response: [Update]
  *
  * Note. Will fail if the Sync is not `managed`.
@@ -9265,6 +9273,9 @@ export type WriteRequest = {
 } | {
     type: "DeleteOnboardingKey";
     params: DeleteOnboardingKey;
+} | {
+    type: "CloseAlert";
+    params: CloseAlert;
 };
 export type WsLoginMessage = {
     type: "Jwt";
