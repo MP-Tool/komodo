@@ -288,7 +288,9 @@ impl Resolve<super::Args> for StartAllContainers {
       .context("failed to list all containers on host")?;
     let futures = containers.iter().filter_map(
       |ContainerListItem { name, labels, .. }| {
-        if labels.contains_key("komodo.skip") {
+        if let Some(skip) = labels.get("komodo.skip")
+          && skip != "false"
+        {
           return None;
         }
         let command = format!("docker start {name}");
@@ -315,7 +317,9 @@ impl Resolve<super::Args> for RestartAllContainers {
       .context("failed to list all containers on host")?;
     let futures = containers.iter().filter_map(
       |ContainerListItem { name, labels, .. }| {
-        if labels.contains_key("komodo.skip") {
+        if let Some(skip) = labels.get("komodo.skip")
+          && skip != "false"
+        {
           return None;
         }
         let command = format!("docker restart {name}");
@@ -342,7 +346,9 @@ impl Resolve<super::Args> for PauseAllContainers {
       .context("failed to list all containers on host")?;
     let futures = containers.iter().filter_map(
       |ContainerListItem { name, labels, .. }| {
-        if labels.contains_key("komodo.skip") {
+        if let Some(skip) = labels.get("komodo.skip")
+          && skip != "false"
+        {
           return None;
         }
         let command = format!("docker pause {name}");
@@ -369,7 +375,9 @@ impl Resolve<super::Args> for UnpauseAllContainers {
       .context("failed to list all containers on host")?;
     let futures = containers.iter().filter_map(
       |ContainerListItem { name, labels, .. }| {
-        if labels.contains_key("komodo.skip") {
+        if let Some(skip) = labels.get("komodo.skip")
+          && skip != "false"
+        {
           return None;
         }
         let command = format!("docker unpause {name}");
@@ -396,7 +404,9 @@ impl Resolve<super::Args> for StopAllContainers {
       .context("failed to list all containers on host")?;
     let futures = containers.iter().filter_map(
       |ContainerListItem { name, labels, .. }| {
-        if labels.contains_key("komodo.skip") {
+        if let Some(skip) = labels.get("komodo.skip")
+          && skip != "false"
+        {
           return None;
         }
         Some(async move {
