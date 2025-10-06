@@ -8,7 +8,7 @@ import urllib.request
 
 def parse_args():
 	p = argparse.ArgumentParser(
-		prog="periphery-installer",
+		prog="setup-periphery",
 		description="Install systemd-managed Komodo Periphery",
 		formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 	)
@@ -16,51 +16,52 @@ def parse_args():
 	p.add_argument(
 		"--version", "-v",
 		default=json.load(urllib.request.urlopen("https://api.github.com/repos/moghtech/komodo/releases/latest"))["tag_name"],
-		help="Install a specific Komodo version, like 'v2.0.0'. Otherwise use latest."
+		help="Install a specific Komodo version, like 'v2.0.0'"
 	)
 
 	p.add_argument(
 		"--user", "-u",
 		action="store_true",
-		help="Install systemd --user service"
+		help="Install systemd '--user' service"
 	)
 
 	p.add_argument(
 		"--root-directory", "-r",
-		help="Specify a specific Periphery root directory"
+		default="/etc/komodo",
+		help="Specify a specific Periphery root directory."
 	)
 
 	p.add_argument(
 		"--core-address", "-c",
-		help="Specify the Komodo Core address, https://komodo.example.com."
+		help="Specify the Komodo Core address for outbound connection. Leave blank to enable inbound connection server."
 	)
 
 	p.add_argument(
 		"--connect-as", "-n",
 		default=os.uname().nodename,
-		help="Specify the Server name to connect as. Otherwise uses $(hostname)."
+		help="Specify the Server name to connect as. Defaults to hostname."
 	)
 
 	p.add_argument(
 		"--onboarding-key", "-k",
-		help="Give an onboarding key for automatic Server onboarding into Komodo Core"
+		help="Give an onboarding key for automatic Server onboarding into Komodo Core."
 	)
 
 	p.add_argument(
 		"--force-service-file",
-		help="Recreate the systemd service file even if it already exists"
+		help="Recreate the systemd service file even if it already exists."
 	)
 
 	p.add_argument(
 		"--config-url",
 		default="https://raw.githubusercontent.com/moghtech/komodo/refs/heads/main/config/periphery.config.toml",
-		help="Use a custom config url"
+		help="Use a custom config url."
 	)
 
 	p.add_argument(
 		"--binary-url",
 		default="https://github.com/moghtech/komodo/releases/download",
-		help="Use alternate binary source, like https://forge.mogh.tech/api/packages/komodo/generic/periphery"
+		help="Use alternate binary source"
 	)
 
 	return p.parse_args()
