@@ -149,7 +149,7 @@ pub fn load_parse_config_file<T: DeserializeOwned>(
       path: file.to_path_buf(),
     }
   })?;
-  // Interpolate environment variables matching `${VAR}` syntax (not `$VAR` to avoid edge cases).
+  // Interpolate environment variables matching `${VAR}` and `$(shell)`.
   let contents = interpolate_env_and_shell(&contents);
   let config = match file.extension().and_then(|e| e.to_str()) {
     Some("toml") => {
