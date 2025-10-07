@@ -115,7 +115,7 @@ export const ServerConfig = ({
             components: {
               address: {
                 description:
-                  "For Core -> Periphery connnection mode, specify address of periphery in your network.",
+                  "For Core -> Periphery connection mode, specify address of periphery in your network.",
                 placeholder: "12.34.56.78:8120",
               },
               insecure_tls: {

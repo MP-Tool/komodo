@@ -121,7 +121,7 @@ async fn existing_server_handler(
     let mut socket = AxumWebsocket(socket);
 
     if let Err(e) = socket.send([0]).await.context(
-      "Failed to send the login flow indicator over connnection",
+      "Failed to send the login flow indicator over connection",
     ) {
       connection.set_error(e).await;
       return;
@@ -153,7 +153,7 @@ async fn onboard_server_handler(
     let mut socket = AxumWebsocket(socket);
 
     if let Err(e) = socket.send([1]).await.context(
-      "Failed to send the login flow indicator over connnection",
+      "Failed to send the login flow indicator over connection",
     ).context("Server onboarding error") {
       warn!("{e:#}");
       return;
