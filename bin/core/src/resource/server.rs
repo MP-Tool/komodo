@@ -245,6 +245,14 @@ impl super::KomodoResource for Server {
       )
       .await;
 
+    let _ = db_client()
+      .onboarding_keys
+      .update_many(
+        doc! { "copy_server": &id },
+        doc! { "$set": { "copy_server": "" } },
+      )
+      .await;
+
     Ok(())
   }
 
