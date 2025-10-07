@@ -1,75 +1,98 @@
+use anyhow::{Context, anyhow};
 use axum::extract::ws::CloseFrame;
 use futures_util::{
   SinkExt, Stream, StreamExt, TryStreamExt,
   stream::{SplitSink, SplitStream},
 };
+use tokio_util::sync::CancellationToken;
 
-use crate::message::Message;
+use crate::{message::Message, timeout::MaybeWithTimeout};
 
 use super::{
-  MaybeWithTimeout, Websocket, WebsocketMessage, WebsocketReceiver,
-  WebsocketSender,
+  Websocket, WebsocketMessage, WebsocketReceiver, WebsocketSender,
 };
 
 pub struct AxumWebsocket(pub axum::extract::ws::WebSocket);
 
 impl Websocket for AxumWebsocket {
   type CloseFrame = CloseFrame;
-  type Error = axum::Error;
 
   fn split(self) -> (impl WebsocketSender, impl WebsocketReceiver) {
     let (tx, rx) = self.0.split();
-    (AxumWebsocketSender(tx), AxumWebsocketReceiver(rx))
+    (AxumWebsocketSender(tx), AxumWebsocketReceiver::new(rx))
   }
 
   fn recv(
     &mut self,
   ) -> MaybeWithTimeout<
     impl Future<
-      Output = Result<
-        WebsocketMessage<Self::CloseFrame>,
-        Self::Error,
-      >,
+      Output = anyhow::Result<WebsocketMessage<Self::CloseFrame>>,
     >,
   > {
-    MaybeWithTimeout {
-      inner: try_next(&mut self.0),
-    }
+    MaybeWithTimeout::new(try_next(&mut self.0))
   }
 
   async fn send(
     &mut self,
     message: impl Into<Message>,
-  ) -> Result<(), Self::Error> {
+  ) -> anyhow::Result<()> {
     self
       .0
       .send(axum::extract::ws::Message::Binary(
         message.into().into_inner(),
       ))
       .await
+      .context("Failed to send message bytes over websocket")
   }
 
   async fn close(
     &mut self,
     frame: Option<Self::CloseFrame>,
-  ) -> Result<(), Self::Error> {
-    self.0.send(axum::extract::ws::Message::Close(frame)).await
+  ) -> anyhow::Result<()> {
+    self
+      .0
+      .send(axum::extract::ws::Message::Close(frame))
+      .await
+      .context("Failed to send websocket close frame")
   }
 }
 
 pub type InnerWebsocketReceiver =
   SplitStream<axum::extract::ws::WebSocket>;
 
-pub struct AxumWebsocketReceiver(pub InnerWebsocketReceiver);
+pub struct AxumWebsocketReceiver {
+  receiver: InnerWebsocketReceiver,
+  cancel: Option<CancellationToken>,
+}
+
+impl AxumWebsocketReceiver {
+  pub fn new(receiver: InnerWebsocketReceiver) -> Self {
+    Self {
+      receiver,
+      cancel: None,
+    }
+  }
+}
 
 impl WebsocketReceiver for AxumWebsocketReceiver {
   type CloseFrame = CloseFrame;
-  type Error = axum::Error;
+
+  fn set_cancel(&mut self, cancel: CancellationToken) {
+    self.cancel = Some(cancel);
+  }
 
   async fn recv(
     &mut self,
-  ) -> Result<WebsocketMessage<Self::CloseFrame>, Self::Error> {
-    try_next(&mut self.0).await
+  ) -> anyhow::Result<WebsocketMessage<Self::CloseFrame>> {
+    let fut = try_next(&mut self.receiver);
+    if let Some(cancel) = &self.cancel {
+      tokio::select! {
+        res = fut => res,
+        _ = cancel.cancelled() => Err(anyhow!("Cancelled before receive"))
+      }
+    } else {
+      fut.await
+    }
   }
 }
 
@@ -80,29 +103,30 @@ pub struct AxumWebsocketSender(pub InnerWebsocketSender);
 
 impl WebsocketSender for AxumWebsocketSender {
   type CloseFrame = CloseFrame;
-  type Error = axum::Error;
 
-  async fn send(
-    &mut self,
-    message: Message,
-  ) -> Result<(), Self::Error> {
+  async fn send(&mut self, message: Message) -> anyhow::Result<()> {
     self
       .0
       .send(axum::extract::ws::Message::Binary(message.into_inner()))
       .await
+      .context("Failed to send message over websocket")
   }
 
   async fn close(
     &mut self,
     frame: Option<Self::CloseFrame>,
-  ) -> Result<(), Self::Error> {
-    self.0.send(axum::extract::ws::Message::Close(frame)).await
+  ) -> anyhow::Result<()> {
+    self
+      .0
+      .send(axum::extract::ws::Message::Close(frame))
+      .await
+      .context("Failed to send websocket close frame")
   }
 }
 
 async fn try_next<S>(
   stream: &mut S,
-) -> Result<WebsocketMessage<CloseFrame>, axum::Error>
+) -> anyhow::Result<WebsocketMessage<CloseFrame>>
 where
   S: Stream<Item = Result<axum::extract::ws::Message, axum::Error>>
     + Unpin,

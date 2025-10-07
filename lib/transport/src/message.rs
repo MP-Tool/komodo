@@ -81,7 +81,7 @@ impl From<&anyhow::Error> for Message {
   }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct Message(Bytes);
 
 impl Message {
@@ -101,71 +101,11 @@ impl Message {
     self.0
   }
 
-  pub fn borrow(&self) -> BorrowedMessage<'_> {
-    BorrowedMessage(&self.0)
-  }
-
   pub fn is_empty(&self) -> bool {
-    self.borrow().is_empty()
-  }
-
-  pub fn state(&self) -> anyhow::Result<MessageState> {
-    self.borrow().state()
-  }
-
-  pub fn channel(&self) -> anyhow::Result<Uuid> {
-    self.borrow().channel()
-  }
-
-  pub fn channel_and_state(
-    &self,
-  ) -> anyhow::Result<(Uuid, MessageState)> {
-    self.borrow().channel_and_state()
-  }
-
-  pub fn data(&self) -> anyhow::Result<&[u8]> {
-    // Does not work with .borrow() due to lifetime issue
-    let len = self.0.len();
-    if len < 17 {
-      return Err(anyhow!(
-        "Transport bytes too short to include uuid + state + data"
-      ));
-    }
-    Ok(&self.0[..(len - 17)])
-  }
-
-  pub fn into_data(self) -> anyhow::Result<Bytes> {
-    let len = self.0.len();
-    if len < 17 {
-      return Err(anyhow!(
-        "Transport bytes too short to include uuid + state + data"
-      ));
-    }
-    let mut res: Vec<u8> = self.0.into();
-    res.drain((len - 17)..);
-    Ok(res.into())
-  }
-
-  pub fn into_parts(
-    self,
-  ) -> anyhow::Result<(Bytes, Uuid, MessageState)> {
-    let (channel, state) = self.channel_and_state()?;
-    let data = self.into_data()?;
-    Ok((data, channel, state))
-  }
-}
-
-// Borrowed Message
-
-#[derive(Debug, Clone, Copy)]
-pub struct BorrowedMessage<'a>(&'a [u8]);
-
-impl BorrowedMessage<'_> {
-  pub fn is_empty(self) -> bool {
     self.0.is_empty()
   }
 
-  pub fn state(self) -> anyhow::Result<MessageState> {
+  pub fn state(&self) -> anyhow::Result<MessageState> {
     self
       .0
       .last()
@@ -200,6 +140,7 @@ impl BorrowedMessage<'_> {
   }
 
   pub fn data(&self) -> anyhow::Result<&[u8]> {
+    // Does not work with .borrow() due to lifetime issue
     let len = self.0.len();
     if len < 17 {
       return Err(anyhow!(
@@ -209,19 +150,26 @@ impl BorrowedMessage<'_> {
     Ok(&self.0[..(len - 17)])
   }
 
-  /// This will clone the bytes
-  pub fn to_message(self) -> Message {
-    Message(Bytes::copy_from_slice(self.0))
+  pub fn into_data(self) -> anyhow::Result<Bytes> {
+    let len = self.0.len();
+    if len < 17 {
+      return Err(anyhow!(
+        "Transport bytes too short to include uuid + state + data"
+      ));
+    }
+    let mut res: Vec<u8> = self.0.into();
+    res.drain((len - 17)..);
+    Ok(res.into())
+  }
+
+  pub fn into_parts(
+    self,
+  ) -> anyhow::Result<(Bytes, Uuid, MessageState)> {
+    let (channel, state) = self.channel_and_state()?;
+    let data = self.into_data()?;
+    Ok((data, channel, state))
   }
 }
-
-impl<'a> BorrowedMessage<'a> {
-  pub fn into_inner(self) -> &'a [u8] {
-    self.0
-  }
-}
-
-// Message State
 
 #[derive(Debug, Clone, Copy)]
 pub enum MessageState {

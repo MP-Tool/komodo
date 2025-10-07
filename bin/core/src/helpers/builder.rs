@@ -54,7 +54,6 @@ pub async fn get_builder_periphery(
           &config,
         ),
         config.insecure_tls,
-        &config.passkey,
       )
       .await?;
       periphery
@@ -116,7 +115,6 @@ async fn get_aws_builder(
       &config,
     ),
     config.insecure_tls,
-    "",
   )
   .await?;
 

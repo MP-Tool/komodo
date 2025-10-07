@@ -93,6 +93,9 @@ pub struct PeripheryConnectionArgs<'a> {
   pub id: &'a str,
   pub address: Option<&'a str>,
   periphery_public_key: Option<&'a str>,
+  /// V1 legacy support.
+  /// Only possible for Core -> Periphery.
+  passkey: Option<&'a str>,
 }
 
 impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
@@ -145,6 +148,7 @@ impl<'a> PeripheryConnectionArgs<'a> {
       id: &server.id,
       address: optional_str(&server.config.address),
       periphery_public_key: optional_str(&server.info.public_key),
+      passkey: optional_str(&server.config.passkey),
     }
   }
 
@@ -158,6 +162,7 @@ impl<'a> PeripheryConnectionArgs<'a> {
       periphery_public_key: optional_str(
         &config.periphery_public_key,
       ),
+      passkey: optional_str(&config.passkey),
     }
   }
 
@@ -172,6 +177,7 @@ impl<'a> PeripheryConnectionArgs<'a> {
       periphery_public_key: optional_str(
         &config.periphery_public_key,
       ),
+      passkey: None,
     }
   }
 
@@ -182,6 +188,7 @@ impl<'a> PeripheryConnectionArgs<'a> {
       periphery_public_key: self
         .periphery_public_key
         .map(str::to_string),
+      passkey: self.passkey.map(str::to_string),
     }
   }
 
@@ -204,6 +211,9 @@ pub struct OwnedPeripheryConnectionArgs {
   /// If None, must have 'periphery_public_keys' set
   /// in Core config, or will error
   pub periphery_public_key: Option<String>,
+  /// V1 legacy support.
+  /// Only possible for Core -> Periphery connection.
+  pub passkey: Option<String>,
 }
 
 impl OwnedPeripheryConnectionArgs {
@@ -212,6 +222,7 @@ impl OwnedPeripheryConnectionArgs {
       id: &self.id,
       address: self.address.as_deref(),
       periphery_public_key: self.periphery_public_key.as_deref(),
+      passkey: self.passkey.as_deref(),
     }
   }
 }
@@ -319,19 +330,14 @@ impl PeripheryConnection {
 
     let (mut ws_write, mut ws_read) = socket.split();
 
+    ws_read.set_cancel(cancel.clone());
+    receiver.set_cancel(cancel.clone());
+
     let forward_writes = async {
       loop {
-        let next = tokio::select! {
-          next = receiver.recv() => next,
-          _ = cancel.cancelled() => break,
+        let Ok(message) = receiver.recv().await else {
+          break;
         };
-
-        let message = match next {
-          Some(request) => request.to_message(),
-          // Sender Dropped (shouldn't happen, a reference is held on 'connection').
-          None => break,
-        };
-
         match ws_write.send(message).await {
           Ok(_) => receiver.clear_buffer(),
           Err(e) => {
@@ -347,12 +353,7 @@ impl PeripheryConnection {
 
     let handle_reads = async {
       loop {
-        let next = tokio::select! {
-          next = ws_read.recv() => next,
-          _ = cancel.cancelled() => break,
-        };
-
-        match next {
+        match ws_read.recv().await {
           Ok(WebsocketMessage::Message(message)) => {
             self.handle_incoming_message(message).await
           }

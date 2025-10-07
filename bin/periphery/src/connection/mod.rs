@@ -8,7 +8,6 @@ use bytes::Bytes;
 use cache::CloneCache;
 use resolver_api::Resolve;
 use response::JsonBytes;
-use serror::serialize_error_bytes;
 use transport::{
   auth::{
     ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
@@ -16,10 +15,7 @@ use transport::{
   },
   channel::{BufferedChannel, BufferedReceiver, Sender},
   message::{Message, MessageState},
-  websocket::{
-    Websocket, WebsocketMessage, WebsocketReceiver,
-    WebsocketSender as _,
-  },
+  websocket::{Websocket, WebsocketReceiver, WebsocketSender as _},
 };
 use uuid::Uuid;
 
@@ -99,15 +95,15 @@ async fn handle_socket<W: Websocket>(
 
   let forward_writes = async {
     loop {
-      let msg = match receiver.recv().await {
-        // Sender Dropped (shouldn't happen, it is static).
-        None => break,
-        // This has to copy the bytes to follow ownership rules.
-        Some(msg) => msg,
+      let message = match receiver.recv().await {
+        Ok(message) => message,
+        Err(e) => {
+          warn!("{e:#}");
+          break;
+        }
       };
-      match ws_write.send(msg.to_message()).await {
+      match ws_write.send(message).await {
         // Clears the stored message from receiver buffer.
-        // TODO: Move after response ack.
         Ok(_) => receiver.clear_buffer(),
         Err(e) => {
           warn!("Failed to send response | {e:?}");
@@ -120,55 +116,29 @@ async fn handle_socket<W: Websocket>(
 
   let handle_reads = async {
     loop {
-      match ws_read.recv().await {
-        Ok(WebsocketMessage::Message(message)) => {
-          handle_incoming_message(args, sender, message).await
-        }
-        Ok(WebsocketMessage::Close(frame)) => {
-          warn!("Connection closed with frame: {frame:?}");
-          break;
-        }
-        Ok(WebsocketMessage::Closed) => {
-          warn!("Connection already closed");
-          break;
-        }
+      let (data, channel, state) = match ws_read.recv_parts().await {
+        Ok(res) => res,
         Err(e) => {
-          warn!("Failed to read websocket message | {e:?}");
+          warn!("{e:#}");
           break;
         }
       };
+      match state {
+        MessageState::Request => {
+          handle_request(args.clone(), sender.clone(), channel, data)
+        }
+        MessageState::Terminal => {
+          crate::terminal::handle_message(channel, data).await
+        }
+        // Rest shouldn't be received by Periphery
+        _ => {}
+      }
     }
   };
 
   tokio::select! {
     _ = forward_writes => {},
     _ = handle_reads => {},
-  }
-}
-
-async fn handle_incoming_message(
-  args: &Arc<Args>,
-  sender: &Sender,
-  message: Message,
-) {
-  let (data, channel, state) = match message.into_parts() {
-    Ok(res) => res,
-    Err(e) => {
-      warn!("Failed to parse transport bytes | {e:#}");
-      return;
-    }
-  };
-  match state {
-    MessageState::Request => {
-      handle_request(args.clone(), sender.clone(), channel, data)
-    }
-    MessageState::Terminal => {
-      crate::terminal::handle_message(channel, data).await
-    }
-    // Shouldn't be received by Periphery
-    MessageState::InProgress => {}
-    MessageState::Successful => {}
-    MessageState::Failed => {}
   }
 }
 
@@ -190,20 +160,14 @@ fn handle_request(
       };
 
     let resolve_response = async {
-      let (state, data) = match request.resolve(&args).await {
-        Ok(JsonBytes::Ok(res)) => (MessageState::Successful, res),
-        Ok(JsonBytes::Err(e)) => (
-          MessageState::Failed,
-          serialize_error_bytes(
-            &anyhow::Error::new(e)
-              .context("Failed to serialize response body"),
-          ),
-        ),
-        Err(e) => {
-          (MessageState::Failed, serialize_error_bytes(&e.error))
+      let message: Message = match request.resolve(&args).await {
+        Ok(JsonBytes::Ok(res)) => {
+          (res, req_id, MessageState::Successful).into()
         }
+        Ok(JsonBytes::Err(e)) => (&e.into(), req_id).into(),
+        Err(e) => (&e.error, req_id).into(),
       };
-      if let Err(e) = sender.send((data, req_id, state)).await {
+      if let Err(e) = sender.send(message).await {
         error!("Failed to send response over channel | {e:?}");
       }
     };

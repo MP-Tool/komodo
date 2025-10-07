@@ -18,9 +18,7 @@ use axum::{
   routing::get,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use serror::{
-  AddStatusCode, AddStatusCodeError, serialize_error_bytes,
-};
+use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
   CoreConnectionQuery,
   auth::{
@@ -106,6 +104,28 @@ async fn handler(
   Ok(ws.on_upgrade(|socket| async move {
     let mut socket = AxumWebsocket(socket);
 
+    // Make sure receiver locked over the login.
+    let mut receiver = match channel.receiver() {
+      Ok(receiver) => receiver,
+      Err(e) => {
+        warn!("Failed to forward connection | {e:#}");
+
+        if let Err(e) = socket
+          .send(&e)
+          .await
+          .context("Failed to send forward failed to client")
+        {
+          // Log additional error
+          warn!("{e:#}");
+        }
+
+        // Close socket
+        let _ = socket.close(None).await;
+
+        return;
+      }
+    };
+
     let query = format!("core={}", urlencoding::encode(&args.core));
 
     if let Err(e) =
@@ -123,30 +143,6 @@ async fn handler(
 
     already_logged_login_error()
       .store(false, atomic::Ordering::Relaxed);
-
-    let mut receiver = match channel.receiver() {
-      Ok(receiver) => receiver,
-      Err(e) => {
-        warn!("Failed to forward connection | {e:#}");
-
-        let mut bytes = serialize_error_bytes(&e);
-        bytes.push(MessageState::Failed.as_byte());
-
-        if let Err(e) = socket
-          .send(&e)
-          .await
-          .context("Failed to send forward failed to client")
-        {
-          // Log additional error
-          warn!("{e:#}");
-        }
-
-        // Close socket
-        let _ = socket.close(None).await;
-
-        return;
-      }
-    };
 
     super::handle_socket(
       socket,
@@ -184,9 +180,11 @@ async fn handle_passkey_login(
   socket: &mut AxumWebsocket,
   passkeys: &[String],
 ) -> anyhow::Result<()> {
-  warn!(
-    "Authenticating using Passkeys. Set 'core_public_key' (PERIPHERY_CORE_PUBLIC_KEY) instead to enhance security."
-  );
+  if !already_logged_login_error().load(atomic::Ordering::Relaxed) {
+    warn!(
+      "Authenticating using Passkeys. Set 'core_public_key' (PERIPHERY_CORE_PUBLIC_KEY) instead to enhance security."
+    );
+  };
   let res = async {
     // Send login type
     socket

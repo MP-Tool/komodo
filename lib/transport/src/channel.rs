@@ -1,9 +1,14 @@
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use bytes::Bytes;
+use futures_util::FutureExt;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::message::{BorrowedMessage, Message, MessageState};
+use crate::{
+  message::{Message, MessageState},
+  timeout::MaybeWithTimeout,
+};
 
 const RESPONSE_BUFFER_MAX_LEN: usize = 1_024;
 
@@ -37,7 +42,13 @@ impl BufferedChannel {
 /// Create a channel
 pub fn channel() -> (Sender, Receiver) {
   let (sender, receiver) = mpsc::channel(RESPONSE_BUFFER_MAX_LEN);
-  (Sender(sender), Receiver(receiver))
+  (
+    Sender(sender),
+    Receiver {
+      receiver,
+      cancel: None,
+    },
+  )
 }
 
 /// Create a buffered channel
@@ -59,25 +70,60 @@ impl Sender {
 }
 
 #[derive(Debug)]
-pub struct Receiver(mpsc::Receiver<Message>);
+pub struct Receiver {
+  receiver: mpsc::Receiver<Message>,
+  cancel: Option<CancellationToken>,
+}
 
 impl Receiver {
-  pub async fn recv(&mut self) -> Option<Message> {
-    self.0.recv().await
-  }
-
-  pub async fn recv_parts(
-    &mut self,
-  ) -> anyhow::Result<(Bytes, Uuid, MessageState)> {
-    let message = self.recv().await.context("Channel is broken")?;
-    message.into_parts()
+  pub fn set_cancel(&mut self, cancel: CancellationToken) {
+    self.cancel = Some(cancel);
   }
 
   pub fn poll_recv(
     &mut self,
     cx: &mut std::task::Context<'_>,
   ) -> std::task::Poll<Option<Message>> {
-    self.0.poll_recv(cx)
+    if let Some(cancel) = &self.cancel
+      && cancel.is_cancelled()
+    {
+      return std::task::Poll::Ready(None);
+    }
+    self.receiver.poll_recv(cx)
+  }
+
+  pub fn recv(
+    &mut self,
+  ) -> MaybeWithTimeout<
+    impl Future<Output = anyhow::Result<Message>> + Send,
+  > {
+    MaybeWithTimeout::new(async {
+      let recv = self
+        .receiver
+        .recv()
+        .map(|res| res.context("Channel is permanently closed"));
+      if let Some(cancel) = &self.cancel {
+        tokio::select! {
+          message = recv => message,
+          _ = cancel.cancelled() => Err(anyhow!("Stream cancelled"))
+        }
+      } else {
+        recv.await
+      }
+    })
+  }
+
+  pub fn recv_parts(
+    &mut self,
+  ) -> MaybeWithTimeout<
+    impl Future<Output = anyhow::Result<(Bytes, Uuid, MessageState)>>
+    + Send,
+  > {
+    MaybeWithTimeout::new(self.recv().map(|res| {
+      res
+        .context("Channel is permanently closed.")
+        .and_then(Message::into_parts)
+    }))
   }
 }
 
@@ -96,17 +142,41 @@ impl BufferedReceiver {
     }
   }
 
+  pub fn set_cancel(&mut self, cancel: CancellationToken) {
+    self.receiver.set_cancel(cancel);
+  }
+
   /// - If 'buffer: Some(bytes)':
   ///   - Immediately returns borrow of buffer.
   /// - Else:
   ///   - Wait for next item.
   ///   - store in buffer.
   ///   - return borrow of buffer.
-  pub async fn recv(&mut self) -> Option<BorrowedMessage<'_>> {
-    if self.buffer.is_none() {
-      self.buffer = Some(self.receiver.recv().await?);
-    }
-    self.buffer.as_ref().map(Message::borrow)
+  pub fn recv(
+    &mut self,
+  ) -> MaybeWithTimeout<
+    impl Future<Output = anyhow::Result<Message>> + Send,
+  > {
+    MaybeWithTimeout::new(async {
+      if let Some(buffer) = self.buffer.clone() {
+        Ok(buffer)
+      } else {
+        let message = self.receiver.recv().await?;
+        self.buffer = Some(message.clone());
+        Ok(message)
+      }
+    })
+  }
+
+  pub fn recv_parts(
+    &mut self,
+  ) -> MaybeWithTimeout<
+    impl Future<Output = anyhow::Result<(Bytes, Uuid, MessageState)>>
+    + Send,
+  > {
+    MaybeWithTimeout::new(
+      self.recv().map(|res| res.and_then(Message::into_parts)),
+    )
   }
 
   /// Clears buffer.

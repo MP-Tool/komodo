@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use axum::http::HeaderValue;
 use futures_util::{
   SinkExt, Stream, StreamExt, TryStreamExt,
@@ -15,12 +15,12 @@ use tokio_tungstenite::{
     self, handshake::client::Response, protocol::CloseFrame,
   },
 };
+use tokio_util::sync::CancellationToken;
 
-use crate::message::Message;
+use crate::{message::Message, timeout::MaybeWithTimeout};
 
 use super::{
-  MaybeWithTimeout, Websocket, WebsocketMessage, WebsocketReceiver,
-  WebsocketSender,
+  Websocket, WebsocketMessage, WebsocketReceiver, WebsocketSender,
 };
 
 pub type InnerWebsocket = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -29,13 +29,12 @@ pub struct TungsteniteWebsocket(pub InnerWebsocket);
 
 impl Websocket for TungsteniteWebsocket {
   type CloseFrame = CloseFrame;
-  type Error = tungstenite::Error;
 
   fn split(self) -> (impl WebsocketSender, impl WebsocketReceiver) {
     let (tx, rx) = self.0.split();
     (
       TungsteniteWebsocketSender(tx),
-      TungsteniteWebsocketReceiver(rx),
+      TungsteniteWebsocketReceiver::new(rx),
     )
   }
 
@@ -43,48 +42,71 @@ impl Websocket for TungsteniteWebsocket {
     &mut self,
   ) -> MaybeWithTimeout<
     impl Future<
-      Output = Result<
-        WebsocketMessage<Self::CloseFrame>,
-        Self::Error,
-      >,
+      Output = anyhow::Result<WebsocketMessage<Self::CloseFrame>>,
     >,
   > {
-    MaybeWithTimeout {
-      inner: try_next(&mut self.0),
-    }
+    MaybeWithTimeout::new(try_next(&mut self.0))
   }
 
   async fn send(
     &mut self,
     message: impl Into<Message>,
-  ) -> Result<(), Self::Error> {
+  ) -> anyhow::Result<()> {
     self
       .0
       .send(tungstenite::Message::Binary(message.into().into_inner()))
       .await
+      .context("Failed to send message over websocket")
   }
 
   async fn close(
     &mut self,
     frame: Option<Self::CloseFrame>,
-  ) -> Result<(), Self::Error> {
-    self.0.close(frame).await
+  ) -> anyhow::Result<()> {
+    self
+      .0
+      .close(frame)
+      .await
+      .context("Failed to send websocket close frame")
   }
 }
 
 pub type InnerWebsocketReceiver =
   SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
-pub struct TungsteniteWebsocketReceiver(pub InnerWebsocketReceiver);
+pub struct TungsteniteWebsocketReceiver {
+  receiver: InnerWebsocketReceiver,
+  cancel: Option<CancellationToken>,
+}
+
+impl TungsteniteWebsocketReceiver {
+  pub fn new(receiver: InnerWebsocketReceiver) -> Self {
+    Self {
+      receiver,
+      cancel: None,
+    }
+  }
+}
 
 impl WebsocketReceiver for TungsteniteWebsocketReceiver {
   type CloseFrame = CloseFrame;
-  type Error = tungstenite::Error;
+
+  fn set_cancel(&mut self, cancel: CancellationToken) {
+    self.cancel = Some(cancel);
+  }
 
   async fn recv(
     &mut self,
-  ) -> Result<WebsocketMessage<Self::CloseFrame>, Self::Error> {
-    try_next(&mut self.0).await
+  ) -> anyhow::Result<WebsocketMessage<Self::CloseFrame>> {
+    let fut = try_next(&mut self.receiver);
+    if let Some(cancel) = &self.cancel {
+      tokio::select! {
+        res = fut => res,
+        _ = cancel.cancelled() => Err(anyhow!("Cancelled before receive"))
+      }
+    } else {
+      fut.await
+    }
   }
 }
 
@@ -97,29 +119,30 @@ pub struct TungsteniteWebsocketSender(pub InnerWebsocketSender);
 
 impl WebsocketSender for TungsteniteWebsocketSender {
   type CloseFrame = CloseFrame;
-  type Error = tungstenite::Error;
 
-  async fn send(
-    &mut self,
-    message: Message,
-  ) -> Result<(), Self::Error> {
+  async fn send(&mut self, message: Message) -> anyhow::Result<()> {
     self
       .0
       .send(tungstenite::Message::Binary(message.into_inner()))
       .await
+      .context("Failed to send message over websocket")
   }
 
   async fn close(
     &mut self,
     frame: Option<Self::CloseFrame>,
-  ) -> Result<(), Self::Error> {
-    self.0.send(tungstenite::Message::Close(frame)).await
+  ) -> anyhow::Result<()> {
+    self
+      .0
+      .send(tungstenite::Message::Close(frame))
+      .await
+      .context("Failed to send websocket close frame")
   }
 }
 
 async fn try_next<S>(
   stream: &mut S,
-) -> Result<WebsocketMessage<CloseFrame>, tungstenite::Error>
+) -> anyhow::Result<WebsocketMessage<CloseFrame>>
 where
   S: Stream<Item = Result<tungstenite::Message, tungstenite::Error>>
     + Unpin,

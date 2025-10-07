@@ -15,6 +15,7 @@ serror.workspace = true
 tokio-tungstenite.workspace = true
 pin-project-lite.workspace = true
 futures-util.workspace = true
+tokio-util.workspace = true
 tracing.workspace = true
 anyhow.workspace = true
 base64.workspace = true

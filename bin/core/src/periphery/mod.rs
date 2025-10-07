@@ -33,8 +33,6 @@ impl PeripheryClient {
   pub async fn new(
     args: PeripheryConnectionArgs<'_>,
     insecure_tls: bool,
-    // deprecated.
-    passkey: &str,
   ) -> anyhow::Result<PeripheryClient> {
     let connections = periphery_connections();
 
@@ -49,7 +47,6 @@ impl PeripheryClient {
         .spawn_client_connection(
           id.clone(),
           insecure_tls,
-          passkey.to_string(),
         )
         .await?;
       return Ok(PeripheryClient { id, channels });
@@ -83,7 +80,6 @@ impl PeripheryClient {
         .spawn_client_connection(
           id.clone(),
           insecure_tls,
-          passkey.to_string(),
         )
         .await?;
       Ok(PeripheryClient { id, channels })

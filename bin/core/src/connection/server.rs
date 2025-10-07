@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::str::FromStr;
 
 use anyhow::{Context, anyhow};
 use axum::{
@@ -21,8 +21,8 @@ use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
   PeripheryConnectionQuery,
   auth::{
-    HeaderConnectionIdentifiers, LoginFlow, LoginFlowArgs,
-    PublicKeyValidator, ServerLoginFlow,
+    AUTH_TIMEOUT, HeaderConnectionIdentifiers, LoginFlow,
+    LoginFlowArgs, PublicKeyValidator, ServerLoginFlow,
   },
   message::MessageState,
   websocket::{Websocket, axum::AxumWebsocket},
@@ -176,7 +176,7 @@ async fn onboard_server_handler(
     // Post onboarding login 1: Receive public key
     let public_key = socket
       .recv_result()
-      .with_timeout(Duration::from_secs(2))
+      .with_timeout(AUTH_TIMEOUT)
       .await
       .and_then(|bytes| {
         String::from_utf8(bytes.into())

@@ -439,7 +439,6 @@ async fn get_on_host_periphery(
           &config,
         ),
         config.insecure_tls,
-        &config.passkey,
       )
       .await?;
       // Poll for connection to be estalished

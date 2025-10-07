@@ -191,6 +191,8 @@ async fn forward_ws_channel(
   let (mut core_send, mut core_receive) = client_socket.split();
   let cancel = CancellationToken::new();
 
+  periphery_receiver.set_cancel(cancel.clone());
+
   trace!("starting ws exchange");
 
   let core_to_periphery = async {
@@ -253,15 +255,13 @@ async fn forward_ws_channel(
 
   let periphery_to_core = async {
     loop {
-      let res = tokio::select! {
-        res = periphery_receiver.recv() => res.map(TransportMessage::into_data),
-        _ = cancel.cancelled() => {
-          trace!("periphery to core read: cancelled from inside");
-          break;
-        }
-      };
+      // Already adheres to cancellation token
+      let res = periphery_receiver
+        .recv()
+        .await
+        .and_then(TransportMessage::into_data);
       match res {
-        Some(Ok(bytes)) => {
+        Ok(bytes) => {
           if let Err(e) = core_send.send(Message::Binary(bytes)).await
           {
             debug!("{e:?}");
@@ -269,9 +269,7 @@ async fn forward_ws_channel(
             break;
           };
         }
-        // No data, ignore
-        Some(Err(_e)) => {}
-        None => {
+        Err(_) => {
           let _ = core_send.send(Message::text("STREAM EOF")).await;
           cancel.cancel();
           break;

@@ -24,7 +24,6 @@ impl PeripheryConnectionArgs<'_> {
     self,
     id: String,
     insecure: bool,
-    passkey: String,
   ) -> anyhow::Result<Arc<ConnectionChannels>> {
     let Some(address) = self.address else {
       return Err(anyhow!(
@@ -71,9 +70,8 @@ impl PeripheryConnectionArgs<'_> {
           core_connection_query().as_bytes(),
         );
 
-        if let Err(e) = connection
-          .client_login(&mut socket, identifiers, &passkey)
-          .await
+        if let Err(e) =
+          connection.client_login(&mut socket, identifiers).await
         {
           connection.set_error(e).await;
           tokio::time::sleep(Duration::from_secs(
@@ -98,13 +96,11 @@ impl PeripheryConnection {
     &self,
     socket: &mut TungsteniteWebsocket,
     identifiers: ConnectionIdentifiers<'_>,
-    // for legacy auth
-    passkey: &str,
   ) -> anyhow::Result<()> {
     // Get the required auth type
     let bytes = socket
       .recv_result()
-      .with_timeout(Duration::from_secs(2))
+      .with_timeout(AUTH_TIMEOUT)
       .await
       .context("Failed to receive login type indicator")?;
 
@@ -116,7 +112,10 @@ impl PeripheryConnection {
           .await
       }
       // Passkey auth
-      &[1] => handle_passkey_login(socket, passkey).await,
+      &[1] => {
+        handle_passkey_login(socket, self.args.passkey.as_deref())
+          .await
+      }
       other => Err(anyhow!(
         "Receieved invalid login type pattern: {other:?}"
       )),
@@ -127,18 +126,18 @@ impl PeripheryConnection {
 async fn handle_passkey_login(
   socket: &mut TungsteniteWebsocket,
   // for legacy auth
-  passkey: &str,
+  passkey: Option<&str>,
 ) -> anyhow::Result<()> {
   let res = async {
-    let passkey = if passkey.is_empty() {
+    let passkey = if let Some(passkey) = passkey {
+      passkey.as_bytes().to_vec()
+    } else {
       core_config()
         .passkey
         .as_deref()
         .context("Periphery requires passkey auth")?
         .as_bytes()
         .to_vec()
-    } else {
-      passkey.as_bytes().to_vec()
     };
 
     socket
