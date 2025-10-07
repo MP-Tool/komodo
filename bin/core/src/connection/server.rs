@@ -11,6 +11,7 @@ use komodo_client::{
   api::write::{CreateBuilder, CreateServer, UpdateResourceMeta},
   entities::{
     builder::{PartialBuilderConfig, PartialServerBuilderConfig},
+    komodo_timestamp,
     onboarding_key::OnboardingKey,
     server::{PartialServerConfig, Server},
     user::system_user,
@@ -344,10 +345,14 @@ impl PublicKeyValidator for CreationKeyValidator {
       .await
       .context("Failed to query database for Server onboarding keys")?
       .context("Matching Server onboarding key not found")?;
-    if onboarding_key.enabled {
+    // Check enabled and not expired.
+    if onboarding_key.enabled
+      && (onboarding_key.expires == 0
+        || onboarding_key.expires > komodo_timestamp())
+    {
       Ok(onboarding_key)
     } else {
-      Err(anyhow!("Onboarding key is disabled"))
+      Err(anyhow!("Onboarding key is invalid"))
     }
   }
 }

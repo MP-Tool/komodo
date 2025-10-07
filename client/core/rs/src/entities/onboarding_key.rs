@@ -25,6 +25,11 @@ pub struct OnboardingKey {
   #[serde(default)]
   pub enabled: bool,
 
+  /// Expiry of key, or 0 if never expires
+  #[serde(default)]
+  #[cfg_attr(feature = "mongo", index)]
+  pub expires: I64,
+
   /// Name associated with the api key for management
   #[serde(default)]
   pub name: String,
@@ -36,10 +41,6 @@ pub struct OnboardingKey {
   /// Timestamp of key creation
   #[serde(default)]
   pub created_at: I64,
-
-  /// Expiry of key, or 0 if never expires
-  #[serde(default)]
-  pub expires: I64,
 
   /// Default tags to give to Servers created with this key.
   #[serde(default)]

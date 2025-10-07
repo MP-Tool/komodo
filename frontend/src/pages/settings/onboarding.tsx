@@ -27,6 +27,8 @@ import { fmt_date_with_minutes } from "@lib/formatting";
 import { Switch } from "@ui/switch";
 import { ResourceSelector, TagSelector } from "@components/resources/common";
 import { Types } from "komodo_client";
+import { ColumnDef } from "@tanstack/react-table";
+import { Badge } from "@ui/badge";
 
 export const Onboarding = () => {
   useSetTitle("Onboarding");
@@ -40,7 +42,11 @@ export const Onboarding = () => {
       toast({ title: "Updated onboarding key" });
     },
   });
-  const columns = useMemo(
+  const columns: (
+    | ColumnDef<Types.OnboardingKey, unknown>
+    | false
+    | undefined
+  )[] = useMemo(
     () => [
       {
         size: 150,
@@ -81,7 +87,7 @@ export const Onboarding = () => {
         header: "Tags",
         cell: ({ row }) => (
           <TagSelector
-            tags={row.original.tags}
+            tags={row.original.tags!}
             set={(tags) =>
               mutate({ public_key: row.original.public_key, tags })
             }
@@ -112,10 +118,19 @@ export const Onboarding = () => {
         header: ({ column }) => (
           <SortableHeader column={column} title="Expires" />
         ),
-        cell: ({ row }) =>
-          row.original.expires
-            ? fmt_date_with_minutes(new Date(row.original.expires))
-            : "Never",
+        cell: ({
+          row: {
+            original: { expires },
+          },
+        }) => (
+          <Badge
+            variant={
+              expires && expires <= Date.now() ? "destructive" : "secondary"
+            }
+          >
+            {expires ? fmt_date_with_minutes(new Date(expires)) : "Never"}
+          </Badge>
+        ),
       },
       {
         size: 100,
@@ -123,12 +138,15 @@ export const Onboarding = () => {
         header: ({ column }) => (
           <SortableHeader column={column} title="Enabled" />
         ),
-        cell: ({ row }) => (
+        cell: ({
+          row: {
+            original: { public_key, expires, enabled },
+          },
+        }) => (
           <Switch
-            checked={row.original.enabled}
-            onCheckedChange={(enabled) =>
-              mutate({ public_key: row.original.public_key, enabled })
-            }
+            checked={expires && expires <= Date.now() ? false : enabled}
+            onCheckedChange={(enabled) => mutate({ public_key, enabled })}
+            disabled={!!expires && expires <= Date.now()}
           />
         ),
       },
@@ -159,14 +177,14 @@ export const Onboarding = () => {
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
-type ExpiresOptions = "90 days" | "180 days" | "1 year" | "never";
+type ExpiresOptions = "1 day" | "7 days" | "30 days" | "never";
 
 const CreateKey = () => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [privateKey, setPrivateKey] = useState("");
-  const [expires, setExpires] = useState<ExpiresOptions>("never");
+  const [expires, setExpires] = useState<ExpiresOptions>("1 day");
   const [submitted, setSubmitted] = useState<{ private_key: string }>();
   const invalidate = useInvalidate();
   const { mutate, isPending } = useWrite("CreateOnboardingKey", {
@@ -178,9 +196,9 @@ const CreateKey = () => {
   });
   const now = Date.now();
   const expiresOptions: Record<ExpiresOptions, number> = {
-    "90 days": now + ONE_DAY_MS * 90,
-    "180 days": now + ONE_DAY_MS * 180,
-    "1 year": now + ONE_DAY_MS * 365,
+    "1 day": now + ONE_DAY_MS,
+    "7 days": now + ONE_DAY_MS * 7,
+    "30 days": now + ONE_DAY_MS * 90,
     never: 0,
   };
   const submit = () =>

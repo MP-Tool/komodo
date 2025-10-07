@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use anyhow::{Context, anyhow};
 use database::mungos::find::find_collect;
 use komodo_client::api::read::{
@@ -22,9 +24,28 @@ impl Resolve<ReadArgs> for ListOnboardingKeys {
           .status_code(StatusCode::FORBIDDEN),
       );
     }
-    find_collect(&db_client().onboarding_keys, None, None)
-      .await
-      .context("Failed to query database for Server onboarding keys")
-      .map_err(Into::into)
+
+    let mut keys =
+      find_collect(&db_client().onboarding_keys, None, None)
+        .await
+        .context(
+          "Failed to query database for Server onboarding keys",
+        )?;
+
+    // No expiry keys first, followed 
+    keys.sort_by(|a, b| {
+      if a.expires == b.expires {
+        Ordering::Equal
+      } else if a.expires == 0 {
+        Ordering::Less
+      } else if b.expires == 0 {
+        Ordering::Greater
+      } else {
+        // Descending
+        b.expires.cmp(&a.expires)
+      }
+    });
+
+    Ok(keys)
   }
 }

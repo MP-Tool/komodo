@@ -1283,14 +1283,14 @@ export interface OnboardingKey {
     public_key: string;
     /** Disable the onboarding key when not in use. */
     enabled?: boolean;
+    /** Expiry of key, or 0 if never expires */
+    expires?: I64;
     /** Name associated with the api key for management */
     name?: string;
     /** The [Server](crate::entities::server::Server) ids onboarded by this Creation Key */
     onboarded?: string[];
     /** Timestamp of key creation */
     created_at?: I64;
-    /** Expiry of key, or 0 if never expires */
-    expires?: I64;
     /** Default tags to give to Servers created with this key. */
     tags?: string[];
     /**
