@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::anyhow;
+use bytes::Bytes;
 use cache::CloneCache;
 use resolver_api::Resolve;
 use response::JsonBytes;
@@ -120,8 +121,8 @@ async fn handle_socket<W: Websocket>(
   let handle_reads = async {
     loop {
       match ws_read.recv().await {
-        Ok(WebsocketMessage::Message(bytes)) => {
-          handle_incoming_message(args, sender, bytes).await
+        Ok(WebsocketMessage::Message(message)) => {
+          handle_incoming_message(args, sender, message).await
         }
         Ok(WebsocketMessage::Close(frame)) => {
           warn!("Connection closed with frame: {frame:?}");
@@ -150,7 +151,7 @@ async fn handle_incoming_message(
   sender: &Sender,
   message: Message,
 ) {
-  let (channel, state) = match message.channel_and_state() {
+  let (data, channel, state) = match message.into_parts() {
     Ok(res) => res,
     Err(e) => {
       warn!("Failed to parse transport bytes | {e:#}");
@@ -159,10 +160,10 @@ async fn handle_incoming_message(
   };
   match state {
     MessageState::Request => {
-      handle_request(args.clone(), sender.clone(), channel, message)
+      handle_request(args.clone(), sender.clone(), channel, data)
     }
     MessageState::Terminal => {
-      crate::terminal::handle_incoming_message(channel, message).await
+      crate::terminal::handle_message(channel, data).await
     }
     // Shouldn't be received by Periphery
     MessageState::InProgress => {}
@@ -175,16 +176,9 @@ fn handle_request(
   args: Arc<Args>,
   sender: Sender,
   req_id: Uuid,
-  message: Message,
+  request: Bytes,
 ) {
   tokio::spawn(async move {
-    let request = match message.into_data() {
-      Ok(req) if !req.is_empty() => req,
-      _ => {
-        return;
-      }
-    };
-
     let request =
       match serde_json::from_slice::<PeripheryRequest>(&request) {
         Ok(req) => req,

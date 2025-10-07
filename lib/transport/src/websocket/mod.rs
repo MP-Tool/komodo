@@ -3,10 +3,12 @@
 
 use std::time::Duration;
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
+use bytes::Bytes;
 use futures_util::FutureExt;
 use pin_project_lite::pin_project;
 use serror::deserialize_error_bytes;
+use uuid::Uuid;
 
 use crate::message::{Message, MessageState};
 
@@ -45,11 +47,22 @@ pub trait Websocket: Send {
     > + Send,
   >;
 
+  fn send(
+    &mut self,
+    message: impl Into<Message>,
+  ) -> impl Future<Output = Result<(), Self::Error>>;
+
+  /// Send close message
+  fn close(
+    &mut self,
+    frame: Option<Self::CloseFrame>,
+  ) -> impl Future<Output = Result<(), Self::Error>>;
+
   /// Looping receiver for websocket messages which only returns on messages.
   fn recv_message(
     &mut self,
   ) -> MaybeWithTimeout<
-    impl Future<Output = Result<Message, anyhow::Error>> + Send,
+    impl Future<Output = anyhow::Result<Message>> + Send,
   > {
     MaybeWithTimeout {
       inner: async {
@@ -66,38 +79,42 @@ pub trait Websocket: Send {
     }
   }
 
-  /// Auto deserializes non-successful message errors
-  fn recv_result(
+  /// Receive message + message.into_parts
+  fn recv_parts(
     &mut self,
   ) -> MaybeWithTimeout<
-    impl Future<Output = Result<anyhow::Result<Message>, anyhow::Error>>
+    impl Future<Output = anyhow::Result<(Bytes, Uuid, MessageState)>>
     + Send,
   > {
     MaybeWithTimeout {
-      inner: self.recv_message().map(|res| {
-        res.map(|message| match message.state()? {
-          MessageState::Successful => Ok(message),
-          _ => Err(deserialize_error_bytes(message.data()?)),
-        })
-      }),
+      inner: self
+        .recv_message()
+        .map(|res| res.map(|message| message.into_parts()).flatten()),
     }
   }
 
-  /// Streamlined sending on bytes
-  fn send(
+  /// Auto deserializes non-successful message errors.
+  /// Discards the channels.
+  fn recv_result(
     &mut self,
-    message: impl Into<Message>,
-  ) -> impl Future<Output = Result<(), Self::Error>>;
-
-  /// Send close message
-  fn close(
-    &mut self,
-    frame: Option<Self::CloseFrame>,
-  ) -> impl Future<Output = Result<(), Self::Error>>;
+  ) -> MaybeWithTimeout<
+    impl Future<Output = anyhow::Result<Bytes>> + Send,
+  > {
+    MaybeWithTimeout {
+      inner: self.recv_parts().map(|res| {
+        res
+          .map(|(data, _, state)| match state {
+            MessageState::Successful => Ok(data),
+            _ => Err(deserialize_error_bytes(&data)),
+          })
+          .flatten()
+      }),
+    }
+  }
 }
 
 /// Traits for split websocket receiver
-pub trait WebsocketReceiver {
+pub trait WebsocketReceiver: Send {
   type CloseFrame: std::fmt::Debug + Send + Sync + 'static;
   type Error: std::error::Error + Send + Sync + 'static;
 
@@ -107,8 +124,42 @@ pub trait WebsocketReceiver {
     &mut self,
   ) -> impl Future<
     Output = Result<WebsocketMessage<Self::CloseFrame>, Self::Error>,
-  > + Send
-  + Sync;
+  > + Send;
+
+  /// Looping receiver for websocket messages which only returns on messages.
+  fn recv_message(
+    &mut self,
+  ) -> MaybeWithTimeout<
+    impl Future<Output = anyhow::Result<Message>> + Send,
+  > {
+    MaybeWithTimeout {
+      inner: async {
+        match self.recv().await? {
+          WebsocketMessage::Message(message) => Ok(message),
+          WebsocketMessage::Close(frame) => {
+            Err(anyhow!("Connection closed with framed: {frame:?}"))
+          }
+          WebsocketMessage::Closed => {
+            Err(anyhow!("Connection already closed"))
+          }
+        }
+      },
+    }
+  }
+
+  /// Receive message + message.into_parts
+  fn recv_parts(
+    &mut self,
+  ) -> MaybeWithTimeout<
+    impl Future<Output = anyhow::Result<(Bytes, Uuid, MessageState)>>
+    + Send,
+  > {
+    MaybeWithTimeout {
+      inner: self
+        .recv_message()
+        .map(|res| res.map(|message| message.into_parts()).flatten()),
+    }
+  }
 }
 
 /// Traits for split websocket receiver
@@ -120,13 +171,13 @@ pub trait WebsocketSender {
   fn send(
     &mut self,
     message: Message,
-  ) -> impl Future<Output = Result<(), Self::Error>> + Send + Sync;
+  ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
   /// Send close message
   fn close(
     &mut self,
     frame: Option<Self::CloseFrame>,
-  ) -> impl Future<Output = Result<(), Self::Error>> + Send + Sync;
+  ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
 pin_project! {
@@ -147,12 +198,21 @@ impl<F: Future> Future for MaybeWithTimeout<F> {
   }
 }
 
-impl<F: Future + Send> MaybeWithTimeout<F> {
+impl<
+  O,
+  E: Into<anyhow::Error>,
+  F: Future<Output = Result<O, E>> + Send,
+> MaybeWithTimeout<F>
+{
   pub fn with_timeout(
     self,
     timeout: Duration,
-  ) -> impl Future<Output = anyhow::Result<F::Output>> + Send {
-    tokio::time::timeout(timeout, self.inner)
-      .map(|res| res.map_err(|_| anyhow!("Timed out")))
+  ) -> impl Future<Output = anyhow::Result<O>> + Send {
+    tokio::time::timeout(timeout, self.inner).map(|res| {
+      res
+        .context("Timed out waiting for message.")
+        .map(|inner| inner.map_err(Into::into))
+        .flatten()
+    })
   }
 }

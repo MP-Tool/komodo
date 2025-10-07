@@ -5,11 +5,10 @@ use axum::http::{HeaderValue, StatusCode};
 use periphery_client::CONNECTION_RETRY_SECONDS;
 use transport::{
   auth::{
-    AddressConnectionIdentifiers, ClientLoginFlow,
+    AUTH_TIMEOUT, AddressConnectionIdentifiers, ClientLoginFlow,
     ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
   },
   fix_ws_address,
-  message::Message,
   websocket::{Websocket, tungstenite::TungsteniteWebsocket},
 };
 
@@ -68,14 +67,11 @@ pub async fn handler(address: &str) -> anyhow::Result<()> {
 
     let flow_bytes = match socket
       .recv_result()
-      .with_timeout(Duration::from_secs(2))
+      .with_timeout(AUTH_TIMEOUT)
       .await
-      .flatten()
-      .flatten()
-      .and_then(Message::into_data)
       .context("Failed to receive login flow indicator")
     {
-      Ok(flow_message) => flow_message,
+      Ok(flow_bytes) => flow_bytes,
       Err(e) => {
         if !already_logged_connection_error {
           warn!("{e:#}");
@@ -186,10 +182,8 @@ async fn handle_onboarding(
 
   socket
     .recv_result()
-    .with_timeout(Duration::from_secs(2))
+    .with_timeout(AUTH_TIMEOUT)
     .await
-    .flatten()
-    .flatten()
     .context("Failed to receive Server creation result")?;
 
   info!(

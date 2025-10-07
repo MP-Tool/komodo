@@ -8,7 +8,6 @@ use transport::{
     ConnectionIdentifiers,
   },
   fix_ws_address,
-  message::Message,
   websocket::{Websocket, tungstenite::TungsteniteWebsocket},
 };
 
@@ -107,9 +106,6 @@ impl PeripheryConnection {
       .recv_result()
       .with_timeout(Duration::from_secs(2))
       .await
-      .flatten()
-      .flatten()
-      .and_then(Message::into_data)
       .context("Failed to receive login type indicator")?;
 
     match bytes.iter().as_slice() {
@@ -155,8 +151,6 @@ async fn handle_passkey_login(
       .recv_result()
       .with_timeout(AUTH_TIMEOUT)
       .await
-      .flatten()
-      .flatten()
       .context("Failed to receive authentication state message")?;
 
     Ok(())

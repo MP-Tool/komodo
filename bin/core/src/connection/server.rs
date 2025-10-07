@@ -173,19 +173,16 @@ async fn onboard_server_handler(
       }
     };
 
-    let res = socket
+    // Post onboarding login 1: Receive public key
+    let public_key = socket
       .recv_result()
       .with_timeout(Duration::from_secs(2))
       .await
-      .flatten()
-      .flatten()
-      .and_then(|message| {
-        String::from_utf8(message.into_data()?.into())
+      .and_then(|bytes| {
+        String::from_utf8(bytes.into())
           .context("Public key bytes are not valid utf8")
       });
-
-    // Post onboarding login 1: Receive public key
-    let public_key = match res
+    let public_key = match public_key
     {
       Ok(public_key) => public_key,
       Err(e) => {

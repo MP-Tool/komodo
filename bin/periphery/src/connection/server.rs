@@ -27,7 +27,7 @@ use transport::{
     AUTH_TIMEOUT, ConnectionIdentifiers, HeaderConnectionIdentifiers,
     ServerLoginFlow,
   },
-  message::{Message, MessageState},
+  message::MessageState,
   websocket::{Websocket, axum::AxumWebsocket},
 };
 
@@ -200,9 +200,6 @@ async fn handle_passkey_login(
       .recv_result()
       .with_timeout(AUTH_TIMEOUT)
       .await
-      .flatten()
-      .flatten()
-      .and_then(Message::into_data)
       .context("Failed to receive passkey from Core")?;
 
     if passkeys

@@ -1,10 +1,5 @@
 //! Implementes both sides of Noise handshake
 //! using asymmetric private-public key authentication.
-//!
-//! TODO: Revisit
-//! Note. Relies on Server being behind trusted TLS connection.
-//! This is trivial for Periphery -> Core connection, but presents a challenge
-//! for Core -> Periphery, where untrusted TLS certs are being used.
 
 use std::time::Duration;
 
@@ -15,7 +10,6 @@ use noise::{NoiseHandshake, key::SpkiPublicKey};
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 use tracing::warn;
-use uuid::Uuid;
 
 use crate::{message::MessageState, websocket::Websocket};
 
@@ -55,11 +49,10 @@ impl LoginFlow for ServerLoginFlow {
   ) -> anyhow::Result<V::ValidationResult> {
     // Server generates random nonce / uuid and sends to client
     let nonce = nonce();
-    let channel = Uuid::new_v4();
 
     let res = async {
       socket
-        .send((nonce.to_vec(), channel, MessageState::Successful))
+        .send(nonce)
         .await
         .context("Failed to send connection nonce")?;
 
@@ -67,7 +60,7 @@ impl LoginFlow for ServerLoginFlow {
         private_key,
         // Builds the handshake using the connection-unique prologue hash.
         // The prologue must be the same on both sides of connection.
-        &identifiers.hash(&nonce, channel.as_bytes()),
+        &identifiers.hash(&nonce),
       )
       .context("Failed to inialize handshake")?;
 
@@ -76,11 +69,9 @@ impl LoginFlow for ServerLoginFlow {
         .recv_result()
         .with_timeout(AUTH_TIMEOUT)
         .await
-        .flatten()
-        .flatten()
         .context("Failed to get handshake_m1")?;
       handshake
-        .read_message(handshake_m1.data()?)
+        .read_message(&handshake_m1)
         .context("Failed to read handshake_m1")?;
 
       // Send handshake_m2
@@ -88,7 +79,7 @@ impl LoginFlow for ServerLoginFlow {
         .next_message()
         .context("Failed to write handshake_m2")?;
       socket
-        .send((handshake_m2, channel, MessageState::Successful))
+        .send(handshake_m2)
         .await
         .context("Failed to send handshake_m2")?;
 
@@ -97,11 +88,9 @@ impl LoginFlow for ServerLoginFlow {
         .recv_result()
         .with_timeout(AUTH_TIMEOUT)
         .await
-        .flatten()
-        .flatten()
         .context("Failed to get handshake_m3")?;
       handshake
-        .read_message(handshake_m3.data()?)
+        .read_message(&handshake_m3)
         .context("Failed to read handshake_m3")?;
 
       // Server now has client public key
@@ -117,14 +106,14 @@ impl LoginFlow for ServerLoginFlow {
     match res {
       Ok(res) => {
         socket
-          .send((channel, MessageState::Successful))
+          .send(MessageState::Successful)
           .await
           .context("Failed to send login successful to client")?;
         Ok(res)
       }
       Err(e) => {
         if let Err(e) = socket
-          .send((&e, channel))
+          .send(&e)
           .await
           .context("Failed to send login failed to client")
         {
@@ -151,34 +140,19 @@ impl LoginFlow for ClientLoginFlow {
       socket,
     }: LoginFlowArgs<'a, 's, V, W>,
   ) -> anyhow::Result<V::ValidationResult> {
-    // Receive nonce and channel from server
-    let (channel, nonce) = match socket
-      .recv_result()
-      .with_timeout(AUTH_TIMEOUT)
-      .await
-      .flatten()
-      .flatten()
-      .and_then(|message| {
-        Ok((message.channel()?, message.into_data()?))
-      })
-      .context("Failed to receive connection nonce")
-    {
-      Ok(message) => message,
-      Err(e) => {
-        let _ = socket.close(None).await;
-        warn!(
-          "Could not get login channel and nonce, closing connection | {e:#}"
-        );
-        return Err(e);
-      }
-    };
-
     let res = async {
+      // Receive nonce and channel from server
+      let nonce = socket
+        .recv_result()
+        .with_timeout(AUTH_TIMEOUT)
+        .await
+        .context("Failed to receive connection nonce")?;
+
       let mut handshake = NoiseHandshake::new_initiator(
         private_key,
         // Builds the handshake using the connection-unique prologue hash.
         // The prologue must be the same on both sides of connection.
-        &identifiers.hash(&nonce, channel.as_bytes()),
+        &identifiers.hash(&nonce),
       )
       .context("Failed to inialize handshake")?;
 
@@ -187,7 +161,7 @@ impl LoginFlow for ClientLoginFlow {
         .next_message()
         .context("Failed to write handshake m1")?;
       socket
-        .send((handshake_m1, channel, MessageState::Successful))
+        .send(handshake_m1)
         .await
         .context("Failed to send handshake_m1")?;
 
@@ -196,11 +170,9 @@ impl LoginFlow for ClientLoginFlow {
         .recv_result()
         .with_timeout(AUTH_TIMEOUT)
         .await
-        .flatten()
-        .flatten()
         .context("Failed to get handshake_m2")?;
       handshake
-        .read_message(handshake_m2.data()?)
+        .read_message(&handshake_m2)
         .context("Failed to read handshake_m2")?;
 
       // Client now has server public key.
@@ -217,7 +189,7 @@ impl LoginFlow for ClientLoginFlow {
         .next_message()
         .context("Failed to write handshake_m3")?;
       socket
-        .send((handshake_m3, channel, MessageState::Successful))
+        .send(handshake_m3)
         .await
         .context("Failed to send handshake_m3")?;
 
@@ -226,8 +198,6 @@ impl LoginFlow for ClientLoginFlow {
         .recv_result()
         .with_timeout(AUTH_TIMEOUT)
         .await
-        .flatten()
-        .flatten()
         .context("Failed to receive authentication state message")?;
 
       anyhow::Ok(validation_result)
@@ -238,7 +208,7 @@ impl LoginFlow for ClientLoginFlow {
       Ok(res) => Ok(res),
       Err(e) => {
         if let Err(e) = socket
-          .send((&e, channel))
+          .send(&e)
           .await
           .context("Failed to send login failed to client")
         {
@@ -272,7 +242,7 @@ pub struct ConnectionIdentifiers<'a> {
 
 impl ConnectionIdentifiers<'_> {
   /// nonce: Server computed random connection nonce, sent to client before auth handshake
-  pub fn hash(&self, nonce: &[u8], channel: &[u8]) -> [u8; 32] {
+  pub fn hash(&self, nonce: &[u8]) -> [u8; 32] {
     let mut hash = Sha256::new();
     hash.update(b"noise-wss-v1|");
     hash.update(self.host);
@@ -282,8 +252,6 @@ impl ConnectionIdentifiers<'_> {
     hash.update(self.accept);
     hash.update(b"|");
     hash.update(nonce);
-    hash.update(b"|");
-    hash.update(channel);
     hash.finalize().into()
   }
 }
