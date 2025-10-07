@@ -1,11 +1,14 @@
 use std::{
+  fs::read_to_string,
   sync::{Arc, OnceLock},
   time::Duration,
 };
 
-use anyhow::anyhow;
+use anyhow::{Context as _, anyhow};
+use arc_swap::ArcSwap;
 use bytes::Bytes;
 use cache::CloneCache;
+use noise::key::SpkiPublicKey;
 use resolver_api::Resolve;
 use response::JsonBytes;
 use transport::{
@@ -21,9 +24,7 @@ use uuid::Uuid;
 
 use crate::{
   api::{Args, PeripheryRequest},
-  config::{
-    core_public_keys, periphery_config, periphery_private_key,
-  },
+  config::{periphery_config, periphery_private_key},
 };
 
 pub mod client;
@@ -37,24 +38,70 @@ pub fn core_channels() -> &'static CoreChannels {
   CORE_CHANNELS.get_or_init(Default::default)
 }
 
-pub struct CorePublicKeyValidator;
+pub fn core_public_keys() -> &'static CorePublicKeys {
+  static CORE_PUBLIC_KEYS: OnceLock<CorePublicKeys> = OnceLock::new();
+  CORE_PUBLIC_KEYS.get_or_init(CorePublicKeys::default)
+}
 
-impl PublicKeyValidator for CorePublicKeyValidator {
+pub struct CorePublicKeys(ArcSwap<Vec<SpkiPublicKey>>);
+
+impl Default for CorePublicKeys {
+  fn default() -> Self {
+    let keys = CorePublicKeys(Default::default());
+    keys.refresh();
+    keys
+  }
+}
+
+impl CorePublicKeys {
+  pub fn is_valid(&self, public_key: &str) -> bool {
+    let keys = self.0.load();
+    keys.is_empty() || keys.iter().any(|pk| pk.as_str() == public_key)
+  }
+
+  pub fn refresh(&self) {
+    let Some(core_public_keys) =
+      periphery_config().core_public_keys.as_ref()
+    else {
+      return;
+    };
+    let core_public_keys = core_public_keys
+      .iter()
+      .flat_map(|public_key| {
+        let maybe_pem =
+          if let Some(path) = public_key.strip_prefix("file:") {
+            read_to_string(path)
+              .with_context(|| {
+                format!("Failed to read public key at {path:?}")
+              })
+              .inspect_err(|e| warn!("{e:#}"))
+              .ok()?
+          } else {
+            public_key.clone()
+          };
+        SpkiPublicKey::from_maybe_pem(&maybe_pem)
+          .inspect_err(|e| warn!("{e:#}"))
+          .ok()
+      })
+      .collect::<Vec<_>>();
+    self.0.store(Arc::new(core_public_keys));
+  }
+}
+
+impl PublicKeyValidator for &CorePublicKeys {
   type ValidationResult = ();
   async fn validate(&self, public_key: String) -> anyhow::Result<()> {
-    if let Some(public_keys) = core_public_keys()
-      && public_keys
-        .load()
-        .iter()
-        .all(|expected| public_key != expected.as_str())
+    let keys = self.0.load();
+    if keys.is_empty()
+      || keys.iter().any(|pk| pk.as_str() == public_key)
     {
+      Ok(())
+    } else {
       Err(
         anyhow!("{public_key} is invalid")
           .context("Ensure public key matches one of the 'core_public_keys' in periphery config (PERIPHERY_CORE_PUBLIC_KEYS)")
           .context("Periphery failed to validate Core public key"),
       )
-    } else {
-      Ok(())
     }
   }
 }
@@ -67,7 +114,7 @@ async fn handle_login<W: Websocket, L: LoginFlow>(
     socket,
     identifiers,
     private_key: periphery_private_key().load().as_str(),
-    public_key_validator: CorePublicKeyValidator,
+    public_key_validator: core_public_keys(),
   })
   .await
 }

@@ -15,7 +15,7 @@ use transport::{
 use crate::{
   api::Args,
   config::{periphery_config, periphery_public_key},
-  connection::{CorePublicKeyValidator, core_channels},
+  connection::{core_channels, core_public_keys},
 };
 
 pub async fn handler(address: &str) -> anyhow::Result<()> {
@@ -169,7 +169,7 @@ async fn handle_onboarding(
   ClientLoginFlow::login(LoginFlowArgs {
     private_key: onboarding_key,
     identifiers,
-    public_key_validator: CorePublicKeyValidator,
+    public_key_validator: core_public_keys(),
     socket: &mut socket,
   })
   .await?;

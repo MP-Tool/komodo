@@ -84,7 +84,7 @@ pub trait Websocket: Send {
     MaybeWithTimeout::new(
       self
         .recv_message()
-        .map(|res| res.map(|message| message.into_parts()).flatten()),
+        .map(|res| res.and_then(|message| message.into_parts())),
     )
   }
 
@@ -96,12 +96,10 @@ pub trait Websocket: Send {
     impl Future<Output = anyhow::Result<Bytes>> + Send,
   > {
     MaybeWithTimeout::new(self.recv_parts().map(|res| {
-      res
-        .map(|(data, _, state)| match state {
-          MessageState::Successful => Ok(data),
-          _ => Err(deserialize_error_bytes(&data)),
-        })
-        .flatten()
+      res.and_then(|(data, _, state)| match state {
+        MessageState::Successful => Ok(data),
+        _ => Err(deserialize_error_bytes(&data)),
+      })
     }))
   }
 }
@@ -154,7 +152,7 @@ pub trait WebsocketReceiver: Send {
     MaybeWithTimeout::new(
       self
         .recv_message()
-        .map(|res| res.map(|message| message.into_parts()).flatten()),
+        .map(|res| res.and_then(|message| message.into_parts())),
     )
   }
 }

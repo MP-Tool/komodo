@@ -9,8 +9,9 @@ use periphery_client::api::keys::{
 };
 use resolver_api::Resolve;
 
-use crate::config::{
-  core_public_keys, periphery_config, periphery_private_key,
+use crate::{
+  config::{periphery_config, periphery_private_key},
+  connection::core_public_keys,
 };
 
 //
@@ -44,25 +45,25 @@ impl Resolve<super::Args> for RotatePrivateKey {
 impl Resolve<super::Args> for RotateCorePublicKey {
   async fn resolve(self, _: &super::Args) -> serror::Result<NoData> {
     let config = periphery_config();
-    let (Some(core_public_keys_spec), Some(core_public_keys)) =
-      (config.core_public_keys.as_ref(), core_public_keys())
+
+    let Some(core_public_keys_spec) =
+      config.core_public_keys.as_ref()
     else {
       return Ok(NoData {});
     };
+
     let Some(core_public_key_path) = core_public_keys_spec
       .first()
       .and_then(|key| key.strip_prefix("file:"))
     else {
       return Ok(NoData {});
     };
-    let public_key = SpkiPublicKey::from(self.public_key);
-    public_key.write_pem(core_public_key_path)?;
-    let mut new_core_public_keys = vec![public_key];
-    // This only replaces the first, extend the rest.
-    new_core_public_keys
-      .extend_from_slice(&core_public_keys.load().as_slice()[1..]);
-    // Store the new keys for the next auth
-    core_public_keys.store(Arc::new(new_core_public_keys));
+
+    SpkiPublicKey::from(self.public_key)
+      .write_pem(core_public_key_path)?;
+
+    core_public_keys().refresh();
+
     Ok(NoData {})
   }
 }

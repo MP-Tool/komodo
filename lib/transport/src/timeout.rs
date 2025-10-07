@@ -41,8 +41,7 @@ impl<
     tokio::time::timeout(timeout, self.inner).map(|res| {
       res
         .context("Timed out waiting for message.")
-        .map(|inner| inner.map_err(Into::into))
-        .flatten()
+        .and_then(|inner| inner.map_err(Into::into))
     })
   }
 }

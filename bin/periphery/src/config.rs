@@ -1,5 +1,4 @@
 use std::{
-  fs::read_to_string,
   path::PathBuf,
   sync::{Arc, OnceLock},
 };
@@ -50,39 +49,6 @@ pub fn periphery_public_key() -> &'static ArcSwap<SpkiPublicKey> {
     .unwrap();
     ArcSwap::new(Arc::new(public_key))
   })
-}
-
-pub fn core_public_keys()
--> Option<&'static ArcSwap<Vec<SpkiPublicKey>>> {
-  static CORE_PUBLIC_KEYS: OnceLock<
-    Option<ArcSwap<Vec<SpkiPublicKey>>>,
-  > = OnceLock::new();
-  CORE_PUBLIC_KEYS
-    .get_or_init(|| {
-      periphery_config().core_public_keys.as_ref().map(
-        |public_keys| {
-          let public_keys = public_keys
-            .iter()
-            .map(|public_key| {
-              let maybe_pem = if let Some(path) =
-                public_key.strip_prefix("file:")
-              {
-                read_to_string(path)
-                  .with_context(|| {
-                    format!("Failed to read public key at {path:?}")
-                  })
-                  .unwrap()
-              } else {
-                public_key.clone()
-              };
-              SpkiPublicKey::from_maybe_pem(&maybe_pem).unwrap()
-            })
-            .collect::<Vec<_>>();
-          ArcSwap::new(Arc::new(public_keys))
-        },
-      )
-    })
-    .as_ref()
 }
 
 pub fn periphery_args() -> &'static CliArgs {

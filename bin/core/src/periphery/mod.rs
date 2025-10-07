@@ -44,10 +44,7 @@ impl PeripheryClient {
         return Err(anyhow!("Server {id} is not connected"));
       }
       let channels = args
-        .spawn_client_connection(
-          id.clone(),
-          insecure_tls,
-        )
+        .spawn_client_connection(id.clone(), insecure_tls)
         .await?;
       return Ok(PeripheryClient { id, channels });
     };
@@ -77,10 +74,7 @@ impl PeripheryClient {
     } else {
       // Core -> Periphery connection
       let channels = args
-        .spawn_client_connection(
-          id.clone(),
-          insecure_tls,
-        )
+        .spawn_client_connection(id.clone(), insecure_tls)
         .await?;
       Ok(PeripheryClient { id, channels })
     }

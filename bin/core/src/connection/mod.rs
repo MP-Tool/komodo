@@ -341,7 +341,7 @@ impl PeripheryConnection {
         match ws_write.send(message).await {
           Ok(_) => receiver.clear_buffer(),
           Err(e) => {
-            self.set_error(e.into()).await;
+            self.set_error(e).await;
             break;
           }
         }
@@ -363,7 +363,7 @@ impl PeripheryConnection {
             break;
           }
           Err(e) => {
-            self.set_error(e.into()).await;
+            self.set_error(e).await;
           }
         };
       }
