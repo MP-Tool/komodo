@@ -118,6 +118,14 @@ pub struct ServerConfig {
   #[partial_default(default_enabled())]
   pub enabled: bool,
 
+  /// Whether to automatically rotate Server keys when
+  /// RotateAllServerKeys is called.
+  /// Default: true
+  #[serde(default = "default_auto_rotate_keys")]
+  #[builder(default = "default_auto_rotate_keys()")]
+  #[partial_default(default_auto_rotate_keys())]
+  pub auto_rotate_keys: bool,
+
   /// Deprecated. Use private / public keys instead.
   /// An optional override passkey to use
   /// to authenticate with periphery agent.
@@ -136,13 +144,6 @@ pub struct ServerConfig {
   #[builder(default)]
   pub ignore_mounts: Vec<String>,
 
-  /// Whether to monitor any server stats beyond passing health check.
-  /// default: true
-  #[serde(default = "default_stats_monitoring")]
-  #[builder(default = "default_stats_monitoring()")]
-  #[partial_default(default_stats_monitoring())]
-  pub stats_monitoring: bool,
-
   /// Whether to trigger 'docker image prune -a -f' every 24 hours.
   /// default: true
   #[serde(default = "default_auto_prune")]
@@ -158,6 +159,13 @@ pub struct ServerConfig {
   ))]
   #[builder(default)]
   pub links: Vec<String>,
+
+  /// Whether to monitor any server stats beyond passing health check.
+  /// default: true
+  #[serde(default = "default_stats_monitoring")]
+  #[builder(default = "default_stats_monitoring()")]
+  #[partial_default(default_stats_monitoring())]
+  pub stats_monitoring: bool,
 
   /// Whether to send alerts about the servers reachability
   #[serde(default = "default_send_alerts")]
@@ -246,6 +254,10 @@ fn default_enabled() -> bool {
   false
 }
 
+fn default_auto_rotate_keys() -> bool {
+  true
+}
+
 fn default_stats_monitoring() -> bool {
   true
 }
@@ -289,6 +301,7 @@ impl Default for ServerConfig {
       insecure_tls: default_insecure_tls(),
       external_address: Default::default(),
       enabled: default_enabled(),
+      auto_rotate_keys: Default::default(),
       ignore_mounts: Default::default(),
       stats_monitoring: default_stats_monitoring(),
       auto_prune: default_auto_prune(),

@@ -2,7 +2,10 @@ use std::{fmt::Write as _, sync::OnceLock};
 
 use anyhow::{Context, anyhow};
 use command::run_komodo_command;
-use database::mungos::{find::find_collect, mongodb::bson::doc};
+use database::{
+  bson::{Document, doc},
+  mungos::find::find_collect,
+};
 use formatting::{bold, format_serror};
 use futures::StreamExt;
 use komodo_client::{
@@ -351,7 +354,7 @@ impl Resolve<ExecuteArgs> for RotateAllServerKeys {
 
     let mut servers = db_client()
       .servers
-      .find(doc! { "config.enabled": true })
+      .find(Document::new())
       .await
       .context("Failed to query servers from database")?;
 
@@ -367,6 +370,22 @@ impl Resolve<ExecuteArgs> for RotateAllServerKeys {
           continue;
         }
       };
+      if !server.config.enabled {
+        let _ = write!(
+          &mut log,
+          "\nSkipping {}: Server Disabled ⚙️",
+          bold(&server.name)
+        );
+        continue;
+      }
+      if !server.config.auto_rotate_keys {
+        let _ = write!(
+          &mut log,
+          "\nSkipping {}: Key Rotation Disabled ⚙️",
+          bold(&server.name)
+        );
+        continue;
+      }
       let Some(status) = server_status_cache.get(&server.id).await
       else {
         let _ = write!(

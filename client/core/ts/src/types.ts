@@ -2131,6 +2131,12 @@ export interface ServerConfig {
 	 */
 	enabled: boolean;
 	/**
+	 * Whether to automatically rotate Server keys when
+	 * RotateAllServerKeys is called.
+	 * Default: true
+	 */
+	auto_rotate_keys: boolean;
+	/**
 	 * Deprecated. Use private / public keys instead.
 	 * An optional override passkey to use
 	 * to authenticate with periphery agent.
@@ -2143,17 +2149,17 @@ export interface ServerConfig {
 	 */
 	ignore_mounts?: string[];
 	/**
-	 * Whether to monitor any server stats beyond passing health check.
-	 * default: true
-	 */
-	stats_monitoring: boolean;
-	/**
 	 * Whether to trigger 'docker image prune -a -f' every 24 hours.
 	 * default: true
 	 */
 	auto_prune: boolean;
 	/** Configure quick links that are displayed in the resource header */
 	links?: string[];
+	/**
+	 * Whether to monitor any server stats beyond passing health check.
+	 * default: true
+	 */
+	stats_monitoring: boolean;
 	/** Whether to send alerts about the servers reachability */
 	send_unreachable_alerts: boolean;
 	/** Whether to send alerts about the servers CPU status */

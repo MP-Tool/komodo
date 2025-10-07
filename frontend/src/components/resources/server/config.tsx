@@ -103,6 +103,10 @@ export const ServerConfig = ({
                   disabled={disabled}
                 />
               ),
+              auto_rotate_keys: {
+                description:
+                  "Automatically rotate keys when 'RotateAllServerKeys' is called.",
+              },
             },
           },
           {

@@ -36,6 +36,7 @@ use mungos::{
 
 pub use mongo_indexed;
 pub use mungos;
+pub use mungos::mongodb::bson;
 
 pub mod utils;
 
