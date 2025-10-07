@@ -281,7 +281,7 @@ pub async fn update_server_public_key(
 pub async fn rotate_server_keys(
   server: &Server,
 ) -> anyhow::Result<()> {
-  let periphery = periphery_client(&server).await?;
+  let periphery = periphery_client(server).await?;
   let public_key = periphery
     .request(api::keys::RotatePrivateKey {})
     .await

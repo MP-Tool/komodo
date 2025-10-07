@@ -4,6 +4,8 @@ use futures_util::{
   stream::{SplitSink, SplitStream},
 };
 
+use crate::message::Message;
+
 use super::{
   MaybeWithTimeout, Websocket, WebsocketMessage, WebsocketReceiver,
   WebsocketSender,
@@ -37,9 +39,14 @@ impl Websocket for AxumWebsocket {
 
   async fn send(
     &mut self,
-    bytes: bytes::Bytes,
+    message: impl Into<Message>,
   ) -> Result<(), Self::Error> {
-    self.0.send(axum::extract::ws::Message::Binary(bytes)).await
+    self
+      .0
+      .send(axum::extract::ws::Message::Binary(
+        message.into().into_inner(),
+      ))
+      .await
   }
 
   async fn close(
@@ -77,9 +84,12 @@ impl WebsocketSender for AxumWebsocketSender {
 
   async fn send(
     &mut self,
-    bytes: bytes::Bytes,
+    message: Message,
   ) -> Result<(), Self::Error> {
-    self.0.send(axum::extract::ws::Message::Binary(bytes)).await
+    self
+      .0
+      .send(axum::extract::ws::Message::Binary(message.into_inner()))
+      .await
   }
 
   async fn close(
@@ -100,10 +110,14 @@ where
   loop {
     match stream.try_next().await? {
       Some(axum::extract::ws::Message::Binary(bytes)) => {
-        return Ok(WebsocketMessage::Binary(bytes));
+        return Ok(WebsocketMessage::Message(Message::from_bytes(
+          bytes,
+        )));
       }
       Some(axum::extract::ws::Message::Text(text)) => {
-        return Ok(WebsocketMessage::Binary(text.into()));
+        return Ok(WebsocketMessage::Message(
+          Message::from_axum_utf8(text),
+        ));
       }
       Some(axum::extract::ws::Message::Close(frame)) => {
         return Ok(WebsocketMessage::Close(frame));

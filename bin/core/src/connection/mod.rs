@@ -7,7 +7,6 @@ use std::{
 };
 
 use anyhow::anyhow;
-use bytes::Bytes;
 use cache::CloneCache;
 use database::mungos::{by_id::update_one_by_id, mongodb::bson::doc};
 use komodo_client::entities::{
@@ -16,18 +15,15 @@ use komodo_client::entities::{
   server::Server,
 };
 use serror::serror_into_anyhow_error;
-use tokio::sync::{
-  RwLock,
-  mpsc::{Sender, error::SendError},
-};
+use tokio::sync::{RwLock, mpsc::error::SendError};
 use tokio_util::sync::CancellationToken;
 use transport::{
   auth::{
     ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
     PublicKeyValidator,
   },
-  bytes::id_from_transport_bytes,
-  channel::{BufferedReceiver, buffered_channel},
+  channel::{BufferedReceiver, Sender, buffered_channel},
+  message::Message,
   websocket::{
     Websocket, WebsocketMessage, WebsocketReceiver as _,
     WebsocketSender as _,
@@ -56,7 +52,7 @@ impl PeripheryConnections {
     &self,
     server_id: String,
     args: PeripheryConnectionArgs<'_>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<Bytes>) {
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver) {
     let (connection, receiver) = if let Some(existing_connection) =
       self.0.remove(&server_id).await
     {
@@ -110,12 +106,11 @@ impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
         self.id.to_string(),
         Some(public_key.clone()),
       );
-      let e = anyhow!("{public_key} is invalid")
+      anyhow!("{public_key} is invalid")
         .context(
           "Ensure public key matches configured Periphery Public Key",
         )
-        .context("Core failed to validate Periphery public key");
-      e
+        .context("Core failed to validate Periphery public key")
     };
     let core_to_periphery = self.address.is_some();
     match (self.periphery_public_key, core_to_periphery) {
@@ -242,7 +237,7 @@ pub struct PeripheryConnection {
   /// The connection args
   pub args: OwnedPeripheryConnectionArgs,
   /// Send and receive bytes over the connection socket.
-  pub sender: Sender<Bytes>,
+  pub sender: Sender,
   /// Cancel the connection
   pub cancel: CancellationToken,
   /// Whether Periphery is currently connected.
@@ -258,7 +253,7 @@ pub struct PeripheryConnection {
 impl PeripheryConnection {
   pub fn new(
     args: impl Into<OwnedPeripheryConnectionArgs>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<Bytes>) {
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver) {
     let (sender, receiever) = buffered_channel();
     (
       PeripheryConnection {
@@ -277,7 +272,7 @@ impl PeripheryConnection {
   pub fn with_new_args(
     &self,
     args: impl Into<OwnedPeripheryConnectionArgs>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<Bytes>) {
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver) {
     // Ensure this connection is cancelled.
     self.cancel();
     let (sender, receiever) = buffered_channel();
@@ -315,7 +310,7 @@ impl PeripheryConnection {
   pub async fn handle_socket<W: Websocket>(
     &self,
     socket: W,
-    receiver: &mut BufferedReceiver<Bytes>,
+    receiver: &mut BufferedReceiver,
   ) {
     let cancel = self.cancel.child_token();
 
@@ -332,7 +327,7 @@ impl PeripheryConnection {
         };
 
         let message = match next {
-          Some(request) => Bytes::copy_from_slice(request),
+          Some(request) => request.to_message(),
           // Sender Dropped (shouldn't happen, a reference is held on 'connection').
           None => break,
         };
@@ -358,8 +353,8 @@ impl PeripheryConnection {
         };
 
         match next {
-          Ok(WebsocketMessage::Binary(bytes)) => {
-            self.handle_incoming_bytes(bytes).await
+          Ok(WebsocketMessage::Message(message)) => {
+            self.handle_incoming_message(message).await
           }
           Ok(WebsocketMessage::Close(_))
           | Ok(WebsocketMessage::Closed) => {
@@ -380,21 +375,21 @@ impl PeripheryConnection {
     self.set_connected(false);
   }
 
-  pub async fn handle_incoming_bytes(&self, bytes: Bytes) {
-    let id = match id_from_transport_bytes(&bytes) {
+  pub async fn handle_incoming_message(&self, message: Message) {
+    let channel = match message.channel() {
       Ok(res) => res,
       Err(e) => {
         // TODO: handle better
-        warn!("Failed to read id | {e:#}");
+        warn!("Failed to read channel | {e:#}");
         return;
       }
     };
-    let Some(channel) = self.channels.get(&id).await else {
+    let Some(channel) = self.channels.get(&channel).await else {
       // TODO: handle better
       debug!("Failed to send response | No response channel found");
       return;
     };
-    if let Err(e) = channel.send(bytes).await {
+    if let Err(e) = channel.send(message).await {
       // TODO: handle better
       warn!("Failed to send response | Channel failure | {e:#}");
     }
@@ -402,9 +397,9 @@ impl PeripheryConnection {
 
   pub async fn send(
     &self,
-    value: Bytes,
-  ) -> Result<(), SendError<Bytes>> {
-    self.sender.send(value).await
+    message: impl Into<Message>,
+  ) -> Result<(), SendError<Message>> {
+    self.sender.send(message).await
   }
 
   pub fn set_connected(&self, connected: bool) {

@@ -12,8 +12,10 @@ use periphery_client::api::terminal::{
   ConnectContainerExec, ConnectTerminal, END_OF_OUTPUT,
   ExecuteContainerExec, ExecuteTerminal,
 };
-use tokio::sync::mpsc::{Receiver, Sender, channel};
-use transport::bytes::data_from_transport_bytes;
+use transport::{
+  channel::{Receiver, Sender, channel},
+  message::Message,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -24,7 +26,7 @@ impl PeripheryClient {
   pub async fn connect_terminal(
     &self,
     terminal: String,
-  ) -> anyhow::Result<(Uuid, Sender<Bytes>, Receiver<Bytes>)> {
+  ) -> anyhow::Result<(Uuid, Sender, Receiver)> {
     tracing::trace!(
       "request | type: ConnectTerminal | terminal name: {terminal}",
     );
@@ -39,7 +41,7 @@ impl PeripheryClient {
       .await
       .context("Failed to create terminal connection")?;
 
-    let (sender, receiever) = channel(1024);
+    let (sender, receiever) = channel();
     connection.channels.insert(id, sender).await;
 
     Ok((id, connection.sender.clone(), receiever))
@@ -49,7 +51,7 @@ impl PeripheryClient {
     &self,
     container: String,
     shell: String,
-  ) -> anyhow::Result<(Uuid, Sender<Bytes>, Receiver<Bytes>)> {
+  ) -> anyhow::Result<(Uuid, Sender, Receiver)> {
     tracing::trace!(
       "request | type: ConnectContainerExec | container name: {container} | shell: {shell}",
     );
@@ -64,7 +66,7 @@ impl PeripheryClient {
       .await
       .context("Failed to create container exec connection")?;
 
-    let (sender, receiever) = channel(1000);
+    let (sender, receiever) = channel();
     connection.channels.insert(id, sender).await;
 
     Ok((id, connection.sender.clone(), receiever))
@@ -105,7 +107,7 @@ impl PeripheryClient {
       .await
       .context("Failed to create execute terminal connection")?;
 
-    let (sender, receiver) = channel(1000);
+    let (sender, receiver) = channel();
 
     connection.channels.insert(id, sender).await;
 
@@ -154,7 +156,7 @@ impl PeripheryClient {
       .await
       .context("Failed to create execute terminal connection")?;
 
-    let (sender, receiver) = channel(1000);
+    let (sender, receiver) = channel();
 
     connection.channels.insert(id, sender).await;
 
@@ -168,8 +170,8 @@ impl PeripheryClient {
 
 pub struct ReceiverStream {
   id: Uuid,
-  channels: Arc<CloneCache<Uuid, Sender<Bytes>>>,
-  receiver: Receiver<Bytes>,
+  channels: Arc<CloneCache<Uuid, Sender>>,
+  receiver: Receiver,
 }
 
 impl Stream for ReceiverStream {
@@ -181,9 +183,11 @@ impl Stream for ReceiverStream {
     match self
       .receiver
       .poll_recv(cx)
-      .map(|bytes| bytes.map(data_from_transport_bytes))
+      .map(|message| message.map(Message::into_data))
     {
-      Poll::Ready(Some(Ok(bytes))) if bytes == END_OF_OUTPUT => {
+      Poll::Ready(Some(Ok(bytes)))
+        if bytes == END_OF_OUTPUT.as_bytes() =>
+      {
         self.cleanup();
         Poll::Ready(None)
       }

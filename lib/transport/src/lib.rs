@@ -2,24 +2,9 @@ use ::bytes::Bytes;
 use serde::Deserialize;
 
 pub mod auth;
-pub mod bytes;
 pub mod channel;
+pub mod message;
 pub mod websocket;
-
-#[derive(Debug, Clone, Copy)]
-pub enum MessageState {
-  Successful = 0,
-  Failed = 1,
-  Terminal = 2,
-  Request = 3,
-  InProgress = 4,
-}
-
-impl From<MessageState> for Bytes {
-  fn from(value: MessageState) -> Self {
-    Bytes::from_owner([value.as_byte()])
-  }
-}
 
 pub trait TransportHandler {
   fn handle_incoming_bytes(

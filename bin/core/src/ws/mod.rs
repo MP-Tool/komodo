@@ -17,11 +17,10 @@ use komodo_client::{
   ws::WsLoginMessage,
 };
 use periphery_client::api::terminal::DisconnectTerminal;
-use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_util::sync::CancellationToken;
 use transport::{
-  MessageState,
-  bytes::{data_from_transport_bytes, to_transport_bytes},
+  channel::{Receiver, Sender},
+  message::{Message as TransportMessage, MessageState},
 };
 use uuid::Uuid;
 
@@ -186,8 +185,8 @@ async fn forward_ws_channel(
   periphery: PeripheryClient,
   client_socket: axum::extract::ws::WebSocket,
   periphery_connection_id: Uuid,
-  periphery_sender: Sender<Bytes>,
-  mut periphery_receiver: Receiver<Bytes>,
+  periphery_sender: Sender,
+  mut periphery_receiver: Receiver,
 ) {
   let (mut core_send, mut core_receive) = client_socket.split();
   let cancel = CancellationToken::new();
@@ -204,10 +203,10 @@ async fn forward_ws_channel(
         }
       };
       match res {
-        Some(Ok(Message::Binary(data))) => {
+        Some(Ok(Message::Binary(bytes))) => {
           if let Err(e) = periphery_sender
-            .send(to_transport_bytes(
-              data.into(),
+            .send((
+              bytes,
               periphery_connection_id,
               MessageState::Terminal,
             ))
@@ -218,11 +217,11 @@ async fn forward_ws_channel(
             break;
           };
         }
-        Some(Ok(Message::Text(data))) => {
-          let data: Bytes = data.into();
+        Some(Ok(Message::Text(text))) => {
+          let bytes: Bytes = text.into();
           if let Err(e) = periphery_sender
-            .send(to_transport_bytes(
-              data.into(),
+            .send((
+              bytes,
               periphery_connection_id,
               MessageState::Terminal,
             ))
@@ -255,7 +254,7 @@ async fn forward_ws_channel(
   let periphery_to_core = async {
     loop {
       let res = tokio::select! {
-        res = periphery_receiver.recv() => res.map(data_from_transport_bytes),
+        res = periphery_receiver.recv() => res.map(TransportMessage::into_data),
         _ = cancel.cancelled() => {
           trace!("periphery to core read: cancelled from inside");
           break;

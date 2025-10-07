@@ -18,17 +18,16 @@ use axum::{
   routing::get,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use bytes::Bytes;
 use serror::{
-  AddStatusCode, AddStatusCodeError, deserialize_error_bytes,
-  serialize_error_bytes,
+  AddStatusCode, AddStatusCodeError, serialize_error_bytes,
 };
 use transport::{
-  CoreConnectionQuery, MessageState,
+  CoreConnectionQuery,
   auth::{
-    ConnectionIdentifiers, HeaderConnectionIdentifiers,
+    AUTH_TIMEOUT, ConnectionIdentifiers, HeaderConnectionIdentifiers,
     ServerLoginFlow,
   },
+  message::{Message, MessageState},
   websocket::{Websocket, axum::AxumWebsocket},
 };
 
@@ -134,7 +133,7 @@ async fn handler(
         bytes.push(MessageState::Failed.as_byte());
 
         if let Err(e) = socket
-          .send(bytes.into())
+          .send(&e)
           .await
           .context("Failed to send forward failed to client")
         {
@@ -169,7 +168,7 @@ async fn handle_login(
     (Some(_), _) | (_, None) => {
       // Send login type [0] (Noise auth)
       socket
-        .send(Bytes::from_owner([0]))
+        .send([0])
         .await
         .context("Failed to send login type indicator")?;
       super::handle_login::<_, ServerLoginFlow>(socket, identifiers)
@@ -192,43 +191,33 @@ async fn handle_passkey_login(
     // Send login type
     socket
       // Passkey auth: [1]
-      .send(Bytes::from_owner([1]))
+      .send([1])
       .await
       .context("Failed to send login type indicator")?;
 
     // Receieve passkey
-    let bytes = socket
-      .recv_bytes()
+    let passkey = socket
+      .recv_result()
+      .with_timeout(AUTH_TIMEOUT)
       .await
+      .flatten()
+      .flatten()
+      .and_then(Message::into_data)
       .context("Failed to receive passkey from Core")?;
-    let passkey = match MessageState::from_byte(
-      *bytes.last().context("passkey message is empty")?,
-    ) {
-      MessageState::Successful => &bytes[..(bytes.len() - 1)],
-      _ => {
-        return Err(deserialize_error_bytes(
-          &bytes[..(bytes.len() - 1)],
-        ));
-      }
-    };
 
     if passkeys
       .iter()
       .any(|expected_passkey| expected_passkey.as_bytes() == passkey)
     {
       socket
-        .send(MessageState::Successful.into())
+        .send(MessageState::Successful)
         .await
         .context("Failed to send login type indicator")?;
       Ok(())
     } else {
       let e = anyhow!("Invalid passkey");
-      let mut bytes = serialize_error_bytes(&e);
-      bytes.push(MessageState::Failed.as_byte());
-      if let Err(e) = socket
-        .send(bytes.into())
-        .await
-        .context("Failed to send login failed")
+      if let Err(e) =
+        socket.send(&e).await.context("Failed to send login failed")
       {
         // Log additional error
         warn!("{e:#}");
@@ -241,10 +230,8 @@ async fn handle_passkey_login(
   }
   .await;
   if let Err(e) = res {
-    let mut bytes = serialize_error_bytes(&e);
-    bytes.push(MessageState::Failed.as_byte());
     if let Err(e) = socket
-      .send(bytes.into())
+      .send(&e)
       .await
       .context("Failed to send login failed to client")
     {

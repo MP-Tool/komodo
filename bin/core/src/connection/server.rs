@@ -6,7 +6,6 @@ use axum::{
   http::{HeaderMap, StatusCode},
   response::Response,
 };
-use bytes::Bytes;
 use database::mungos::mongodb::bson::{doc, oid::ObjectId};
 use komodo_client::{
   api::write::{CreateBuilder, CreateServer, UpdateResourceMeta},
@@ -20,11 +19,12 @@ use komodo_client::{
 use resolver_api::Resolve;
 use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
-  MessageState, PeripheryConnectionQuery,
+  PeripheryConnectionQuery,
   auth::{
     HeaderConnectionIdentifiers, LoginFlow, LoginFlowArgs,
     PublicKeyValidator, ServerLoginFlow,
   },
+  message::MessageState,
   websocket::{Websocket, axum::AxumWebsocket},
 };
 
@@ -119,7 +119,7 @@ async fn existing_server_handler(
       format!("server={}", urlencoding::encode(&server_query));
     let mut socket = AxumWebsocket(socket);
 
-    if let Err(e) = socket.send(Bytes::from_owner([0])).await.context(
+    if let Err(e) = socket.send([0]).await.context(
       "Failed to send the login flow indicator over connnection",
     ) {
       connection.set_error(e).await;
@@ -151,7 +151,7 @@ async fn onboard_server_handler(
       format!("server={}", urlencoding::encode(&server_query));
     let mut socket = AxumWebsocket(socket);
 
-    if let Err(e) = socket.send(Bytes::from_owner([1])).await.context(
+    if let Err(e) = socket.send([1]).await.context(
       "Failed to send the login flow indicator over connnection",
     ).context("Server onboarding error") {
       warn!("{e:#}");
@@ -174,14 +174,14 @@ async fn onboard_server_handler(
     };
 
     let res = socket
-      .recv_bytes()
+      .recv_result()
       .with_timeout(Duration::from_secs(2))
       .await
-      .and_then(|res| {
-        res.and_then(|public_key_bytes| {
-          String::from_utf8(public_key_bytes.into())
-            .context("Public key bytes are not valid utf8")
-        })
+      .flatten()
+      .flatten()
+      .and_then(|message| {
+        String::from_utf8(message.into_data()?.into())
+          .context("Public key bytes are not valid utf8")
       });
 
     // Post onboarding login 1: Receive public key
@@ -205,7 +205,7 @@ async fn onboard_server_handler(
       Err(e) => {
         warn!("{e:#}");
         if let Err(e) = socket
-          .send_error(&e)
+          .send(&e)
           .await
           .context("Failed to send Server creation failed to client")
         {
@@ -217,7 +217,7 @@ async fn onboard_server_handler(
     };
 
     if let Err(e) = socket
-      .send(MessageState::Successful.into())
+      .send(MessageState::Successful)
       .await
       .context("Failed to send Server creation successful to client")
     {

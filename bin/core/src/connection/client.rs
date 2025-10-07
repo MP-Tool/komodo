@@ -2,14 +2,13 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
 use periphery_client::CONNECTION_RETRY_SECONDS;
-use serror::{deserialize_error_bytes, serialize_error_bytes};
 use transport::{
-  MessageState,
   auth::{
-    AddressConnectionIdentifiers, ClientLoginFlow,
+    AUTH_TIMEOUT, AddressConnectionIdentifiers, ClientLoginFlow,
     ConnectionIdentifiers,
   },
   fix_ws_address,
+  message::Message,
   websocket::{Websocket, tungstenite::TungsteniteWebsocket},
 };
 
@@ -105,9 +104,12 @@ impl PeripheryConnection {
   ) -> anyhow::Result<()> {
     // Get the required auth type
     let bytes = socket
-      .recv_bytes()
+      .recv_result()
       .with_timeout(Duration::from_secs(2))
-      .await?
+      .await
+      .flatten()
+      .flatten()
+      .and_then(Message::into_data)
       .context("Failed to receive login type indicator")?;
 
     match bytes.iter().as_slice() {
@@ -132,7 +134,7 @@ async fn handle_passkey_login(
   passkey: &str,
 ) -> anyhow::Result<()> {
   let res = async {
-    let mut passkey = if passkey.is_empty() {
+    let passkey = if passkey.is_empty() {
       core_config()
         .passkey
         .as_deref()
@@ -142,34 +144,27 @@ async fn handle_passkey_login(
     } else {
       passkey.as_bytes().to_vec()
     };
-    passkey.push(MessageState::Successful.as_byte());
 
     socket
-      .send(passkey.into())
+      .send(passkey)
       .await
       .context("Failed to send passkey")?;
 
     // Receive login state message and return based on value
-    let state_msg = socket
-      .recv_bytes()
+    socket
+      .recv_result()
+      .with_timeout(AUTH_TIMEOUT)
       .await
+      .flatten()
+      .flatten()
       .context("Failed to receive authentication state message")?;
-    let state = state_msg.last().context(
-      "Authentication state message did not contain state byte",
-    )?;
-    match MessageState::from_byte(*state) {
-      MessageState::Successful => anyhow::Ok(()),
-      _ => Err(deserialize_error_bytes(
-        &state_msg[..(state_msg.len() - 1)],
-      )),
-    }
+
+    Ok(())
   }
   .await;
   if let Err(e) = res {
-    let mut bytes = serialize_error_bytes(&e);
-    bytes.push(MessageState::Failed.as_byte());
     if let Err(e) = socket
-      .send(bytes.into())
+      .send(&e)
       .await
       .context("Failed to send login failed to client")
     {

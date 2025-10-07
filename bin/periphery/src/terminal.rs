@@ -13,7 +13,7 @@ use komodo_client::{
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use tokio::sync::{broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
-use transport::bytes::data_from_transport_bytes;
+use transport::message::Message;
 use uuid::Uuid;
 
 pub type TerminalChannels =
@@ -25,12 +25,12 @@ pub fn terminal_channels() -> &'static TerminalChannels {
   TERMINAL_CHANNELS.get_or_init(Default::default)
 }
 
-pub async fn handle_incoming_message(id: Uuid, bytes: Bytes) {
+pub async fn handle_incoming_message(id: Uuid, message: Message) {
   let Some((channel, _)) = terminal_channels().get(&id).await else {
     warn!("No terminal channel for {id}");
     return;
   };
-  let Ok(data) = data_from_transport_bytes(bytes) else {
+  let Ok(data) = message.into_data() else {
     warn!("Got terminal message with no data for {id}");
     return;
   };

@@ -1,17 +1,19 @@
-use std::ops::Deref;
-
 use anyhow::Context;
+use bytes::Bytes;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
+use uuid::Uuid;
+
+use crate::message::{BorrowedMessage, Message, MessageState};
 
 const RESPONSE_BUFFER_MAX_LEN: usize = 1_024;
 
 #[derive(Debug)]
-pub struct BufferedChannel<T> {
-  pub sender: mpsc::Sender<T>,
-  pub receiver: Mutex<BufferedReceiver<T>>,
+pub struct BufferedChannel {
+  pub sender: Sender,
+  pub receiver: Mutex<BufferedReceiver>,
 }
 
-impl<T: Deref> Default for BufferedChannel<T> {
+impl Default for BufferedChannel {
   fn default() -> Self {
     let (sender, receiver) = buffered_channel();
     BufferedChannel {
@@ -21,10 +23,10 @@ impl<T: Deref> Default for BufferedChannel<T> {
   }
 }
 
-impl<T> BufferedChannel<T> {
+impl BufferedChannel {
   pub fn receiver(
     &self,
-  ) -> anyhow::Result<MutexGuard<'_, BufferedReceiver<T>>> {
+  ) -> anyhow::Result<MutexGuard<'_, BufferedReceiver>> {
     self
       .receiver
       .try_lock()
@@ -32,24 +34,62 @@ impl<T> BufferedChannel<T> {
   }
 }
 
-/// Create a buffered channel
-pub fn buffered_channel<T: Deref>()
--> (mpsc::Sender<T>, BufferedReceiver<T>) {
+/// Create a channel
+pub fn channel() -> (Sender, Receiver) {
   let (sender, receiver) = mpsc::channel(RESPONSE_BUFFER_MAX_LEN);
+  (Sender(sender), Receiver(receiver))
+}
+
+/// Create a buffered channel
+pub fn buffered_channel() -> (Sender, BufferedReceiver) {
+  let (sender, receiver) = channel();
   (sender, BufferedReceiver::new(receiver))
 }
 
-/// Wrapper around channel receiver to control when
-/// the latest message is dropped,
-/// in case it must be re-transmitted.
-#[derive(Debug)]
-pub struct BufferedReceiver<T> {
-  receiver: mpsc::Receiver<T>,
-  buffer: Option<T>,
+#[derive(Debug, Clone)]
+pub struct Sender(mpsc::Sender<Message>);
+
+impl Sender {
+  pub async fn send(
+    &self,
+    message: impl Into<Message>,
+  ) -> Result<(), mpsc::error::SendError<Message>> {
+    self.0.send(message.into()).await
+  }
 }
 
-impl<T: Deref> BufferedReceiver<T> {
-  pub fn new(receiver: mpsc::Receiver<T>) -> BufferedReceiver<T> {
+#[derive(Debug)]
+pub struct Receiver(mpsc::Receiver<Message>);
+
+impl Receiver {
+  pub async fn recv(&mut self) -> Option<Message> {
+    self.0.recv().await
+  }
+
+  pub async fn recv_parts(
+    &mut self,
+  ) -> anyhow::Result<(Bytes, Uuid, MessageState)> {
+    let message = self.recv().await.context("Channel is broken")?;
+    message.into_parts()
+  }
+
+  pub fn poll_recv(
+    &mut self,
+    cx: &mut std::task::Context<'_>,
+  ) -> std::task::Poll<Option<Message>> {
+    self.0.poll_recv(cx)
+  }
+}
+
+/// Control when the latest message is dropped, in case it must be re-transmitted.
+#[derive(Debug)]
+pub struct BufferedReceiver {
+  receiver: Receiver,
+  buffer: Option<Message>,
+}
+
+impl BufferedReceiver {
+  pub fn new(receiver: Receiver) -> BufferedReceiver {
     BufferedReceiver {
       receiver,
       buffer: None,
@@ -62,11 +102,11 @@ impl<T: Deref> BufferedReceiver<T> {
   ///   - Wait for next item.
   ///   - store in buffer.
   ///   - return borrow of buffer.
-  pub async fn recv(&mut self) -> Option<&<T as Deref>::Target> {
+  pub async fn recv(&mut self) -> Option<BorrowedMessage<'_>> {
     if self.buffer.is_none() {
       self.buffer = Some(self.receiver.recv().await?);
     }
-    self.buffer.as_deref()
+    self.buffer.as_ref().map(Message::borrow)
   }
 
   /// Clears buffer.

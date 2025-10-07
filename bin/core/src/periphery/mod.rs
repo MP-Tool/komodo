@@ -1,18 +1,16 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
-use bytes::Bytes;
 use cache::CloneCache;
 use periphery_client::api;
 use resolver_api::HasResponse;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::json;
 use serror::deserialize_error_bytes;
-use tokio::sync::mpsc::{self, Sender};
 use tracing::warn;
 use transport::{
-  MessageState,
-  bytes::{from_transport_bytes, to_transport_bytes},
+  channel::{Sender, channel},
+  message::MessageState,
 };
 use uuid::Uuid;
 
@@ -23,7 +21,7 @@ use crate::{
 
 pub mod terminal;
 
-pub type ConnectionChannels = CloneCache<Uuid, Sender<Bytes>>;
+pub type ConnectionChannels = CloneCache<Uuid, Sender>;
 
 #[derive(Debug)]
 pub struct PeripheryClient {
@@ -124,8 +122,7 @@ impl PeripheryClient {
     connection.bail_if_not_connected().await?;
 
     let id = Uuid::new_v4();
-    let (response_sender, mut response_receiever) =
-      mpsc::channel(1000);
+    let (response_sender, mut response_receiever) = channel();
     self.channels.insert(id, response_sender).await;
 
     let req_type = T::req_type();
@@ -136,7 +133,7 @@ impl PeripheryClient {
     .context("Failed to serialize request to bytes")?;
 
     if let Err(e) = connection
-      .send(to_transport_bytes(data, id, MessageState::Request))
+      .send((data, id, MessageState::Request))
       .await
       .context("Failed to send request over channel")
     {
@@ -147,33 +144,11 @@ impl PeripheryClient {
 
     // Poll for the associated response
     loop {
-      let next = tokio::select! {
-        msg = response_receiever.recv() => msg,
+      let (data, _, state) = tokio::select! {
+        msg = response_receiever.recv_parts() => msg?,
         // Periphery will send InProgress every 5s to avoid timeout
         _ = tokio::time::sleep(Duration::from_secs(10)) => {
           return Err(anyhow!("Response timed out"));
-        }
-      };
-
-      let bytes = match next {
-        Some(bytes) => bytes,
-        None => {
-          return Err(anyhow!(
-            "Sender dropped before response was recieved"
-          ));
-        }
-      };
-
-      let (state, data) = match from_transport_bytes(bytes) {
-        Ok((data, _, state)) if !data.is_empty() => (state, data),
-        // Ignore no data cases
-        Ok(_) => continue,
-        Err(e) => {
-          warn!(
-            "Server {} | Received invalid message | {e:#}",
-            self.id
-          );
-          continue;
         }
       };
       match state {

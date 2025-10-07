@@ -201,7 +201,7 @@ fn interpolate_env_and_shell(input: &str) -> String {
   // Interpolate $(shell command) syntax
   let shell_regex =
     regex::Regex::new(r"\$\(([A-Za-z0-9_]+)\)").unwrap();
-  let shell_pass = shell_regex
+  shell_regex
     .replace_all(&second_env_pass, |caps: &regex::Captures| {
       let command = &caps[1];
       let Ok(output) = std::process::Command::new("sh")
@@ -217,9 +217,7 @@ fn interpolate_env_and_shell(input: &str) -> String {
         .inspect_err(|e| eprintln!("{}: Failed to parse shell stdout for $({command}) as utf-8: {e}", "WARN".yellow()))
         .unwrap_or_default()
     })
-    .into_owned();
-
-  shell_pass
+    .into_owned()
 }
 
 fn try_get_env_extended(var_name: &str) -> String {

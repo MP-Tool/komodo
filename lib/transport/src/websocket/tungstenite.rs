@@ -16,6 +16,8 @@ use tokio_tungstenite::{
   },
 };
 
+use crate::message::Message;
+
 use super::{
   MaybeWithTimeout, Websocket, WebsocketMessage, WebsocketReceiver,
   WebsocketSender,
@@ -54,9 +56,12 @@ impl Websocket for TungsteniteWebsocket {
 
   async fn send(
     &mut self,
-    bytes: bytes::Bytes,
+    message: impl Into<Message>,
   ) -> Result<(), Self::Error> {
-    self.0.send(tungstenite::Message::Binary(bytes)).await
+    self
+      .0
+      .send(tungstenite::Message::Binary(message.into().into_inner()))
+      .await
   }
 
   async fn close(
@@ -96,9 +101,12 @@ impl WebsocketSender for TungsteniteWebsocketSender {
 
   async fn send(
     &mut self,
-    bytes: bytes::Bytes,
+    message: Message,
   ) -> Result<(), Self::Error> {
-    self.0.send(tungstenite::Message::Binary(bytes)).await
+    self
+      .0
+      .send(tungstenite::Message::Binary(message.into_inner()))
+      .await
   }
 
   async fn close(
@@ -119,10 +127,14 @@ where
   loop {
     match stream.try_next().await? {
       Some(tungstenite::Message::Binary(bytes)) => {
-        return Ok(WebsocketMessage::Binary(bytes));
+        return Ok(WebsocketMessage::Message(Message::from_bytes(
+          bytes,
+        )));
       }
       Some(tungstenite::Message::Text(text)) => {
-        return Ok(WebsocketMessage::Binary(text.into()));
+        return Ok(WebsocketMessage::Message(
+          Message::from_tungstenite_utf8(text),
+        ));
       }
       Some(tungstenite::Message::Close(frame)) => {
         return Ok(WebsocketMessage::Close(frame));

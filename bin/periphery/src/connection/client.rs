@@ -2,16 +2,14 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
 use axum::http::{HeaderValue, StatusCode};
-use bytes::Bytes;
 use periphery_client::CONNECTION_RETRY_SECONDS;
-use serror::deserialize_error_bytes;
 use transport::{
-  MessageState,
   auth::{
     AddressConnectionIdentifiers, ClientLoginFlow,
     ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
   },
   fix_ws_address,
+  message::Message,
   websocket::{Websocket, tungstenite::TungsteniteWebsocket},
 };
 
@@ -69,12 +67,15 @@ pub async fn handler(address: &str) -> anyhow::Result<()> {
     // Receive whether to use Server connection flow vs Server onboarding flow.
 
     let flow_bytes = match socket
-      .recv_bytes()
+      .recv_result()
       .with_timeout(Duration::from_secs(2))
-      .await?
+      .await
+      .flatten()
+      .flatten()
+      .and_then(Message::into_data)
       .context("Failed to receive login flow indicator")
     {
-      Ok(flow_bytes) => flow_bytes,
+      Ok(flow_message) => flow_message,
       Err(e) => {
         if !already_logged_connection_error {
           warn!("{e:#}");
@@ -179,33 +180,24 @@ async fn handle_onboarding(
 
   // Post onboarding login 1: Send public key
   socket
-    .send(Bytes::copy_from_slice(
-      periphery_public_key().load().as_bytes(),
-    ))
+    .send(periphery_public_key().load().as_bytes())
     .await
     .context("Failed to send public key bytes")?;
 
-  let res = socket
-    .recv_bytes()
+  socket
+    .recv_result()
     .with_timeout(Duration::from_secs(2))
-    .await?
+    .await
+    .flatten()
+    .flatten()
     .context("Failed to receive Server creation result")?;
 
-  match res.last().map(|byte| MessageState::from_byte(*byte)) {
-    Some(MessageState::Successful) => {
-      info!(
-        "Server onboarding flow for '{}' successful ✅",
-        config.connect_as
-      );
-      Ok(())
-    }
-    Some(MessageState::Failed) => {
-      Err(deserialize_error_bytes(&res[..(res.len() - 1)]))
-    }
-    other => Err(anyhow!(
-      "Got unrecognized onboarding flow response: {other:?}"
-    )),
-  }
+  info!(
+    "Server onboarding flow for '{}' successful ✅",
+    config.connect_as
+  );
+
+  Ok(())
 }
 
 async fn connect_websocket(

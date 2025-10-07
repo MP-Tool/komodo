@@ -4,12 +4,11 @@
 use std::time::Duration;
 
 use anyhow::anyhow;
-use bytes::Bytes;
 use futures_util::FutureExt;
 use pin_project_lite::pin_project;
-use serror::{deserialize_error_bytes, serialize_error_bytes};
+use serror::deserialize_error_bytes;
 
-use crate::MessageState;
+use crate::message::{Message, MessageState};
 
 pub mod axum;
 pub mod tungstenite;
@@ -18,7 +17,7 @@ pub mod tungstenite;
 /// for easier handling.
 pub enum WebsocketMessage<CloseFrame> {
   /// Standard message
-  Binary(Bytes),
+  Message(Message),
   /// Graceful close message
   Close(Option<CloseFrame>),
   /// Stream closed
@@ -46,16 +45,16 @@ pub trait Websocket: Send {
     > + Send,
   >;
 
-  /// Looping receiver for websocket messages which only returns on bytes.
-  fn recv_bytes(
+  /// Looping receiver for websocket messages which only returns on messages.
+  fn recv_message(
     &mut self,
   ) -> MaybeWithTimeout<
-    impl Future<Output = Result<Bytes, anyhow::Error>> + Send,
+    impl Future<Output = Result<Message, anyhow::Error>> + Send,
   > {
     MaybeWithTimeout {
       inner: async {
         match self.recv().await? {
-          WebsocketMessage::Binary(bytes) => Ok(bytes),
+          WebsocketMessage::Message(message) => Ok(message),
           WebsocketMessage::Close(frame) => {
             Err(anyhow!("Connection closed with framed: {frame:?}"))
           }
@@ -67,27 +66,18 @@ pub trait Websocket: Send {
     }
   }
 
+  /// Auto deserializes non-successful message errors
   fn recv_result(
     &mut self,
   ) -> MaybeWithTimeout<
-    impl Future<Output = Result<anyhow::Result<Bytes>, anyhow::Error>>
+    impl Future<Output = Result<anyhow::Result<Message>, anyhow::Error>>
     + Send,
   > {
     MaybeWithTimeout {
-      inner: self.recv_bytes().map(|res| {
-        res.map(|bytes| {
-          if bytes.is_empty() {
-            return Err(anyhow!(
-              "Message does not contain state byte"
-            ));
-          }
-          let mut bytes: Vec<u8> = bytes.into();
-          let state = bytes.pop();
-          let bytes: Bytes = bytes.into();
-          match state.map(MessageState::from_byte) {
-            Some(MessageState::Successful) => Ok(bytes),
-            _ => Err(deserialize_error_bytes(&bytes)),
-          }
+      inner: self.recv_message().map(|res| {
+        res.map(|message| match message.state()? {
+          MessageState::Successful => Ok(message),
+          _ => Err(deserialize_error_bytes(message.data()?)),
         })
       }),
     }
@@ -96,26 +86,8 @@ pub trait Websocket: Send {
   /// Streamlined sending on bytes
   fn send(
     &mut self,
-    bytes: Bytes,
+    message: impl Into<Message>,
   ) -> impl Future<Output = Result<(), Self::Error>>;
-
-  fn send_data(
-    &mut self,
-    mut data: Vec<u8>,
-    state: MessageState,
-  ) -> impl Future<Output = Result<(), Self::Error>> {
-    data.push(state.as_byte());
-    self.send(data.into())
-  }
-
-  fn send_error(
-    &mut self,
-    e: &anyhow::Error,
-  ) -> impl Future<Output = Result<(), Self::Error>> {
-    let mut bytes = serialize_error_bytes(e);
-    bytes.push(MessageState::Failed.as_byte());
-    self.send(bytes.into())
-  }
 
   /// Send close message
   fn close(
@@ -147,7 +119,7 @@ pub trait WebsocketSender {
   /// Streamlined sending on bytes
   fn send(
     &mut self,
-    bytes: Bytes,
+    message: Message,
   ) -> impl Future<Output = Result<(), Self::Error>> + Send + Sync;
 
   /// Send close message
