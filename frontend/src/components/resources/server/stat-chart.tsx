@@ -30,10 +30,21 @@ export const StatChart = ({
 }) => {
   const [granularity] = useStatsGranularity();
 
-  const { data, isPending } = useRead("GetHistoricalServerStats", {
-    server: server_id,
-    granularity,
-  });
+  const { data, isPending } = useRead(
+    "GetHistoricalServerStats",
+    {
+      server: server_id,
+      granularity,
+    },
+    {
+      refetchInterval:
+        granularity === Types.Timelength.FiveSeconds
+          ? 5_000
+          : granularity === Types.Timelength.FifteenSeconds
+            ? 10_000
+            : 15_000,
+    }
+  );
 
   const seriesData = useMemo(() => {
     if (!data?.stats) return [] as { label: string; data: StatDatapoint[] }[];
@@ -119,32 +130,42 @@ export const InnerStatChart = ({
     };
   }, [min, max, diff]);
 
-  // Determine the dynamic scaling for network-related types
-  const allValues = (seriesData ?? [{ data: stats ?? [] }]).flatMap((s) =>
-    s.data.map((d) => d.value)
-  );
-  const maxStatValue = Math.max(...(allValues.length ? allValues : [0]));
+  const maxStatValue = stats ? Math.max(...stats.map((s) => s.value)) : 0;
 
-  const { unit, maxUnitValue } = useMemo(() => {
+  const { maxUnitValue, unitValue, unit } = useMemo(() => {
     if (type === "Network Ingress" || type === "Network Egress") {
-      if (maxStatValue <= BYTES_PER_KB) {
-        return { unit: "KB", maxUnitValue: BYTES_PER_KB };
-      } else if (maxStatValue <= BYTES_PER_MB) {
-        return { unit: "MB", maxUnitValue: BYTES_PER_MB };
+      const maxUnitValue = 2 ** Math.ceil(Math.log2(maxStatValue));
+      if (maxStatValue <= BYTES_PER_MB) {
+        return {
+          unit: "KB",
+          unitValue: BYTES_PER_KB,
+          maxUnitValue,
+        };
       } else if (maxStatValue <= BYTES_PER_GB) {
-        return { unit: "GB", maxUnitValue: BYTES_PER_GB };
+        return {
+          unit: "MB",
+          unitValue: BYTES_PER_MB,
+          maxUnitValue,
+        };
       } else {
-        return { unit: "TB", maxUnitValue: BYTES_PER_GB * 1024 }; // Larger scale for high values
+        return {
+          unit: "GB",
+          unitValue: BYTES_PER_GB,
+          maxUnitValue,
+        };
       }
     }
     if (type === "Load Average") {
-      // Leave unitless; set max slightly above observed
       return {
-        unit: "",
         maxUnitValue: maxStatValue === 0 ? 1 : maxStatValue * 1.2,
       };
     }
-    return { unit: "", maxUnitValue: 100 }; // Default for CPU, memory, disk
+    if (type === "Cpu") {
+      return {
+        maxUnitValue: Math.min(2 ** (Math.log2(maxStatValue) + 0.3), 100),
+      };
+    }
+    return { maxUnitValue: 100 }; // Default for memory, disk
   }, [type, maxStatValue]);
 
   const valueAxis = useMemo(
@@ -159,7 +180,7 @@ export const InnerStatChart = ({
           tooltip: (value?: number) => (
             <div className="text-lg font-mono">
               {(type === "Network Ingress" || type === "Network Egress") && unit
-                ? `${(value ?? 0) / (maxUnitValue / 1024)} ${unit}`
+                ? `${((value ?? 0) / unitValue).toFixed(2)} ${unit}`
                 : type === "Load Average"
                   ? `${(value ?? 0).toFixed(2)}`
                   : `${value?.toFixed(2)}%`}

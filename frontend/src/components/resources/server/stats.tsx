@@ -35,19 +35,27 @@ export const ServerStats = ({
   const stats = useRead(
     "GetSystemStats",
     { server: id },
-    { 
+    {
       enabled: isServerAvailable,
-      refetchInterval: 10_000 
+      refetchInterval: 10_000,
     }
   ).data;
-  const info = useRead("GetSystemInformation", { server: id }, { enabled: isServerAvailable }).data;
+  const info = useRead(
+    "GetSystemInformation",
+    { server: id },
+    { enabled: isServerAvailable }
+  ).data;
 
   // Get all the containers with stats
-  const containers = useRead("ListDockerContainers", {
-    server: id,
-  }, {
-    enabled: isServerAvailable
-  }).data?.filter((c) => c.stats);
+  const containers = useRead(
+    "ListDockerContainers",
+    {
+      server: id,
+    },
+    {
+      enabled: isServerAvailable,
+    }
+  ).data?.filter((c) => c.stats);
   const [showContainers, setShowContainers] = useLocalStorage(
     "stats-show-container-table-v1",
     true
@@ -71,6 +79,8 @@ export const ServerStats = ({
     (acc, curr) => (acc += curr.total_gb),
     0
   );
+
+  const [showHistorical, setShowHistorical] = useState(false);
 
   return (
     <Section titleOther={titleOther}>
@@ -316,6 +326,7 @@ export const ServerStats = ({
                   </SelectTrigger>
                   <SelectContent>
                     {[
+                      Types.Timelength.FiveSeconds,
                       Types.Timelength.FifteenSeconds,
                       Types.Timelength.ThirtySeconds,
                       Types.Timelength.OneMinute,
@@ -333,37 +344,47 @@ export const ServerStats = ({
                   </SelectContent>
                 </Select>
               </div>
+              <ShowHideButton
+                show={showHistorical}
+                setShow={setShowHistorical}
+              />
             </div>
           }
         >
-          <div className="flex flex-col gap-8">
-            <StatChart
-              server_id={id}
-              type="Load Average"
-              className="w-full h-[250px]"
-            />
-            <StatChart server_id={id} type="Cpu" className="w-full h-[250px]" />
-            <StatChart
-              server_id={id}
-              type="Memory"
-              className="w-full h-[250px]"
-            />
-            <StatChart
-              server_id={id}
-              type="Disk"
-              className="w-full h-[250px]"
-            />
-            <StatChart
-              server_id={id}
-              type="Network Ingress"
-              className="w-full h-[250px]"
-            />
-            <StatChart
-              server_id={id}
-              type="Network Egress"
-              className="w-full h-[250px]"
-            />
-          </div>
+          {showHistorical && (
+            <div className="flex flex-col gap-8">
+              <StatChart
+                server_id={id}
+                type="Load Average"
+                className="w-full h-[250px]"
+              />
+              <StatChart
+                server_id={id}
+                type="Cpu"
+                className="w-full h-[250px]"
+              />
+              <StatChart
+                server_id={id}
+                type="Memory"
+                className="w-full h-[250px]"
+              />
+              <StatChart
+                server_id={id}
+                type="Disk"
+                className="w-full h-[250px]"
+              />
+              <StatChart
+                server_id={id}
+                type="Network Ingress"
+                className="w-full h-[250px]"
+              />
+              <StatChart
+                server_id={id}
+                type="Network Egress"
+                className="w-full h-[250px]"
+              />
+            </div>
+          )}
         </Section>
       </div>
     </Section>
@@ -512,7 +533,11 @@ const LOAD_AVERAGE = ({
   if (!stats?.load_average) return null;
   const { one = 0, five = 0, fifteen = 0 } = stats.load_average || {};
   const isServerAvailable = useIsServerAvailable(id);
-  const cores = useRead("GetSystemInformation", { server: id }, { enabled: isServerAvailable }).data?.core_count;
+  const cores = useRead(
+    "GetSystemInformation",
+    { server: id },
+    { enabled: isServerAvailable }
+  ).data?.core_count;
 
   const pct = (load: number) =>
     cores && cores > 0 ? Math.min((load / cores) * 100, 100) : undefined;

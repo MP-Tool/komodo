@@ -7,4 +7,5 @@ const statsGranularityAtom = atomWithStorage<Types.Timelength>(
   Types.Timelength.FiveMinutes
 );
 
-export const useStatsGranularity = () => useAtom(statsGranularityAtom);
+export const useStatsGranularity = () =>
+  useAtom<Types.Timelength>(statsGranularityAtom);
