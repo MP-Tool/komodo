@@ -1,4 +1,7 @@
-use std::{fmt::Write as _, sync::OnceLock};
+use std::{
+  fmt::Write as _,
+  sync::{Arc, OnceLock},
+};
 
 use anyhow::{Context, anyhow};
 use command::run_komodo_command;
@@ -29,7 +32,7 @@ use crate::{
   api::execute::{
     ExecuteArgs, pull_deployment_inner, pull_stack_inner,
   },
-  config::core_config,
+  config::{core_config, core_private_key, core_public_key},
   helpers::{periphery_client, update::update_update},
   resource::rotate_server_keys,
   state::{
@@ -507,6 +510,9 @@ impl Resolve<ExecuteArgs> for RotateCoreKeys {
 
     info!("New Public Key: {}", keys.public);
 
+    core_private_key().store(Arc::new(keys.private.into_inner()));
+    core_public_key().store(Arc::new(keys.public.clone()));
+
     let mut log = format!("New Public Key: {}\n", keys.public);
 
     for (server, state) in servers {
@@ -533,7 +539,7 @@ impl Resolve<ExecuteArgs> for RotateCoreKeys {
       let periphery = periphery_client(&server).await?;
       let res = periphery
         .request(api::keys::RotateCorePublicKey {
-          public_key: keys.public.as_str().to_string(),
+          public_key: keys.public.to_string(),
         })
         .await;
       match res {
