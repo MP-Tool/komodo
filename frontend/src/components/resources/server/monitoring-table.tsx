@@ -1,92 +1,122 @@
 import { ResourceLink } from "@components/resources/common";
 import { ServerComponents } from "@components/resources/server";
 import { DataTable, SortableHeader } from "@ui/data-table";
-import { useRead } from "@lib/hooks";
-import { useMemo } from "react";
+import {
+  useRead,
+  useSelectedResources,
+  useServerMonitoringTable,
+} from "@lib/hooks";
 import { useIsServerAvailable } from ".";
+import { Types } from "komodo_client";
+import { Button } from "@ui/button";
+import { Eye, EyeOff } from "lucide-react";
 
-export const ServerMonitoringTable = ({ search = "" }: { search?: string }) => {
-  const servers = useRead("ListServers", {}).data;
-  const searchSplit = useMemo(
-    () => search.toLowerCase().split(" ").filter((t) => t),
-    [search]
-  );
-  const filtered = useMemo(
-    () =>
-      servers?.filter((s) =>
-        searchSplit.length === 0
-          ? true
-          : searchSplit.every((t) => s.name.toLowerCase().includes(t))
-      ) ?? [],
-    [servers, searchSplit]
-  );
+export const ServerMonitoringTable = ({
+  servers,
+}: {
+  servers: Types.ServerListItem[];
+}) => {
+  const [_, setSelectedResources] = useSelectedResources("Server");
   return (
-    <div className="flex flex-col gap-4">
-      <DataTable<any, any>
-        tableKey="servers-monitoring-v1"
-        data={filtered}
-        columns={[
-          {
-            accessorKey: "name",
-            size: 250,
-            header: ({ column }) => (
-              <SortableHeader column={column} title="System" />
-            ),
-            cell: ({ row }) => (
-              <div className="flex items-center gap-2">
-                <ResourceLink type="Server" id={row.original.id} />
-              </div>
-            ),
-          },
-          {
-            header: "CPU",
-            size: 200,
-            cell: ({ row }) => <CpuCell id={row.original.id} />,
-          },
-          {
-            header: "Memory",
-            size: 200,
-            cell: ({ row }) => <MemCell id={row.original.id} />,
-          },
-          {
-            header: "Disk",
-            size: 200,
-            cell: ({ row }) => <DiskCell id={row.original.id} />,
-          },
-          {
-            header: "Load Avg",
-            size: 160,
-            cell: ({ row }) => <LoadAvgCell id={row.original.id} />,
-          },
-          {
-            header: "Net",
-            size: 100,
-            cell: ({ row }) => <NetCell id={row.original.id} />,
-          },
-          {
-            header: "Agent",
-            size: 160,
-            cell: ({ row }) => <ServerComponents.Info.Version id={row.original.id} />,
-          },
-        ]}
-      />
-    </div>
+    <DataTable
+      tableKey="servers-monitoring-v1"
+      data={servers}
+      selectOptions={{
+        selectKey: ({ name }) => name,
+        onSelect: setSelectedResources,
+      }}
+      columns={[
+        {
+          accessorKey: "name",
+          size: 250,
+          header: ({ column }) => (
+            <SortableHeader column={column} title="Name" />
+          ),
+          cell: ({ row }) => (
+            <ResourceLink type="Server" id={row.original.id} />
+          ),
+        },
+        {
+          header: "CPU",
+          size: 200,
+          cell: ({ row }) => <CpuCell id={row.original.id} />,
+        },
+        {
+          header: "Memory",
+          size: 200,
+          cell: ({ row }) => <MemCell id={row.original.id} />,
+        },
+        {
+          header: "Disk",
+          size: 200,
+          cell: ({ row }) => <DiskCell id={row.original.id} />,
+        },
+        {
+          header: "Load Avg",
+          size: 160,
+          cell: ({ row }) => <LoadAvgCell id={row.original.id} />,
+        },
+        {
+          header: "Net",
+          size: 100,
+          cell: ({ row }) => <NetCell id={row.original.id} />,
+        },
+        {
+          header: "Version",
+          size: 160,
+          cell: ({ row }) => (
+            <ServerComponents.Info.Version id={row.original.id} />
+          ),
+        },
+      ]}
+    />
+  );
+};
+
+export const ToggleServerMonitoringTableButton = () => {
+  const [monitoring, toggleMonitoring] = useServerMonitoringTable();
+  return (
+    <Button
+      variant="outline"
+      className="flex items-center gap-2"
+      onClick={toggleMonitoring}
+    >
+      {monitoring ? (
+        <>
+          <EyeOff className="w-4 h-4" />
+          Hide Server Stats
+        </>
+      ) : (
+        <>
+          <Eye className="w-4 h-4" />
+          Show Server Stats
+        </>
+      )}
+    </Button>
   );
 };
 
 const useStats = (id: string) => {
   const isServerAvailable = useIsServerAvailable(id);
-  return useRead("GetSystemStats", { server: id }, { 
-    enabled: isServerAvailable,
-    refetchInterval: 10_000 
-  }).data;
+  return useRead(
+    "GetSystemStats",
+    { server: id },
+    {
+      enabled: isServerAvailable,
+      refetchInterval: 10_000,
+    }
+  ).data;
 };
 
 const useServerThresholds = (id: string) => {
   const isServerAvailable = useIsServerAvailable(id);
-  const config = useRead("GetServer", { server: id }, {
-    enabled: isServerAvailable
-  }).data?.config as any;
+  const config = useRead(
+    "GetServer",
+    { server: id },
+    {
+      enabled: isServerAvailable,
+    }
+  ).data?.config as any;
   return {
     cpuWarning: config?.cpu_warning ?? 75,
     cpuCritical: config?.cpu_critical ?? 90,
@@ -97,12 +127,26 @@ const useServerThresholds = (id: string) => {
   };
 };
 
-const Bar = ({ valuePerc, intent }: { valuePerc?: number; intent: "Good" | "Warning" | "Critical" }) => {
+const Bar = ({
+  valuePerc,
+  intent,
+}: {
+  valuePerc?: number;
+  intent: "Good" | "Warning" | "Critical";
+}) => {
   const w = Math.max(0, Math.min(100, valuePerc ?? 0)) / 100;
-  const color = intent === "Good" ? "bg-green-500" : intent === "Warning" ? "bg-orange-500" : "bg-red-500";
+  const color =
+    intent === "Good"
+      ? "bg-green-500"
+      : intent === "Warning"
+        ? "bg-orange-500"
+        : "bg-red-500";
   return (
     <span className="grow min-w-8 block bg-muted h-[1em] relative rounded-sm overflow-hidden">
-      <span className={`absolute inset-0 w-full h-full origin-left ${color}`} style={{ transform: `scaleX(${w})` }} />
+      <span
+        className={`absolute inset-0 w-full h-full origin-left ${color}`}
+        style={{ transform: `scaleX(${w})` }}
+      />
     </span>
   );
 };
@@ -110,7 +154,8 @@ const Bar = ({ valuePerc, intent }: { valuePerc?: number; intent: "Good" | "Warn
 const CpuCell = ({ id }: { id: string }) => {
   const stats = useStats(id);
   const cpu = stats?.cpu_perc ?? 0;
-  const { cpuWarning: warning, cpuCritical: critical } = useServerThresholds(id);
+  const { cpuWarning: warning, cpuCritical: critical } =
+    useServerThresholds(id);
   const intent: "Good" | "Warning" | "Critical" =
     cpu < warning ? "Good" : cpu < critical ? "Warning" : "Critical";
   return (
@@ -126,7 +171,8 @@ const MemCell = ({ id }: { id: string }) => {
   const used = stats?.mem_used_gb ?? 0;
   const total = stats?.mem_total_gb ?? 0;
   const perc = total > 0 ? (used / total) * 100 : 0;
-  const { memWarning: warning, memCritical: critical } = useServerThresholds(id);
+  const { memWarning: warning, memCritical: critical } =
+    useServerThresholds(id);
   const intent: "Good" | "Warning" | "Critical" =
     perc < warning ? "Good" : perc < critical ? "Warning" : "Critical";
   return (
@@ -140,9 +186,11 @@ const MemCell = ({ id }: { id: string }) => {
 const DiskCell = ({ id }: { id: string }) => {
   const stats = useStats(id);
   const used = stats?.disks?.reduce((acc, d) => acc + (d.used_gb || 0), 0) ?? 0;
-  const total = stats?.disks?.reduce((acc, d) => acc + (d.total_gb || 0), 0) ?? 0;
+  const total =
+    stats?.disks?.reduce((acc, d) => acc + (d.total_gb || 0), 0) ?? 0;
   const perc = total > 0 ? (used / total) * 100 : 0;
-  const { diskWarning: warning, diskCritical: critical } = useServerThresholds(id);
+  const { diskWarning: warning, diskCritical: critical } =
+    useServerThresholds(id);
   const intent: "Good" | "Warning" | "Critical" =
     perc < warning ? "Good" : perc < critical ? "Warning" : "Critical";
   return (
@@ -195,5 +243,3 @@ const LoadAvgCell = ({ id }: { id: string }) => {
     </div>
   );
 };
-
-

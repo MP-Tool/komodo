@@ -1,16 +1,30 @@
 import { TableTags } from "@components/tags";
-import { useRead, useSelectedResources } from "@lib/hooks";
+import {
+  useRead,
+  useSelectedResources,
+  useServerMonitoringTable,
+} from "@lib/hooks";
 import { DataTable, SortableHeader } from "@ui/data-table";
 import { ServerComponents, ServerVersion } from ".";
 import { ResourceLink } from "../common";
 import { Types } from "komodo_client";
 import { useCallback } from "react";
+import { ServerMonitoringTable } from "./monitoring-table";
 
 export const ServerTable = ({
   servers,
 }: {
   servers: Types.ServerListItem[];
 }) => {
+  const [monitoring] = useServerMonitoringTable();
+  if (monitoring) {
+    return <ServerMonitoringTable servers={servers} />;
+  } else {
+    return <StandardTable servers={servers} />;
+  }
+};
+
+const StandardTable = ({ servers }: { servers: Types.ServerListItem[] }) => {
   const [_, setSelectedResources] = useSelectedResources("Server");
   const deployments = useRead("ListDeployments", {}).data;
   const stacks = useRead("ListStacks", {}).data;

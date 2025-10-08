@@ -129,20 +129,20 @@ export const useLoginOptions = () => {
 export const useUser = () => {
   const userReset = useUserReset();
   const hasJwt = !!LOGIN_TOKENS.jwt();
-  
+
   const query = useQuery({
     queryKey: ["GetUser"],
     queryFn: () => komodo_client().auth("GetUser", {}),
     refetchInterval: 30_000,
     enabled: hasJwt,
   });
-  
+
   useEffect(() => {
     if (query.data && query.error) {
       userReset();
     }
   }, [query.data, query.error]);
-  
+
   return query;
 };
 
@@ -182,7 +182,7 @@ export const useRead = <
   return useQuery({
     queryKey: [type, params],
     queryFn: () => komodo_client().read<T, R>(type, params),
-    enabled: hasJwt && (config?.enabled !== false),
+    enabled: hasJwt && config?.enabled !== false,
     ...config,
   });
 };
@@ -575,13 +575,19 @@ export const usePromptHotkeys = ({
     if (!enabled) return;
 
     const findConfirmButton = (): HTMLButtonElement | null => {
-      const dialogContainers = document.querySelectorAll('[role="dialog"], [data-state="open"], .dialog-content');
+      const dialogContainers = document.querySelectorAll(
+        '[role="dialog"], [data-state="open"], .dialog-content'
+      );
       for (const container of dialogContainers) {
-        const button = container.querySelector('[data-confirm-button]:not([disabled])') as HTMLButtonElement;
+        const button = container.querySelector(
+          "[data-confirm-button]:not([disabled])"
+        ) as HTMLButtonElement;
         if (button) return button;
       }
 
-      return document.querySelector('[data-confirm-button]:not([disabled])') as HTMLButtonElement;
+      return document.querySelector(
+        "[data-confirm-button]:not([disabled])"
+      ) as HTMLButtonElement;
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -703,6 +709,15 @@ const filter_by_update_available = atomWithStorage<boolean>(
 );
 export const useFilterByUpdateAvailable: () => [boolean, () => void] = () => {
   const [filter, set] = useAtom<boolean>(filter_by_update_available);
+  return [filter, () => set(!filter)];
+};
+
+const server_monitoring_table = atomWithStorage<boolean>(
+  "servers-monitoring-toggle-v1",
+  false
+);
+export const useServerMonitoringTable: () => [boolean, () => void] = () => {
+  const [filter, set] = useAtom<boolean>(server_monitoring_table);
   return [filter, () => set(!filter)];
 };
 
