@@ -25,6 +25,7 @@ periphery_client = { path = "client/periphery/rs" }
 environment_file = { path = "lib/environment_file" }
 environment = { path = "lib/environment" }
 interpolate = { path = "lib/interpolate" }
+secret_file = { path = "lib/secret_file" }
 formatting = { path = "lib/formatting" }
 transport = { path = "lib/transport" }
 database = { path = "lib/database" }

@@ -142,15 +142,11 @@ impl Resolve<ExecuteArgs> for RunAction {
     let file = format!("{}.ts", random_string(10));
     let path = core_config().action_directory.join(&file);
 
-    if let Some(parent) = path.parent() {
-      fs::create_dir_all(parent)
-        .await
-        .with_context(|| format!("Failed to initialize Action file parent directory {parent:?}"))?;
-    }
-
-    fs::write(&path, contents).await.with_context(|| {
-      format!("Failed to write action file to {path:?}")
-    })?;
+    secret_file::write_async(&path, contents)
+      .await
+      .with_context(|| {
+        format!("Failed to write action file to {path:?}")
+      })?;
 
     let CoreConfig { ssl_enabled, .. } = core_config();
 

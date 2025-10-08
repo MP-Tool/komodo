@@ -1755,7 +1755,7 @@ dependencies = [
  "anyhow",
  "formatting",
  "komodo_client",
- "tokio",
+ "secret_file",
 ]
 
 [[package]]
@@ -2871,6 +2871,7 @@ dependencies = [
  "resolver_api",
  "response",
  "rustls 0.23.32",
+ "secret_file",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -2926,6 +2927,7 @@ dependencies = [
  "response",
  "run_command",
  "rustls 0.23.32",
+ "secret_file",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -3297,6 +3299,7 @@ dependencies = [
  "komodo_client",
  "pem-rfc7468",
  "pkcs8",
+ "secret_file",
  "serde_json",
  "snow",
  "spki",
@@ -4659,6 +4662,13 @@ dependencies = [
  "pkcs8",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "secret_file"
+version = "2.0.0-dev-42"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]

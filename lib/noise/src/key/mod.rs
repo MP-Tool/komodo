@@ -73,7 +73,7 @@ pub fn generate_write_keys(
   let path = path.as_ref();
   // Generate and write pems to path
   let keys = EncodedKeyPair::generate()?;
-  keys.private.write_pem(path)?;
-  keys.public.write_pem(path.with_extension("pub"))?;
+  keys.private.write_pem_sync(path)?;
+  keys.public.write_pem_sync(path.with_extension("pub"))?;
   Ok(keys)
 }

@@ -20,6 +20,7 @@ periphery_client.workspace = true
 environment_file.workspace = true
 environment.workspace = true
 interpolate.workspace = true
+secret_file.workspace = true
 formatting.workspace = true
 transport.workspace = true
 response.workspace = true

@@ -7,7 +7,6 @@ use komodo_client::entities::{
   RepoExecutionResponse, all_logs_success, update::Log,
 };
 use run_command::async_run_command;
-use tokio::fs;
 
 use crate::get_commit_hash_log;
 
@@ -35,12 +34,12 @@ pub async fn write_commit_file(
     .collect::<PathBuf>();
 
   if let Some(parent) = full_file_path.parent() {
-    fs::create_dir_all(parent).await.with_context(|| {
+    tokio::fs::create_dir_all(parent).await.with_context(|| {
       format!("Failed to initialize file parent directory {parent:?}")
     })?;
   }
 
-  fs::write(&full_file_path, contents)
+  tokio::fs::write(&full_file_path, contents)
     .await
     .with_context(|| {
       format!("Failed to write contents to {full_file_path:?}")

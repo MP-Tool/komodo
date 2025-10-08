@@ -272,8 +272,9 @@ async fn write_dockerfile_contents_git(
     return Ok(update);
   }
 
-  if let Err(e) =
-    fs::write(&full_path, &contents).await.with_context(|| {
+  if let Err(e) = secret_file::write_async(&full_path, &contents)
+    .await
+    .with_context(|| {
       format!("Failed to write dockerfile contents to {full_path:?}")
     })
   {

@@ -26,14 +26,7 @@ pub async fn write_dockerfile(
       .components()
       .collect::<PathBuf>();
 
-    // Ensure parent directory exists
-    if let Some(parent) = full_dockerfile_path.parent() && !parent.exists() {
-      tokio::fs::create_dir_all(parent)
-        .await
-        .with_context(|| format!("Failed to initialize dockerfile parent directory {parent:?}"))?;
-    }
-
-    tokio::fs::write(&full_dockerfile_path, dockerfile).await.with_context(|| {
+    secret_file::write_async(&full_dockerfile_path, dockerfile).await.with_context(|| {
       format!(
         "Failed to write dockerfile contents to {full_dockerfile_path:?}"
       )
@@ -86,12 +79,14 @@ pub async fn parse_secret_args(
     }
     // Write the value to file to mount
     let path = build_dir.join(variable);
-    tokio::fs::write(&path, value).await.with_context(|| {
-      format!(
-        "Failed to write build secret {variable} to {}",
-        path.display()
-      )
-    })?;
+    secret_file::write_async(&path, value).await.with_context(
+      || {
+        format!(
+          "Failed to write build secret {variable} to {}",
+          path.display()
+        )
+      },
+    )?;
     // Extend the command
     write!(
       &mut res,

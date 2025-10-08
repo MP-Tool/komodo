@@ -42,23 +42,30 @@ impl Pkcs8PrivateKey {
     )
   }
 
-  pub fn write_pem<P: AsRef<Path>>(
+  pub fn write_pem_sync(
     &self,
-    path: P,
+    path: impl AsRef<Path>,
   ) -> anyhow::Result<()> {
     let path = path.as_ref();
     // Ensure the parent directory exists
-    if let Some(parent) = path.parent() {
-      std::fs::create_dir_all(parent).with_context(|| {
-        format!(
-          "Failed to create private key parent directory {parent:?}"
-        )
-      })?;
-    }
     tracing::info!("Writing private key to {path:?}");
-    std::fs::write(path, self.as_pem()).with_context(|| {
+    secret_file::write_sync(path, self.as_pem()).with_context(|| {
       format!("Failed to write private key pem to {path:?}")
     })
+  }
+
+  pub async fn write_pem_async(
+    &self,
+    path: impl AsRef<Path>,
+  ) -> anyhow::Result<()> {
+    let path = path.as_ref();
+    // Ensure the parent directory exists
+    tracing::info!("Writing private key to {path:?}");
+    secret_file::write_async(path, self.as_pem())
+      .await
+      .with_context(|| {
+        format!("Failed to write private key pem to {path:?}")
+      })
   }
 
   /// - For raw bytes: converts to pkcs8 and returns

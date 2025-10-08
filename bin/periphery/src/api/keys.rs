@@ -60,7 +60,7 @@ impl Resolve<super::Args> for RotateCorePublicKey {
     };
 
     SpkiPublicKey::from(self.public_key)
-      .write_pem(core_public_key_path)?;
+      .write_pem_sync(core_public_key_path)?;
 
     core_public_keys().refresh();
 

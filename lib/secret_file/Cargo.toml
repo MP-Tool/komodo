@@ -1,5 +1,5 @@
 [package]
-name = "environment"
+name = "secret_file"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -8,8 +8,4 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-komodo_client.workspace = true
-secret_file.workspace = true
-formatting.workspace = true
-#
-anyhow.workspace = true
+tokio.workspace = true

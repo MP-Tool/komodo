@@ -106,9 +106,13 @@ impl Resolve<super::Args> for WriteDockerfileContentsToHost {
         .await
         .with_context(|| format!("Failed to initialize dockerfile parent directory {parent:?}"))?;
     }
-    fs::write(&full_path, contents).await.with_context(|| {
-      format!("Failed to write dockerfile contents to {full_path:?}")
-    })?;
+    secret_file::write_async(&full_path, contents)
+      .await
+      .with_context(|| {
+        format!(
+          "Failed to write dockerfile contents to {full_path:?}"
+        )
+      })?;
     Ok(Log::simple(
       "Write dockerfile to host",
       format!("dockerfile contents written to {full_path:?}"),

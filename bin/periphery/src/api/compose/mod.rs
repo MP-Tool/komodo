@@ -1,3 +1,5 @@
+use std::{borrow::Cow, path::PathBuf};
+
 use anyhow::{Context, anyhow};
 use command::{
   run_komodo_command, run_komodo_command_with_sanitization,
@@ -18,8 +20,6 @@ use periphery_client::api::compose::*;
 use resolver_api::Resolve;
 use serde::{Deserialize, Serialize};
 use shell_escape::unix::escape;
-use std::{borrow::Cow, path::PathBuf};
-use tokio::fs;
 
 use crate::{
   config::periphery_config,
@@ -160,12 +160,6 @@ impl Resolve<super::Args> for GetComposeContentsOnHost {
     let run_directory =
       root.join(&run_directory).components().collect::<PathBuf>();
 
-    if !run_directory.exists() {
-      fs::create_dir_all(&run_directory)
-        .await
-        .context("Failed to initialize run directory")?;
-    }
-
     let mut res = GetComposeContentsOnHostResponse::default();
 
     for file in file_paths {
@@ -173,11 +167,13 @@ impl Resolve<super::Args> for GetComposeContentsOnHost {
         .join(&file.path)
         .components()
         .collect::<PathBuf>();
-      match fs::read_to_string(&full_path).await.with_context(|| {
-        format!(
-          "Failed to read compose file contents at {full_path:?}"
-        )
-      }) {
+      match tokio::fs::read_to_string(&full_path).await.with_context(
+        || {
+          format!(
+            "Failed to read compose file contents at {full_path:?}"
+          )
+        },
+      ) {
         Ok(contents) => {
           // The path we store here has to be the same as incoming file path in the array,
           // in order for WriteComposeContentsToHost to write to the correct path.
@@ -227,17 +223,13 @@ impl Resolve<super::Args> for WriteComposeContentsToHost {
       .join(file_path)
       .components()
       .collect::<PathBuf>();
-    // Ensure parent directory exists
-    if let Some(parent) = file_path.parent() {
-      fs::create_dir_all(&parent)
-        .await
-        .with_context(|| format!("Failed to initialize compose file parent directory {parent:?}"))?;
-    }
-    fs::write(&file_path, contents).await.with_context(|| {
-      format!(
-        "Failed to write compose file contents to {file_path:?}"
-      )
-    })?;
+    secret_file::write_async(&file_path, contents)
+      .await
+      .with_context(|| {
+        format!(
+          "Failed to write compose file contents to {file_path:?}"
+        )
+      })?;
     Ok(Log::simple(
       "Write contents to host",
       format!("File contents written to {file_path:?}"),

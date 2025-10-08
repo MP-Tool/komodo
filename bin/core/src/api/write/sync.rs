@@ -206,15 +206,7 @@ async fn write_sync_file_contents_on_host(
     .context("Invalid resource path")?;
   let full_path = root.join(&resource_path).join(&file_path);
 
-  if let Some(parent) = full_path.parent() {
-    tokio::fs::create_dir_all(parent).await.with_context(|| {
-      format!(
-        "Failed to initialize resource file parent directory {parent:?}"
-      )
-    })?;
-  }
-
-  if let Err(e) = tokio::fs::write(&full_path, &contents)
+  if let Err(e) = secret_file::write_async(&full_path, &contents)
     .await
     .with_context(|| {
       format!(
@@ -491,12 +483,7 @@ impl Resolve<WriteArgs> for CommitSync {
         .sync_directory
         .join(to_path_compatible_name(&sync.name))
         .join(&resource_path);
-      if let Some(parent) = file_path.parent() {
-        tokio::fs::create_dir_all(parent)
-          .await
-          .with_context(|| format!("Failed to initialize resource file parent directory {parent:?}"))?;
-      };
-      if let Err(e) = tokio::fs::write(&file_path, &res.toml)
+      if let Err(e) = secret_file::write_async(&file_path, &res.toml)
         .await
         .with_context(|| {
           format!("Failed to write resource file to {file_path:?}",)
