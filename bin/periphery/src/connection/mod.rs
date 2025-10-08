@@ -60,28 +60,38 @@ impl CorePublicKeys {
   }
 
   pub fn refresh(&self) {
-    let Some(core_public_keys) =
-      periphery_config().core_public_keys.as_ref()
+    let config = periphery_config();
+    let Some(core_public_keys) = config.core_public_keys.as_ref()
     else {
       return;
     };
     let core_public_keys = core_public_keys
       .iter()
       .flat_map(|public_key| {
-        let maybe_pem =
+        let res = || {
           if let Some(path) = public_key.strip_prefix("file:") {
-            read_to_string(path)
-              .with_context(|| {
+            let contents =
+              read_to_string(path).with_context(|| {
                 format!("Failed to read public key at {path:?}")
-              })
-              .inspect_err(|e| warn!("{e:#}"))
-              .ok()?
+              })?;
+            SpkiPublicKey::from_maybe_pem(&contents)
           } else {
-            public_key.clone()
-          };
-        SpkiPublicKey::from_maybe_pem(&maybe_pem)
-          .inspect_err(|e| warn!("{e:#}"))
-          .ok()
+            SpkiPublicKey::from_maybe_pem(&public_key)
+          }
+        };
+        match (res(), config.server_enabled) {
+          (Ok(public_key), _) => Some(public_key),
+          (Err(e), false) => {
+            // If only outbound connections, only warn.
+            // It will be written the next time `RotateCoreKeys` is executed.
+            warn!("{e:#}");
+            None
+          }
+          (Err(e), true) => {
+            // This is too dangerous to allow if server_enabled.
+            panic!("{e:#}");
+          }
+        }
       })
       .collect::<Vec<_>>();
     self.0.store(Arc::new(core_public_keys));
