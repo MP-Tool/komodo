@@ -68,6 +68,15 @@ impl Pkcs8PrivateKey {
       })
   }
 
+  pub fn from_file(path: impl AsRef<Path>) -> anyhow::Result<Self> {
+    let path = path.as_ref();
+    let contents =
+      std::fs::read_to_string(path).with_context(|| {
+        format!("Failed to read private key at {path:?}")
+      })?;
+    Self::from_maybe_raw_bytes(&contents)
+  }
+
   /// - For raw bytes: converts to pkcs8 and returns
   /// - For pkcs8 base64: clones and returns
   /// - For pkcs8 base64 pem: unwraps and returns

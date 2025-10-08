@@ -28,7 +28,7 @@ use uuid::Uuid;
 
 use crate::{
   auth::auth_request,
-  config::{core_config, core_public_key},
+  config::{core_config, core_keys},
   helpers::periphery_client,
   resource,
 };
@@ -308,7 +308,7 @@ impl Resolve<ReadArgs> for GetCoreInfo {
         .map(|i| i.namespace.to_string())
         .collect(),
       timezone: config.timezone.clone(),
-      public_key: core_public_key().load().to_string(),
+      public_key: core_keys().load().public.to_string(),
     };
     Ok(info)
   }

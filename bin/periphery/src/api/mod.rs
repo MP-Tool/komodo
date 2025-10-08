@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
   api::compose::list_compose_projects,
-  config::{periphery_config, periphery_public_key},
+  config::{periphery_config, periphery_keys},
   docker::docker_client,
   stats::stats_client,
 };
@@ -229,7 +229,7 @@ impl Resolve<Args> for PollStatus {
     Ok(PollStatusResponse {
       periphery_info: PeripheryInformation {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        public_key: periphery_public_key().load().to_string(),
+        public_key: periphery_keys().load().public.to_string(),
         terminals_disabled: config.disable_terminals,
         container_exec_disabled: config.disable_container_exec,
         stats_polling_rate: config.stats_polling_rate,

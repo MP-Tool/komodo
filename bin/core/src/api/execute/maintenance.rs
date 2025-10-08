@@ -21,7 +21,7 @@ use komodo_client::{
     stack::StackState,
   },
 };
-use noise::key::generate_write_keys;
+use noise::key::EncodedKeyPair;
 use periphery_client::api;
 use reqwest::StatusCode;
 use resolver_api::Resolve;
@@ -32,7 +32,7 @@ use crate::{
   api::execute::{
     ExecuteArgs, pull_deployment_inner, pull_stack_inner,
   },
-  config::{core_config, core_private_key, core_public_key},
+  config::{core_config, core_keys},
   helpers::{periphery_client, update::update_update},
   resource::rotate_server_keys,
   state::{
@@ -506,14 +506,15 @@ impl Resolve<ExecuteArgs> for RotateCoreKeys {
       );
     }
 
-    let keys = generate_write_keys(private_key_path)?;
+    let keys =
+      EncodedKeyPair::generate_write_async(private_key_path).await?;
 
-    info!("New Public Key: {}", keys.public);
+    let public_key = keys.public.to_string();
+    info!("New Public Key: {public_key}");
 
-    core_private_key().store(Arc::new(keys.private.into_inner()));
-    core_public_key().store(Arc::new(keys.public.clone()));
+    core_keys().store(Arc::new(keys));
 
-    let mut log = format!("New Public Key: {}\n", keys.public);
+    let mut log = format!("New Public Key: {public_key}\n");
 
     for (server, state) in servers {
       match state {
@@ -539,7 +540,7 @@ impl Resolve<ExecuteArgs> for RotateCoreKeys {
       let periphery = periphery_client(&server).await?;
       let res = periphery
         .request(api::keys::RotateCorePublicKey {
-          public_key: keys.public.to_string(),
+          public_key: public_key.clone(),
         })
         .await;
       match res {

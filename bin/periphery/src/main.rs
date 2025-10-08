@@ -1,7 +1,7 @@
 use futures::{StreamExt, stream::FuturesUnordered};
 use komodo_client::entities::config::periphery::Command;
 
-use crate::config::{periphery_args, periphery_public_key};
+use crate::config::{periphery_args, periphery_keys};
 
 #[macro_use]
 extern crate tracing;
@@ -27,7 +27,7 @@ async fn app() -> anyhow::Result<()> {
   }
 
   // Init + log public key. Will crash if invalid private key here.
-  info!("Public Key: {}", periphery_public_key().load());
+  info!("Public Key: {}", periphery_keys().load().public);
 
   rustls::crypto::aws_lc_rs::default_provider()
     .install_default()

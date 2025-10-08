@@ -13,7 +13,7 @@ use tower_http::{
   services::{ServeDir, ServeFile},
 };
 
-use crate::config::{core_config, core_public_key};
+use crate::config::{core_config, core_keys};
 
 mod alert;
 mod api;
@@ -54,7 +54,7 @@ async fn app() -> anyhow::Result<()> {
   }
 
   // Init + log public key. Will crash if invalid private key here.
-  info!("Public Key: {}", core_public_key().load());
+  info!("Public Key: {}", core_keys().load().public);
 
   rustls::crypto::aws_lc_rs::default_provider()
     .install_default()

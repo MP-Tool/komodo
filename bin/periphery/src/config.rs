@@ -3,7 +3,6 @@ use std::{
   sync::{Arc, OnceLock},
 };
 
-use anyhow::Context;
 use arc_swap::ArcSwap;
 use clap::Parser;
 use colored::Colorize;
@@ -15,39 +14,29 @@ use komodo_client::entities::{
   config::periphery::{CliArgs, Env, PeripheryConfig},
   logger::{LogConfig, LogLevel},
 };
-use noise::key::{SpkiPublicKey, load_maybe_generate_private_key};
+use noise::key::EncodedKeyPair;
 
 /// Should call in startup to ensure Periphery errors without valid private key.
-pub fn periphery_private_key() -> &'static ArcSwap<String> {
-  static PERIPHERY_PRIVATE_KEY: OnceLock<ArcSwap<String>> =
+pub fn periphery_keys() -> &'static ArcSwap<EncodedKeyPair> {
+  static PERIPHERY_KEYS: OnceLock<ArcSwap<EncodedKeyPair>> =
     OnceLock::new();
-  PERIPHERY_PRIVATE_KEY.get_or_init(|| {
+  PERIPHERY_KEYS.get_or_init(|| {
     let config = periphery_config();
-    let private_key = config.private_key.clone().unwrap_or(format!(
-      "file:{}/keys/periphery.key",
-      config.root_directory.display()
-    ));
     let private_key =
+      config.private_key.clone().unwrap_or_else(|| {
+        format!(
+          "file:{}/keys/periphery.key",
+          config.root_directory.display()
+        )
+      });
+    let keys =
       if let Some(path) = private_key.strip_prefix("file:") {
-        load_maybe_generate_private_key(path).unwrap()
+        EncodedKeyPair::load_maybe_generate(path)
       } else {
-        private_key
-      };
-    ArcSwap::new(Arc::new(private_key))
-  })
-}
-
-/// Should call in startup to ensure Periphery errors without valid private key.
-pub fn periphery_public_key() -> &'static ArcSwap<SpkiPublicKey> {
-  static PERIPHERY_PUBLIC_KEY: OnceLock<ArcSwap<SpkiPublicKey>> =
-    OnceLock::new();
-  PERIPHERY_PUBLIC_KEY.get_or_init(|| {
-    let public_key = SpkiPublicKey::from_private_key(
-      periphery_private_key().load().as_str(),
-    )
-    .context("Got invalid private key")
-    .unwrap();
-    ArcSwap::new(Arc::new(public_key))
+        EncodedKeyPair::from_private_key(&private_key)
+      }
+      .unwrap();
+    ArcSwap::new(Arc::new(keys))
   })
 }
 

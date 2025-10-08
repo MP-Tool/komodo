@@ -31,7 +31,7 @@ use transport::{
 };
 
 use crate::{
-  config::{core_private_key, periphery_public_keys},
+  config::{core_keys, periphery_public_keys},
   periphery::ConnectionChannels,
   state::db_client,
 };
@@ -309,7 +309,7 @@ impl PeripheryConnection {
     L::login(LoginFlowArgs {
       socket,
       identifiers,
-      private_key: core_private_key().load().as_str(),
+      private_key: core_keys().load().private.as_str(),
       public_key_validator: self.args.borrow(),
     })
     .await?;

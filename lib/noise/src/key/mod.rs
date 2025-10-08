@@ -29,51 +29,66 @@ pub struct EncodedKeyPair {
 }
 
 impl EncodedKeyPair {
-  pub fn generate() -> anyhow::Result<EncodedKeyPair> {
+  pub fn generate() -> anyhow::Result<Self> {
     let builder = snow::Builder::new(crate::NOISE_XX_PARAMS.parse()?);
     let keypair = builder
       .generate_keypair()
       .context("Failed to generate keypair")?;
     let private = Pkcs8PrivateKey::from_raw_bytes(&keypair.private)?;
     let public = SpkiPublicKey::from_raw_bytes(&keypair.public)?;
-    Ok(EncodedKeyPair { private, public })
+    Ok(Self { private, public })
+  }
+
+  pub fn generate_write_sync(
+    path: impl AsRef<Path>,
+  ) -> anyhow::Result<Self> {
+    let path = path.as_ref();
+    // Generate and write pems to path
+    let keys = Self::generate()?;
+    keys.private.write_pem_sync(path)?;
+    keys.public.write_pem_sync(path.with_extension("pub"))?;
+    Ok(keys)
+  }
+
+  pub async fn generate_write_async(
+    path: impl AsRef<Path>,
+  ) -> anyhow::Result<Self> {
+    let path = path.as_ref();
+    // Generate and write pems to path
+    let keys = Self::generate()?;
+    keys.private.write_pem_async(path).await?;
+    keys
+      .public
+      .write_pem_async(path.with_extension("pub"))
+      .await?;
+    Ok(keys)
+  }
+
+  pub fn load_maybe_generate(
+    private_key_path: impl AsRef<Path>,
+  ) -> anyhow::Result<Self> {
+    let path = private_key_path.as_ref();
+
+    let exists = path.try_exists().with_context(|| {
+      format!("Invalid private key path: {path:?}")
+    })?;
+
+    if !exists {
+      return Self::generate_write_sync(path);
+    }
+
+    let private = Pkcs8PrivateKey::from_file(private_key_path)?;
+    let public = private.compute_public_key()?;
+
+    Ok(Self { private, public })
   }
 
   pub fn from_private_key(
     maybe_pkcs8_private_key: &str,
-  ) -> anyhow::Result<EncodedKeyPair> {
+  ) -> anyhow::Result<Self> {
     let private =
       Pkcs8PrivateKey::from_maybe_raw_bytes(maybe_pkcs8_private_key)?;
     let public = private.compute_public_key()?;
     Ok(Self { private, public })
   }
-}
-
-pub fn load_maybe_generate_private_key(
-  path: impl AsRef<Path>,
-) -> anyhow::Result<String> {
-  let path = path.as_ref();
-  if path
-    .try_exists()
-    .with_context(|| format!("Invalid private key path: {path:?}"))?
-  {
-    // Already exists, load it
-    std::fs::read_to_string(path).with_context(|| {
-      format!("Failed to read private key at {path:?}")
-    })
-  } else {
-    let keys = generate_write_keys(path)?;
-    Ok(keys.private.into_inner())
-  }
-}
-
-pub fn generate_write_keys(
-  path: impl AsRef<Path>,
-) -> anyhow::Result<EncodedKeyPair> {
-  let path = path.as_ref();
-  // Generate and write pems to path
-  let keys = EncodedKeyPair::generate()?;
-  keys.private.write_pem_sync(path)?;
-  keys.public.write_pem_sync(path.with_extension("pub"))?;
-  Ok(keys)
 }

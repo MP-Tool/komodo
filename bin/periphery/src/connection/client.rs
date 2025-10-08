@@ -14,7 +14,7 @@ use transport::{
 
 use crate::{
   api::Args,
-  config::{periphery_config, periphery_public_key},
+  config::{periphery_config, periphery_keys},
   connection::{core_channels, core_public_keys},
 };
 
@@ -176,7 +176,7 @@ async fn handle_onboarding(
 
   // Post onboarding login 1: Send public key
   socket
-    .send(periphery_public_key().load().as_bytes())
+    .send(periphery_keys().load().public.as_bytes())
     .await
     .context("Failed to send public key bytes")?;
 

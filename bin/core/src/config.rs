@@ -20,35 +20,22 @@ use komodo_client::entities::{
   },
   logger::LogConfig,
 };
-use noise::key::{SpkiPublicKey, load_maybe_generate_private_key};
+use noise::key::{EncodedKeyPair, SpkiPublicKey};
 
 /// Should call in startup to ensure Core errors without valid private key.
-pub fn core_private_key() -> &'static ArcSwap<String> {
-  static CORE_PRIVATE_KEY: OnceLock<ArcSwap<String>> =
+pub fn core_keys() -> &'static ArcSwap<EncodedKeyPair> {
+  static CORE_KEYS: OnceLock<ArcSwap<EncodedKeyPair>> =
     OnceLock::new();
-  CORE_PRIVATE_KEY.get_or_init(|| {
+  CORE_KEYS.get_or_init(|| {
     let config = core_config();
-    let private_key =
+    let keys =
       if let Some(path) = config.private_key.strip_prefix("file:") {
-        load_maybe_generate_private_key(path).unwrap()
+        EncodedKeyPair::load_maybe_generate(path)
       } else {
-        config.private_key.clone()
-      };
-    ArcSwap::new(Arc::new(private_key))
-  })
-}
-
-/// Should call in startup to ensure Core errors without valid private key.
-pub fn core_public_key() -> &'static ArcSwap<SpkiPublicKey> {
-  static CORE_PUBLIC_KEY: OnceLock<ArcSwap<SpkiPublicKey>> =
-    OnceLock::new();
-  CORE_PUBLIC_KEY.get_or_init(|| {
-    let public_key = SpkiPublicKey::from_private_key(
-      core_private_key().load().as_str(),
-    )
-    .context("Got invalid private key")
-    .unwrap();
-    ArcSwap::new(Arc::new(public_key))
+        EncodedKeyPair::from_private_key(&config.private_key)
+      }
+      .unwrap();
+    ArcSwap::new(Arc::new(keys))
   })
 }
 

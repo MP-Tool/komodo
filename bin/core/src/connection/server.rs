@@ -31,7 +31,7 @@ use transport::{
 
 use crate::{
   api::write::WriteArgs,
-  config::core_private_key,
+  config::core_keys,
   helpers::query::id_or_name_filter,
   resource::KomodoResource,
   state::{db_client, periphery_connections},
@@ -162,7 +162,7 @@ async fn onboard_server_handler(
     let onboarding_key = match ServerLoginFlow::login(LoginFlowArgs {
       socket: &mut socket,
       identifiers: identifiers.build(query.as_bytes()),
-      private_key: core_private_key().load().as_str(),
+      private_key: core_keys().load().private.as_str(),
       public_key_validator: CreationKeyValidator,
     })
     .await

@@ -50,7 +50,7 @@ impl SpkiPublicKey {
     let path = path.as_ref();
     tracing::info!("Writing public key to {path:?}");
     secret_file::write_sync(path, self.as_pem()).with_context(|| {
-      format!("Failed to write private key pem to {path:?}")
+      format!("Failed to write public key pem to {path:?}")
     })
   }
 
@@ -63,8 +63,17 @@ impl SpkiPublicKey {
     secret_file::write_async(path, self.as_pem())
       .await
       .with_context(|| {
-        format!("Failed to write private key pem to {path:?}")
+        format!("Failed to write public key pem to {path:?}")
       })
+  }
+
+  pub fn from_file(path: impl AsRef<Path>) -> anyhow::Result<Self> {
+    let path = path.as_ref();
+    let contents =
+      std::fs::read_to_string(path).with_context(|| {
+        format!("Failed to read public key at {path:?}")
+      })?;
+    Self::from_maybe_pem(&contents)
   }
 
   /// Accepts pem rfc7468 (openssl) or base64 der (second line of rfc7468 pem).

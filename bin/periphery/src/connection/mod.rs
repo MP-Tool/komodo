@@ -1,10 +1,9 @@
 use std::{
-  fs::read_to_string,
   sync::{Arc, OnceLock},
   time::Duration,
 };
 
-use anyhow::{Context as _, anyhow};
+use anyhow::anyhow;
 use arc_swap::ArcSwap;
 use bytes::Bytes;
 use cache::CloneCache;
@@ -24,7 +23,7 @@ use uuid::Uuid;
 
 use crate::{
   api::{Args, PeripheryRequest},
-  config::{periphery_config, periphery_private_key},
+  config::{periphery_config, periphery_keys},
 };
 
 pub mod client;
@@ -68,18 +67,13 @@ impl CorePublicKeys {
     let core_public_keys = core_public_keys
       .iter()
       .flat_map(|public_key| {
-        let res = || {
-          if let Some(path) = public_key.strip_prefix("file:") {
-            let contents =
-              read_to_string(path).with_context(|| {
-                format!("Failed to read public key at {path:?}")
-              })?;
-            SpkiPublicKey::from_maybe_pem(&contents)
-          } else {
-            SpkiPublicKey::from_maybe_pem(&public_key)
-          }
+        let res = if let Some(path) = public_key.strip_prefix("file:")
+        {
+          SpkiPublicKey::from_file(path)
+        } else {
+          SpkiPublicKey::from_maybe_pem(&public_key)
         };
-        match (res(), config.server_enabled) {
+        match (res, config.server_enabled) {
           (Ok(public_key), _) => Some(public_key),
           (Err(e), false) => {
             // If only outbound connections, only warn.
@@ -123,7 +117,7 @@ async fn handle_login<W: Websocket, L: LoginFlow>(
   L::login(LoginFlowArgs {
     socket,
     identifiers,
-    private_key: periphery_private_key().load().as_str(),
+    private_key: periphery_keys().load().private.as_str(),
     public_key_validator: core_public_keys(),
   })
   .await
