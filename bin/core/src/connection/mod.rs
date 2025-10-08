@@ -309,7 +309,7 @@ impl PeripheryConnection {
     L::login(LoginFlowArgs {
       socket,
       identifiers,
-      private_key: core_private_key(),
+      private_key: core_private_key().load().as_str(),
       public_key_validator: self.args.borrow(),
     })
     .await?;

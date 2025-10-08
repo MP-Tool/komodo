@@ -162,7 +162,7 @@ async fn onboard_server_handler(
     let onboarding_key = match ServerLoginFlow::login(LoginFlowArgs {
       socket: &mut socket,
       identifiers: identifiers.build(query.as_bytes()),
-      private_key: core_private_key(),
+      private_key: core_private_key().load().as_str(),
       public_key_validator: CreationKeyValidator,
     })
     .await

@@ -523,6 +523,9 @@ pub async fn init_execution_update(
     ExecuteRequest::RotateAllServerKeys(_data) => {
       (Operation::RotateAllServerKeys, ResourceTarget::system())
     }
+    ExecuteRequest::RotateCoreKeys(_data) => {
+      (Operation::RotateCoreKeys, ResourceTarget::system())
+    }
   };
 
   let mut update = make_update(target, operation, user);

@@ -33,7 +33,7 @@ import {
 import { useToast } from "@ui/use-toast";
 import { TextUpdateMenuMonaco, TimezoneSelector } from "@components/util";
 import { Card } from "@ui/card";
-import { filterBySplit, text_to_env } from "@lib/utils";
+import { cn, filterBySplit, text_to_env } from "@lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@ui/popover";
 import { fmt_upper_camelcase } from "@lib/formatting";
 import {
@@ -1685,6 +1685,22 @@ const TARGET_COMPONENTS: ExecutionConfigs = {
   RotateAllServerKeys: {
     params: {},
     Component: () => <></>,
+  },
+  RotateCoreKeys: {
+    params: {},
+    Component: ({ params, setParams, disabled }) => (
+      <div
+        className={cn("flex items-center gap-2", !disabled && "cursor-pointer")}
+        onClick={() => {
+          if (!disabled) {
+            setParams({ force: !params.force });
+          }
+        }}
+      >
+        Force:
+        <Switch checked={params.force} disabled={disabled} />
+      </div>
+    ),
   },
 
   SendAlert: {

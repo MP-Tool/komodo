@@ -693,6 +693,7 @@ impl ResourceSyncTrait for Procedure {
           Execution::BackupCoreDatabase(_) => {}
           Execution::GlobalAutoUpdate(_) => {}
           Execution::RotateAllServerKeys(_) => {}
+          Execution::RotateCoreKeys(_) => {}
           Execution::Sleep(_) => {}
         }
       }

@@ -173,6 +173,7 @@ export var Operation;
     Operation["BackupCoreDatabase"] = "BackupCoreDatabase";
     Operation["GlobalAutoUpdate"] = "GlobalAutoUpdate";
     Operation["RotateAllServerKeys"] = "RotateAllServerKeys";
+    Operation["RotateCoreKeys"] = "RotateCoreKeys";
     Operation["CreateVariable"] = "CreateVariable";
     Operation["UpdateVariableValue"] = "UpdateVariableValue";
     Operation["DeleteVariable"] = "DeleteVariable";

@@ -454,6 +454,7 @@ export enum Operation {
 	BackupCoreDatabase = "BackupCoreDatabase",
 	GlobalAutoUpdate = "GlobalAutoUpdate",
 	RotateAllServerKeys = "RotateAllServerKeys",
+	RotateCoreKeys = "RotateCoreKeys",
 	CreateVariable = "CreateVariable",
 	UpdateVariableValue = "UpdateVariableValue",
 	DeleteVariable = "DeleteVariable",
@@ -887,6 +888,7 @@ export type Execution =
 	| { type: "BackupCoreDatabase", params: BackupCoreDatabase }
 	| { type: "GlobalAutoUpdate", params: GlobalAutoUpdate }
 	| { type: "RotateAllServerKeys", params: RotateAllServerKeys }
+	| { type: "RotateCoreKeys", params: RotateCoreKeys }
 	| { type: "Sleep", params: Sleep };
 
 /** Allows to enable / disabled procedures in the sequence / parallel vec on the fly */
@@ -7841,6 +7843,23 @@ export interface RotateAllServerKeys {
 }
 
 /**
+ * **Admin only.** Rotates the Core private key,
+ * and all Server public keys.
+ * Response: [Update].
+ * 
+ * If any Server is `NotOk`, this will fail.
+ * To proceed anyways, pass `force: true`.
+ */
+export interface RotateCoreKeys {
+	/**
+	 * Force the rotation to proceed even if a Server is `NotOk`.
+	 * The Core Public Key in Periphery config may have to be updated manually.
+	 * (alias: `f`)
+	 */
+	force?: boolean;
+}
+
+/**
  * Rotates the private / public keys for the server.
  * Response: [Update]
  */
@@ -8788,7 +8807,8 @@ export type ExecuteRequest =
 	| { type: "ClearRepoCache", params: ClearRepoCache }
 	| { type: "BackupCoreDatabase", params: BackupCoreDatabase }
 	| { type: "GlobalAutoUpdate", params: GlobalAutoUpdate }
-	| { type: "RotateAllServerKeys", params: RotateAllServerKeys };
+	| { type: "RotateAllServerKeys", params: RotateAllServerKeys }
+	| { type: "RotateCoreKeys", params: RotateCoreKeys };
 
 /**
  * One representative IANA zone for each distinct base UTC offset in the tz database.

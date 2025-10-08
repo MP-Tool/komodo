@@ -1,6 +1,10 @@
-use std::{path::PathBuf, sync::OnceLock};
+use std::{
+  path::PathBuf,
+  sync::{Arc, OnceLock},
+};
 
 use anyhow::Context;
+use arc_swap::ArcSwap;
 use colored::Colorize;
 use config::ConfigLoader;
 use environment_file::{
@@ -19,26 +23,32 @@ use komodo_client::entities::{
 use noise::key::{SpkiPublicKey, load_maybe_generate_private_key};
 
 /// Should call in startup to ensure Core errors without valid private key.
-pub fn core_private_key() -> &'static String {
-  static CORE_PRIVATE_KEY: OnceLock<String> = OnceLock::new();
+pub fn core_private_key() -> &'static ArcSwap<String> {
+  static CORE_PRIVATE_KEY: OnceLock<ArcSwap<String>> =
+    OnceLock::new();
   CORE_PRIVATE_KEY.get_or_init(|| {
     let config = core_config();
-    if let Some(path) = config.private_key.strip_prefix("file:") {
-      load_maybe_generate_private_key(path).unwrap()
-    } else {
-      config.private_key.clone()
-    }
+    let private_key =
+      if let Some(path) = config.private_key.strip_prefix("file:") {
+        load_maybe_generate_private_key(path).unwrap()
+      } else {
+        config.private_key.clone()
+      };
+    ArcSwap::new(Arc::new(private_key))
   })
 }
 
 /// Should call in startup to ensure Core errors without valid private key.
-pub fn core_public_key() -> &'static String {
-  static CORE_PUBLIC_KEY: OnceLock<String> = OnceLock::new();
+pub fn core_public_key() -> &'static ArcSwap<SpkiPublicKey> {
+  static CORE_PUBLIC_KEY: OnceLock<ArcSwap<SpkiPublicKey>> =
+    OnceLock::new();
   CORE_PUBLIC_KEY.get_or_init(|| {
-    SpkiPublicKey::from_private_key(core_private_key())
-      .context("Got invalid private key")
-      .unwrap()
-      .into_inner()
+    let public_key = SpkiPublicKey::from_private_key(
+      core_private_key().load().as_str(),
+    )
+    .context("Got invalid private key")
+    .unwrap();
+    ArcSwap::new(Arc::new(public_key))
   })
 }
 

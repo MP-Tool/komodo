@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::OnceLock, time::Instant};
+use std::{collections::HashSet, time::Instant};
 
 use anyhow::{Context, anyhow};
 use axum::{
@@ -281,11 +281,13 @@ impl Resolve<ReadArgs> for GetVersion {
   }
 }
 
-fn core_info() -> &'static GetCoreInfoResponse {
-  static CORE_INFO: OnceLock<GetCoreInfoResponse> = OnceLock::new();
-  CORE_INFO.get_or_init(|| {
+impl Resolve<ReadArgs> for GetCoreInfo {
+  async fn resolve(
+    self,
+    _: &ReadArgs,
+  ) -> serror::Result<GetCoreInfoResponse> {
     let config = core_config();
-    GetCoreInfoResponse {
+    let info = GetCoreInfoResponse {
       title: config.title.clone(),
       monitoring_interval: config.monitoring_interval,
       webhook_base_url: if config.webhook_base_url.is_empty() {
@@ -306,17 +308,9 @@ fn core_info() -> &'static GetCoreInfoResponse {
         .map(|i| i.namespace.to_string())
         .collect(),
       timezone: config.timezone.clone(),
-      public_key: core_public_key().to_string(),
-    }
-  })
-}
-
-impl Resolve<ReadArgs> for GetCoreInfo {
-  async fn resolve(
-    self,
-    _: &ReadArgs,
-  ) -> serror::Result<GetCoreInfoResponse> {
-    Ok(core_info().clone())
+      public_key: core_public_key().load().to_string(),
+    };
+    Ok(info)
   }
 }
 

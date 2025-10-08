@@ -10,7 +10,9 @@ use periphery_client::api::keys::{
 use resolver_api::Resolve;
 
 use crate::{
-  config::{periphery_config, periphery_private_key},
+  config::{
+    periphery_config, periphery_private_key, periphery_public_key,
+  },
   connection::core_public_keys,
 };
 
@@ -24,16 +26,29 @@ impl Resolve<super::Args> for RotatePrivateKey {
     let config = periphery_config();
     let keys = match config.private_key.as_ref() {
       Some(private_key) => match private_key.strip_prefix("file:") {
-        None => EncodedKeyPair::from_private_key(private_key)?,
+        None => {
+          // If the private key is static, just return the public key.
+          return Ok(RotatePrivateKeyResponse {
+            public_key: EncodedKeyPair::from_private_key(
+              private_key,
+            )?
+            .public
+            .into_inner(),
+          });
+        }
         Some(path) => generate_write_keys(path)?,
       },
       None => generate_write_keys(
         config.root_directory.join("keys/periphery.key"),
       )?,
     };
-    // Store new private key for next auth
+
+    info!("New Public Key: {}", keys.public);
+
     periphery_private_key()
       .store(Arc::new(keys.private.into_inner()));
+    periphery_public_key().store(Arc::new(keys.public.clone()));
+
     Ok(RotatePrivateKeyResponse {
       public_key: keys.public.into_inner(),
     })
@@ -52,15 +67,17 @@ impl Resolve<super::Args> for RotateCorePublicKey {
       return Ok(NoData {});
     };
 
-    let Some(core_public_key_path) = core_public_keys_spec
-      .first()
-      .and_then(|key| key.strip_prefix("file:"))
+    let Some(path) = core_public_keys_spec
+      .iter()
+      // Finds the first Core Public Key in spec with `file` prefix.
+      .find_map(|public_keys| public_keys.strip_prefix("file:"))
     else {
       return Ok(NoData {});
     };
 
     SpkiPublicKey::from(self.public_key)
-      .write_pem_sync(core_public_key_path)?;
+      .write_pem_async(path)
+      .await?;
 
     core_public_keys().refresh();
 

@@ -233,6 +233,9 @@ pub async fn handle(
     Execution::RotateAllServerKeys(data) => {
       println!("{}: {data:?}", "Data".dimmed())
     }
+    Execution::RotateCoreKeys(data) => {
+      println!("{}: {data:?}", "Data".dimmed())
+    }
     Execution::Sleep(data) => {
       println!("{}: {data:?}", "Data".dimmed())
     }
@@ -498,6 +501,10 @@ pub async fn handle(
       .await
       .map(|u| ExecutionResult::Single(u.into())),
     Execution::RotateAllServerKeys(request) => client
+      .execute(request)
+      .await
+      .map(|u| ExecutionResult::Single(u.into())),
+    Execution::RotateCoreKeys(request) => client
       .execute(request)
       .await
       .map(|u| ExecutionResult::Single(u.into())),

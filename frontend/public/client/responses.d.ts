@@ -322,4 +322,5 @@ export type ExecuteResponses = {
     BackupCoreDatabase: Types.Update;
     GlobalAutoUpdate: Types.Update;
     RotateAllServerKeys: Types.Update;
+    RotateCoreKeys: Types.Update;
 };

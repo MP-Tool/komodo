@@ -781,6 +781,13 @@ async fn validate_config(
             ));
           }
         }
+        Execution::RotateCoreKeys(_params) => {
+          if !user.admin {
+            return Err(anyhow!(
+              "Non admin user cannot trigger rotate core keys"
+            ));
+          }
+        }
         Execution::Sleep(_) => {}
       }
     }

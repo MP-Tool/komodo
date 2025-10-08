@@ -1175,6 +1175,7 @@ pub enum Operation {
   BackupCoreDatabase,
   GlobalAutoUpdate,
   RotateAllServerKeys,
+  RotateCoreKeys,
 
   // variable
   CreateVariable,

@@ -150,6 +150,7 @@ pub enum ExecuteRequest {
   BackupCoreDatabase(BackupCoreDatabase),
   GlobalAutoUpdate(GlobalAutoUpdate),
   RotateAllServerKeys(RotateAllServerKeys),
+  RotateCoreKeys(RotateCoreKeys),
 }
 
 pub fn router() -> Router {

@@ -95,3 +95,34 @@ pub struct GlobalAutoUpdate {}
 #[response(Update)]
 #[error(serror::Error)]
 pub struct RotateAllServerKeys {}
+
+//
+
+/// **Admin only.** Rotates the Core private key,
+/// and all Server public keys.
+/// Response: [Update].
+///
+/// If any Server is `NotOk`, this will fail.
+/// To proceed anyways, pass `force: true`.
+#[typeshare]
+#[derive(
+  Debug,
+  Clone,
+  PartialEq,
+  Serialize,
+  Deserialize,
+  Resolve,
+  EmptyTraits,
+  Parser,
+)]
+#[empty_traits(KomodoExecuteRequest)]
+#[response(Update)]
+#[error(serror::Error)]
+pub struct RotateCoreKeys {
+  /// Force the rotation to proceed even if a Server is `NotOk`.
+  /// The Core Public Key in Periphery config may have to be updated manually.
+  /// (alias: `f`)
+  #[serde(default)]
+  #[clap(long, short, alias = "f", default_value_t = false)]
+  pub force: bool,
+}

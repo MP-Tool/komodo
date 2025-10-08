@@ -811,7 +811,8 @@ impl ToToml for Procedure {
           | Execution::ClearRepoCache(_)
           | Execution::BackupCoreDatabase(_)
           | Execution::GlobalAutoUpdate(_)
-          | Execution::RotateAllServerKeys(_) => {}
+          | Execution::RotateAllServerKeys(_)
+          | Execution::RotateCoreKeys(_) => {}
         }
       }
     }

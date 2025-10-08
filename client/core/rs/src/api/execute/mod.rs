@@ -171,6 +171,7 @@ pub enum Execution {
   GlobalAutoUpdate(GlobalAutoUpdate),
   #[clap(alias = "rotate-keys")]
   RotateAllServerKeys(RotateAllServerKeys),
+  RotateCoreKeys(RotateCoreKeys),
 
   // SLEEP
   Sleep(Sleep),
