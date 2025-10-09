@@ -1,6 +1,11 @@
-use std::path::Path;
+use std::{
+  path::{Path, PathBuf},
+  str::FromStr,
+  sync::Arc,
+};
 
 use anyhow::Context;
+use arc_swap::ArcSwap;
 use der::AnyRef;
 
 pub mod command;
@@ -90,5 +95,61 @@ impl EncodedKeyPair {
       Pkcs8PrivateKey::from_maybe_raw_bytes(maybe_pkcs8_private_key)?;
     let public = private.compute_public_key()?;
     Ok(Self { private, public })
+  }
+
+  pub fn private(&self) -> &str {
+    self.private.as_str()
+  }
+
+  pub fn public(&self) -> &str {
+    self.public.as_str()
+  }
+}
+
+pub struct RotatableKeyPair {
+  keys: ArcSwap<EncodedKeyPair>,
+  path: Option<PathBuf>,
+}
+
+impl RotatableKeyPair {
+  /// Parses from either direct private key (raw / der / pem),
+  /// or from file containing raw / der / pem.
+  /// Use `file:/path/to/private.key` to specify file.
+  pub fn from_private_key_spec(
+    private_key_spec: &str,
+  ) -> anyhow::Result<Self> {
+    let (keys, path) =
+      if let Some(path) = private_key_spec.strip_prefix("file:") {
+        let path = PathBuf::from_str(path).with_context(|| {
+          format!("Private key path is invalid: {path:?}")
+        })?;
+        (EncodedKeyPair::load_maybe_generate(&path)?, Some(path))
+      } else {
+        (EncodedKeyPair::from_private_key(&private_key_spec)?, None)
+      };
+    Ok(Self {
+      keys: ArcSwap::new(Arc::new(keys)),
+      path,
+    })
+  }
+
+  /// If 'path' is Some, generates, writes, and stores new key pair.
+  /// Returns the public key, maybe new if using file.
+  pub async fn rotate(&self) -> anyhow::Result<SpkiPublicKey> {
+    let Some(path) = self.path.as_deref() else {
+      return Ok(self.keys.load().public.clone());
+    };
+    let keys = EncodedKeyPair::generate_write_async(path).await?;
+    let public_key = keys.public.clone();
+    self.keys.store(Arc::new(keys));
+    Ok(public_key)
+  }
+
+  pub fn load(&self) -> arc_swap::Guard<Arc<EncodedKeyPair>> {
+    self.keys.load()
+  }
+
+  pub fn rotatable(&self) -> bool {
+    self.path.is_some()
   }
 }

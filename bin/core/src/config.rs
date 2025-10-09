@@ -1,10 +1,6 @@
-use std::{
-  path::PathBuf,
-  sync::{Arc, OnceLock},
-};
+use std::{path::PathBuf, sync::OnceLock};
 
 use anyhow::Context;
-use arc_swap::ArcSwap;
 use colored::Colorize;
 use config::ConfigLoader;
 use environment_file::{
@@ -20,22 +16,16 @@ use komodo_client::entities::{
   },
   logger::LogConfig,
 };
-use noise::key::{EncodedKeyPair, SpkiPublicKey};
+use noise::key::{RotatableKeyPair, SpkiPublicKey};
 
 /// Should call in startup to ensure Core errors without valid private key.
-pub fn core_keys() -> &'static ArcSwap<EncodedKeyPair> {
-  static CORE_KEYS: OnceLock<ArcSwap<EncodedKeyPair>> =
-    OnceLock::new();
+pub fn core_keys() -> &'static RotatableKeyPair {
+  static CORE_KEYS: OnceLock<RotatableKeyPair> = OnceLock::new();
   CORE_KEYS.get_or_init(|| {
-    let config = core_config();
-    let keys =
-      if let Some(path) = config.private_key.strip_prefix("file:") {
-        EncodedKeyPair::load_maybe_generate(path)
-      } else {
-        EncodedKeyPair::from_private_key(&config.private_key)
-      }
-      .unwrap();
-    ArcSwap::new(Arc::new(keys))
+    RotatableKeyPair::from_private_key_spec(
+      &core_config().private_key,
+    )
+    .unwrap()
   })
 }
 

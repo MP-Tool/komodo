@@ -1,7 +1,4 @@
-use std::{
-  fmt::Write as _,
-  sync::{Arc, OnceLock},
-};
+use std::{fmt::Write as _, sync::OnceLock};
 
 use anyhow::{Context, anyhow};
 use command::run_komodo_command;
@@ -21,7 +18,6 @@ use komodo_client::{
     stack::StackState,
   },
 };
-use noise::key::EncodedKeyPair;
 use periphery_client::api;
 use reqwest::StatusCode;
 use resolver_api::Resolve;
@@ -472,9 +468,9 @@ impl Resolve<ExecuteArgs> for RotateCoreKeys {
 
     update_update(update.clone()).await?;
 
-    let Some(private_key_path) =
-      core_config().private_key.strip_prefix("file:")
-    else {
+    let core_keys = core_keys();
+
+    if !core_keys.rotatable() {
       return Err(anyhow!("Core `private_key` must be pointing to file, for example 'file:/config/keys/core.key'").into());
     };
 
@@ -506,13 +502,9 @@ impl Resolve<ExecuteArgs> for RotateCoreKeys {
       );
     }
 
-    let keys =
-      EncodedKeyPair::generate_write_async(private_key_path).await?;
+    let public_key = core_keys.rotate().await?.into_inner();
 
-    let public_key = keys.public.to_string();
     info!("New Public Key: {public_key}");
-
-    core_keys().store(Arc::new(keys));
 
     let mut log = format!("New Public Key: {public_key}\n");
 

@@ -3293,6 +3293,7 @@ name = "noise"
 version = "2.0.0-dev-46"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "base64 0.22.1",
  "colored",
  "der",

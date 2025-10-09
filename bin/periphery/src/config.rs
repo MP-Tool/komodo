@@ -1,9 +1,5 @@
-use std::{
-  path::PathBuf,
-  sync::{Arc, OnceLock},
-};
+use std::{path::PathBuf, sync::OnceLock};
 
-use arc_swap::ArcSwap;
 use clap::Parser;
 use colored::Colorize;
 use config::ConfigLoader;
@@ -14,29 +10,25 @@ use komodo_client::entities::{
   config::periphery::{CliArgs, Env, PeripheryConfig},
   logger::{LogConfig, LogLevel},
 };
-use noise::key::EncodedKeyPair;
+use noise::key::RotatableKeyPair;
 
 /// Should call in startup to ensure Periphery errors without valid private key.
-pub fn periphery_keys() -> &'static ArcSwap<EncodedKeyPair> {
-  static PERIPHERY_KEYS: OnceLock<ArcSwap<EncodedKeyPair>> =
-    OnceLock::new();
+pub fn periphery_keys() -> &'static RotatableKeyPair {
+  static PERIPHERY_KEYS: OnceLock<RotatableKeyPair> = OnceLock::new();
   PERIPHERY_KEYS.get_or_init(|| {
     let config = periphery_config();
-    let private_key =
-      config.private_key.clone().unwrap_or_else(|| {
-        format!(
-          "file:{}/keys/periphery.key",
-          config.root_directory.display()
-        )
-      });
-    let keys =
-      if let Some(path) = private_key.strip_prefix("file:") {
-        EncodedKeyPair::load_maybe_generate(path)
-      } else {
-        EncodedKeyPair::from_private_key(&private_key)
-      }
-      .unwrap();
-    ArcSwap::new(Arc::new(keys))
+    if let Some(private_key_spec) = config.private_key.as_deref() {
+      RotatableKeyPair::from_private_key_spec(private_key_spec)
+    } else {
+      RotatableKeyPair::from_private_key_spec(
+        config
+          .root_directory
+          .join("keys/periphery.key")
+          .to_str()
+          .expect("Invalid root directory"),
+      )
+    }
+    .unwrap()
   })
 }
 

@@ -1,7 +1,5 @@
-use std::sync::Arc;
-
 use komodo_client::entities::NoData;
-use noise::key::{EncodedKeyPair, SpkiPublicKey};
+use noise::key::SpkiPublicKey;
 use periphery_client::api::keys::{
   RotateCorePublicKey, RotatePrivateKey, RotatePrivateKeyResponse,
 };
@@ -19,36 +17,8 @@ impl Resolve<super::Args> for RotatePrivateKey {
     self,
     _: &super::Args,
   ) -> serror::Result<RotatePrivateKeyResponse> {
-    let config = periphery_config();
-    let keys = match config.private_key.as_ref() {
-      Some(private_key) => match private_key.strip_prefix("file:") {
-        None => {
-          // If the private key is static, just return the public key.
-          return Ok(RotatePrivateKeyResponse {
-            public_key: EncodedKeyPair::from_private_key(
-              private_key,
-            )?
-            .public
-            .into_inner(),
-          });
-        }
-        Some(path) => {
-          EncodedKeyPair::generate_write_async(path).await?
-        }
-      },
-      None => {
-        EncodedKeyPair::generate_write_async(
-          config.root_directory.join("keys/periphery.key"),
-        )
-        .await?
-      }
-    };
-
-    let public_key = keys.public.to_string();
+    let public_key = periphery_keys().rotate().await?.into_inner();
     info!("New Public Key: {public_key}");
-
-    periphery_keys().store(Arc::new(keys));
-
     Ok(RotatePrivateKeyResponse { public_key })
   }
 }
