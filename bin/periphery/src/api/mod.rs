@@ -12,8 +12,10 @@ use periphery_client::api::{
   stats::*, terminal::*, *,
 };
 use resolver_api::Resolve;
-use response::JsonBytes;
 use serde::{Deserialize, Serialize};
+use transport::message::{
+  json::JsonMessageBytes, wrappers::ResultWrapper,
+};
 
 use crate::{
   api::compose::list_compose_projects,
@@ -41,8 +43,8 @@ pub struct Args {
   Serialize, Deserialize, Debug, Clone, Resolve, EnumVariants,
 )]
 #[args(Args)]
-#[response(JsonBytes)]
-#[error(serror::Error)]
+#[response(ResultWrapper<JsonMessageBytes>)]
+#[error(anyhow::Error)]
 #[variant_derive(Debug)]
 #[serde(tag = "type", content = "params")]
 #[allow(clippy::enum_variant_names, clippy::large_enum_variant)]
@@ -160,7 +162,7 @@ impl Resolve<Args> for GetHealth {
   async fn resolve(
     self,
     _: &Args,
-  ) -> serror::Result<GetHealthResponse> {
+  ) -> anyhow::Result<GetHealthResponse> {
     Ok(GetHealthResponse {})
   }
 }
@@ -172,7 +174,7 @@ impl Resolve<Args> for GetVersion {
   async fn resolve(
     self,
     _: &Args,
-  ) -> serror::Result<GetVersionResponse> {
+  ) -> anyhow::Result<GetVersionResponse> {
     Ok(GetVersionResponse {
       version: env!("CARGO_PKG_VERSION").to_string(),
     })
@@ -185,7 +187,7 @@ impl Resolve<Args> for PollStatus {
   async fn resolve(
     self,
     _: &Args,
-  ) -> serror::Result<PollStatusResponse> {
+  ) -> anyhow::Result<PollStatusResponse> {
     // Docker lists
     let docker_lists = async {
       let docker = docker_client();
@@ -252,7 +254,7 @@ impl Resolve<Args> for GetSystemProcesses {
   async fn resolve(
     self,
     _: &Args,
-  ) -> serror::Result<Vec<SystemProcess>> {
+  ) -> anyhow::Result<Vec<SystemProcess>> {
     Ok(stats_client().read().await.get_processes())
   }
 }
@@ -264,7 +266,7 @@ impl Resolve<Args> for ListGitProviders {
   async fn resolve(
     self,
     _: &Args,
-  ) -> serror::Result<Vec<GitProvider>> {
+  ) -> anyhow::Result<Vec<GitProvider>> {
     Ok(periphery_config().git_providers.0.clone())
   }
 }
@@ -278,7 +280,7 @@ impl Resolve<Args> for ListDockerRegistries {
   async fn resolve(
     self,
     _: &Args,
-  ) -> serror::Result<Vec<DockerRegistry>> {
+  ) -> anyhow::Result<Vec<DockerRegistry>> {
     Ok(periphery_config().docker_registries.0.clone())
   }
 }
@@ -287,7 +289,7 @@ impl Resolve<Args> for ListDockerRegistries {
 
 impl Resolve<Args> for ListSecrets {
   #[instrument(name = "ListSecrets", level = "debug", skip_all)]
-  async fn resolve(self, _: &Args) -> serror::Result<Vec<String>> {
+  async fn resolve(self, _: &Args) -> anyhow::Result<Vec<String>> {
     Ok(
       periphery_config()
         .secrets
@@ -300,7 +302,7 @@ impl Resolve<Args> for ListSecrets {
 
 impl Resolve<Args> for PruneSystem {
   #[instrument(name = "PruneSystem", skip_all)]
-  async fn resolve(self, _: &Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &Args) -> anyhow::Result<Log> {
     let command = String::from("docker system prune -a -f --volumes");
     Ok(run_komodo_command("Prune System", None, command).await)
   }

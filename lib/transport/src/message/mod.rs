@@ -1,28 +1,30 @@
 use anyhow::{Context, anyhow};
-use axum::extract::ws::Utf8Bytes as AxumUtf8Bytes;
 use bytes::Bytes;
-use derive_variants::EnumVariants;
-use serror::serialize_error_bytes;
-use tokio_tungstenite::tungstenite::Utf8Bytes as TungsteniteUtf8Bytes;
-use uuid::Uuid;
+use derive_variants::{EnumVariants, ExtractVariant};
 
 use crate::message::{
-  json::JsonMessage,
-  login::LoginMessage,
-  wrappers::{ChannelWrapper, ResultWrapper},
+  json::JsonMessageBytes,
+  login::LoginMessageBytes,
+  wrappers::{ChannelWrapper, OptionWrapper, ResultWrapper},
 };
 
 pub mod json;
 pub mod login;
 pub mod wrappers;
 
-pub trait Encode<Target>: Sized {
-  fn encode(self) -> anyhow::Result<Target>;
-  fn encode_into<T>(self) -> anyhow::Result<T>
+pub trait Encode<Target>: Sized + Send {
+  fn encode(self) -> Target;
+  fn encode_into<T>(self) -> T
   where
     Target: Encode<T>,
   {
-    self.encode()?.encode()
+    self.encode().encode()
+  }
+}
+
+impl Decode<Bytes> for Bytes {
+  fn decode(self) -> anyhow::Result<Bytes> {
+    Ok(self)
   }
 }
 
@@ -36,10 +38,22 @@ pub trait Decode<Target>: Sized {
   }
 }
 
+impl Encode<Bytes> for Bytes {
+  fn encode(self) -> Bytes {
+    self
+  }
+}
+
 /// Helps cast between the top level message types.
-pub trait CastBytes {
+pub trait CastBytes: Sized {
   fn from_bytes(bytes: Bytes) -> Self;
   fn into_bytes(self) -> Bytes;
+  fn from_vec(bytes: Vec<u8>) -> Self {
+    Self::from_bytes(bytes.into())
+  }
+  fn into_vec(self) -> Vec<u8> {
+    self.into_bytes().into()
+  }
 }
 
 impl CastBytes for Bytes {
@@ -51,55 +65,71 @@ impl CastBytes for Bytes {
   }
 }
 
-#[derive(Default, Clone, Debug)]
-pub struct Message(Bytes);
+#[derive(Debug, Clone)]
+pub struct MessageBytes(Bytes);
 
-impl CastBytes for Message {
+impl CastBytes for MessageBytes {
   fn from_bytes(bytes: Bytes) -> Self {
-    Self(bytes)
+    Self(bytes.into())
   }
   fn into_bytes(self) -> Bytes {
-    self.0
+    self.0.into()
   }
 }
 
-impl Decode<ParsedMessage> for Message {
-  fn decode(self) -> anyhow::Result<ParsedMessage> {
+#[derive(Debug, EnumVariants)]
+#[variant_derive(Debug, Clone, Copy)]
+pub enum Message {
+  Login(ResultWrapper<LoginMessageBytes>),
+  Request(ChannelWrapper<JsonMessageBytes>),
+  Response(
+    ChannelWrapper<OptionWrapper<ResultWrapper<JsonMessageBytes>>>,
+  ),
+  Terminal(ChannelWrapper<Bytes>),
+}
+
+impl<T: Into<Message> + Send> Encode<MessageBytes> for T {
+  fn encode(self) -> MessageBytes {
+    let message = self.into();
+    let variant_byte = message.extract_variant().as_byte();
+    let mut bytes: Vec<u8> = match message {
+      Message::Login(data) => data.into_vec(),
+      Message::Request(data) => data.into_vec(),
+      Message::Response(data) => data.into_vec(),
+      Message::Terminal(data) => data.into_vec(),
+    }
+    .into();
+    bytes.push(variant_byte);
+    MessageBytes(bytes.into())
+  }
+}
+
+impl<T: From<Message>> Decode<T> for MessageBytes {
+  fn decode(self) -> anyhow::Result<T> {
     let mut bytes: Vec<u8> = self.0.into();
     let variant_byte = bytes
       .pop()
-      .context("Failed to parse message | bytes are empty")?;
-    let variant = ParsedMessageVariant::from_byte(variant_byte)?;
-    use ParsedMessageVariant::*;
-    match variant {
-      Login => Ok(ParsedMessage::Login(ResultWrapper::from_bytes(
-        bytes.into(),
-      ))),
-      Request => Ok(ParsedMessage::Request(
-        ChannelWrapper::from_bytes(bytes.into()),
-      )),
-      Response => Ok(ParsedMessage::Response(
-        ChannelWrapper::from_bytes(bytes.into()),
-      )),
-      Terminal => Ok(ParsedMessage::Terminal(
-        ChannelWrapper::from_bytes(bytes.into()),
-      )),
-    }
+      .context("Failed to decode message | bytes are empty")?;
+    use MessageVariant::*;
+    let message = match MessageVariant::from_byte(variant_byte)? {
+      Login => Message::Login(ResultWrapper::from_vec(bytes.into())),
+      Request => {
+        Message::Request(ChannelWrapper::from_vec(bytes.into()))
+      }
+      Response => {
+        Message::Response(ChannelWrapper::from_vec(bytes.into()))
+      }
+      Terminal => {
+        Message::Terminal(ChannelWrapper::from_vec(bytes.into()))
+      }
+    };
+    Ok(message.into())
   }
 }
 
-#[derive(EnumVariants)]
-#[variant_derive(Debug, Clone, Copy)]
-pub enum ParsedMessage {
-  Login(ResultWrapper<LoginMessage>),
-  Request(ChannelWrapper<JsonMessage>),
-  Response(ChannelWrapper<ResultWrapper<JsonMessage>>),
-  Terminal(ChannelWrapper<ResultWrapper<Bytes>>),
-}
-
-impl ParsedMessageVariant {
+impl MessageVariant {
   pub fn from_byte(byte: u8) -> anyhow::Result<Self> {
-    use ParsedMessageVariant::*;
+    use MessageVariant::*;
     let variant = match byte {
       0 => Login,
       1 => Request,
@@ -115,206 +145,12 @@ impl ParsedMessageVariant {
   }
 
   pub fn as_byte(self) -> u8 {
-    use ParsedMessageVariant::*;
+    use MessageVariant::*;
     match self {
       Login => 0,
       Request => 1,
       Response => 2,
       Terminal => 3,
     }
-  }
-}
-
-impl Message {
-  pub fn from_bytes(bytes: Bytes) -> Self {
-    Self(bytes)
-  }
-
-  pub fn from_axum_utf8(utf8: AxumUtf8Bytes) -> Self {
-    Self(utf8.into())
-  }
-
-  pub fn from_tungstenite_utf8(utf8: TungsteniteUtf8Bytes) -> Self {
-    Self(utf8.into())
-  }
-
-  pub fn into_inner(self) -> Bytes {
-    self.0
-  }
-
-  pub fn is_empty(&self) -> bool {
-    self.0.is_empty()
-  }
-
-  pub fn state(&self) -> anyhow::Result<MessageState> {
-    self
-      .0
-      .last()
-      .map(|byte| MessageState::from_byte(*byte))
-      .context("Message is empty and has no state")
-  }
-
-  pub fn channel(&self) -> anyhow::Result<Uuid> {
-    let len = self.0.len();
-    if len < 17 {
-      return Err(anyhow!(
-        "Transport bytes too short to include uuid + state"
-      ));
-    }
-    Uuid::from_slice(&self.0[(len - 17)..(len - 1)])
-      .context("Invalid channel bytes")
-  }
-
-  pub fn channel_and_state(
-    &self,
-  ) -> anyhow::Result<(Uuid, MessageState)> {
-    let len = self.0.len();
-    if len < 17 {
-      return Err(anyhow!(
-        "Transport bytes too short to include uuid + state"
-      ));
-    }
-    let uuid = Uuid::from_slice(&self.0[(len - 17)..(len - 1)])
-      .context("Invalid Uuid bytes")?;
-    let state = MessageState::from_byte(self.0[len - 1]);
-    Ok((uuid, state))
-  }
-
-  pub fn data(&self) -> anyhow::Result<&[u8]> {
-    // Does not work with .borrow() due to lifetime issue
-    let len = self.0.len();
-    if len < 17 {
-      return Err(anyhow!(
-        "Transport bytes too short to include uuid + state + data"
-      ));
-    }
-    Ok(&self.0[..(len - 17)])
-  }
-
-  pub fn into_data(self) -> anyhow::Result<Bytes> {
-    let len = self.0.len();
-    if len < 17 {
-      return Err(anyhow!(
-        "Transport bytes too short to include uuid + state + data"
-      ));
-    }
-    let mut res: Vec<u8> = self.0.into();
-    res.drain((len - 17)..);
-    Ok(res.into())
-  }
-
-  pub fn into_parts(
-    self,
-  ) -> anyhow::Result<(Bytes, Uuid, MessageState)> {
-    let (channel, state) = self.channel_and_state()?;
-    let data = self.into_data()?;
-    Ok((data, channel, state))
-  }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum MessageState {
-  Successful = 0,
-  Failed = 1,
-  Terminal = 2,
-  Request = 3,
-  InProgress = 4,
-}
-
-impl MessageState {
-  pub fn from_byte(byte: u8) -> MessageState {
-    match byte {
-      0 => MessageState::Successful,
-      1 => MessageState::Failed,
-      2 => MessageState::Terminal,
-      3 => MessageState::Request,
-      _ => MessageState::InProgress,
-    }
-  }
-
-  pub fn as_byte(&self) -> u8 {
-    match self {
-      MessageState::Successful => 0,
-      MessageState::Failed => 1,
-      MessageState::Terminal => 2,
-      MessageState::Request => 3,
-      MessageState::InProgress => 4,
-    }
-  }
-}
-
-impl<T> From<(T, Uuid, MessageState)> for Message
-where
-  T: Into<Vec<u8>>,
-{
-  fn from((data, channel, state): (T, Uuid, MessageState)) -> Self {
-    let mut data = data.into();
-    data.extend(channel.into_bytes());
-    data.push(state.as_byte());
-    Self(data.into())
-  }
-}
-
-impl From<(Vec<u8>, Uuid)> for Message {
-  fn from((data, channel): (Vec<u8>, Uuid)) -> Self {
-    (data, channel, MessageState::Successful).into()
-  }
-}
-
-impl From<(Vec<u8>, MessageState)> for Message {
-  fn from((data, state): (Vec<u8>, MessageState)) -> Self {
-    (data, Uuid::nil(), state).into()
-  }
-}
-
-impl From<(Uuid, MessageState)> for Message {
-  fn from((channel, state): (Uuid, MessageState)) -> Self {
-    let mut res = channel.into_bytes().to_vec();
-    res.push(state.as_byte());
-    Self(res.into())
-  }
-}
-
-impl From<(&anyhow::Error, Uuid)> for Message {
-  fn from((e, channel): (&anyhow::Error, Uuid)) -> Self {
-    (serialize_error_bytes(e), channel, MessageState::Failed).into()
-  }
-}
-
-impl From<Vec<u8>> for Message {
-  fn from(data: Vec<u8>) -> Self {
-    (data, Uuid::nil(), MessageState::Successful).into()
-  }
-}
-
-impl From<&[u8]> for Message {
-  fn from(data: &[u8]) -> Self {
-    Vec::from(data).into()
-  }
-}
-
-impl<const N: usize> From<[u8; N]> for Message {
-  fn from(data: [u8; N]) -> Self {
-    Vec::from(data).into()
-  }
-}
-
-impl From<Uuid> for Message {
-  fn from(value: Uuid) -> Self {
-    (value, MessageState::Successful).into()
-  }
-}
-
-impl From<MessageState> for Message {
-  fn from(value: MessageState) -> Self {
-    let mut res = [0u8; 17];
-    res[16] = value.as_byte();
-    Self(Bytes::from_owner(res))
-  }
-}
-
-impl From<&anyhow::Error> for Message {
-  fn from(value: &anyhow::Error) -> Self {
-    (value, Uuid::nil()).into()
   }
 }

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(BuildResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct Build {
   pub build: komodo_client::entities::build::Build,
   /// Send the linked repo if it exists.
@@ -33,7 +33,7 @@ pub type BuildResponse = Vec<Log>;
 /// `files_on_host`.
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(GetDockerfileContentsOnHostResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct GetDockerfileContentsOnHost {
   /// The name of the build
   pub name: String,
@@ -51,7 +51,7 @@ pub type GetDockerfileContentsOnHostResponse = FileContents;
 /// `files_on_host`.
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct WriteDockerfileContentsToHost {
   /// The name of the build
   pub name: String,
@@ -67,12 +67,12 @@ pub struct WriteDockerfileContentsToHost {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct PruneBuilders {}
 
 //
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct PruneBuildx {}

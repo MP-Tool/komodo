@@ -11,7 +11,10 @@ use rand::RngCore;
 use sha2::{Digest, Sha256};
 use tracing::warn;
 
-use crate::{message::MessageState, websocket::Websocket};
+use crate::{
+  message::login::{LoginMessage, LoginWebsocketExt as _},
+  websocket::{Websocket, WebsocketExt},
+};
 
 pub trait PublicKeyValidator {
   type ValidationResult;
@@ -52,7 +55,7 @@ impl LoginFlow for ServerLoginFlow {
 
     let res = async {
       socket
-        .send(nonce)
+        .send(LoginMessage::Nonce(nonce))
         .await
         .context("Failed to send connection nonce")?;
 
@@ -66,8 +69,7 @@ impl LoginFlow for ServerLoginFlow {
 
       // Receive and read handshake_m1
       let handshake_m1 = socket
-        .recv_result()
-        .with_timeout(AUTH_TIMEOUT)
+        .recv_login_handshake_bytes()
         .await
         .context("Failed to get handshake_m1")?;
       handshake
@@ -79,14 +81,13 @@ impl LoginFlow for ServerLoginFlow {
         .next_message()
         .context("Failed to write handshake_m2")?;
       socket
-        .send(handshake_m2)
+        .send(LoginMessage::Handshake(handshake_m2.into()))
         .await
         .context("Failed to send handshake_m2")?;
 
       // Receive and read handshake_m3
       let handshake_m3 = socket
-        .recv_result()
-        .with_timeout(AUTH_TIMEOUT)
+        .recv_login_handshake_bytes()
         .await
         .context("Failed to get handshake_m3")?;
       handshake
@@ -106,14 +107,14 @@ impl LoginFlow for ServerLoginFlow {
     match res {
       Ok(res) => {
         socket
-          .send(MessageState::Successful)
+          .send(LoginMessage::Success)
           .await
           .context("Failed to send login successful to client")?;
         Ok(res)
       }
       Err(e) => {
         if let Err(e) = socket
-          .send(&e)
+          .send_login_error(&e)
           .await
           .context("Failed to send login failed to client")
         {
@@ -121,7 +122,7 @@ impl LoginFlow for ServerLoginFlow {
           warn!("{e:#}");
         }
         // Close socket
-        let _ = socket.close(None).await;
+        let _ = socket.close().await;
         // Return the original error
         Err(e)
       }
@@ -143,8 +144,7 @@ impl LoginFlow for ClientLoginFlow {
     let res = async {
       // Receive nonce and channel from server
       let nonce = socket
-        .recv_result()
-        .with_timeout(AUTH_TIMEOUT)
+        .recv_login_nonce()
         .await
         .context("Failed to receive connection nonce")?;
 
@@ -161,14 +161,13 @@ impl LoginFlow for ClientLoginFlow {
         .next_message()
         .context("Failed to write handshake m1")?;
       socket
-        .send(handshake_m1)
+        .send(LoginMessage::Handshake(handshake_m1.into()))
         .await
         .context("Failed to send handshake_m1")?;
 
       // Receive and read handshake_m2
       let handshake_m2 = socket
-        .recv_result()
-        .with_timeout(AUTH_TIMEOUT)
+        .recv_login_handshake_bytes()
         .await
         .context("Failed to get handshake_m2")?;
       handshake
@@ -189,16 +188,15 @@ impl LoginFlow for ClientLoginFlow {
         .next_message()
         .context("Failed to write handshake_m3")?;
       socket
-        .send(handshake_m3)
+        .send(LoginMessage::Handshake(handshake_m3.into()))
         .await
         .context("Failed to send handshake_m3")?;
 
       // Receive login sucessful
       socket
-        .recv_result()
-        .with_timeout(AUTH_TIMEOUT)
+        .recv_login_success()
         .await
-        .context("Failed to receive authentication state message")?;
+        .context("Failed to receive Login Success message")?;
 
       anyhow::Ok(validation_result)
     }
@@ -208,7 +206,7 @@ impl LoginFlow for ClientLoginFlow {
       Ok(res) => Ok(res),
       Err(e) => {
         if let Err(e) = socket
-          .send(&e)
+          .send_login_error(&e)
           .await
           .context("Failed to send login failed to client")
         {
@@ -216,7 +214,7 @@ impl LoginFlow for ClientLoginFlow {
           warn!("{e:#}");
         }
         // Close socket
-        let _ = socket.close(None).await;
+        let _ = socket.close().await;
         // Return the original error
         Err(e)
       }

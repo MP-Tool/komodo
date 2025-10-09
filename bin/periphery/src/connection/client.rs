@@ -5,11 +5,12 @@ use axum::http::{HeaderValue, StatusCode};
 use periphery_client::CONNECTION_RETRY_SECONDS;
 use transport::{
   auth::{
-    AUTH_TIMEOUT, AddressConnectionIdentifiers, ClientLoginFlow,
+    AddressConnectionIdentifiers, ClientLoginFlow,
     ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
   },
   fix_ws_address,
-  websocket::{Websocket, tungstenite::TungsteniteWebsocket},
+  message::login::{LoginMessage, LoginWebsocketExt},
+  websocket::{WebsocketExt, tungstenite::TungsteniteWebsocket},
 };
 
 use crate::{
@@ -65,13 +66,12 @@ pub async fn handler(address: &str) -> anyhow::Result<()> {
 
     // Receive whether to use Server connection flow vs Server onboarding flow.
 
-    let flow_bytes = match socket
-      .recv_result()
-      .with_timeout(AUTH_TIMEOUT)
+    let onboarding_flow = match socket
+      .recv_login_onboarding_flow()
       .await
-      .context("Failed to receive login flow indicator")
+      .context("Failed to receive Login OnboardingFlow message")
     {
-      Ok(flow_bytes) => flow_bytes,
+      Ok(onboarding_flow) => onboarding_flow,
       Err(e) => {
         if !already_logged_connection_error {
           warn!("{e:#}");
@@ -94,65 +94,46 @@ pub async fn handler(address: &str) -> anyhow::Result<()> {
     let identifiers =
       identifiers.build(accept.as_bytes(), query.as_bytes());
 
-    match flow_bytes.iter().as_slice() {
-      // Connection (standard) flow
-      &[0] => {
-        if let Err(e) = super::handle_login::<_, ClientLoginFlow>(
-          &mut socket,
-          identifiers,
-        )
-        .await
-        {
-          if !already_logged_login_error {
-            warn!("Failed to login | {e:#}");
-            already_logged_login_error = true;
-          }
-          tokio::time::sleep(Duration::from_secs(
-            CONNECTION_RETRY_SECONDS,
-          ))
-          .await;
-          continue;
-        }
-
-        already_logged_login_error = false;
-
-        super::handle_socket(
-          socket,
-          &args,
-          &channel.sender,
-          &mut receiver,
-        )
-        .await
-      }
-      // Creation
-      &[1] => {
-        if let Err(e) = handle_onboarding(socket, identifiers).await {
-          if !already_logged_onboarding_error {
-            error!("{e:#}");
-            already_logged_onboarding_error = true;
-          }
-          tokio::time::sleep(Duration::from_secs(
-            CONNECTION_RETRY_SECONDS,
-          ))
-          .await;
-          continue;
-        };
-      }
-      // Other (error)
-      other => {
-        if !already_logged_connection_error {
-          warn!("Receieved invalid login flow pattern: {other:?}");
-          already_logged_connection_error = true;
-          // If error transitions from login to connection,
-          // set to false to see login error after reconnect.
-          already_logged_login_error = false;
+    if onboarding_flow {
+      if let Err(e) = handle_onboarding(socket, identifiers).await {
+        if !already_logged_onboarding_error {
+          error!("{e:#}");
+          already_logged_onboarding_error = true;
         }
         tokio::time::sleep(Duration::from_secs(
           CONNECTION_RETRY_SECONDS,
         ))
         .await;
+        continue;
+      };
+    } else {
+      if let Err(e) = super::handle_login::<_, ClientLoginFlow>(
+        &mut socket,
+        identifiers,
+      )
+      .await
+      {
+        if !already_logged_login_error {
+          warn!("Failed to login | {e:#}");
+          already_logged_login_error = true;
+        }
+        tokio::time::sleep(Duration::from_secs(
+          CONNECTION_RETRY_SECONDS,
+        ))
+        .await;
+        continue;
       }
-    };
+
+      already_logged_login_error = false;
+
+      super::handle_socket(
+        socket,
+        &args,
+        &channel.sender,
+        &mut receiver,
+      )
+      .await
+    }
   }
 }
 
@@ -176,13 +157,14 @@ async fn handle_onboarding(
 
   // Post onboarding login 1: Send public key
   socket
-    .send(periphery_keys().load().public.as_bytes())
+    .send(LoginMessage::PublicKey(
+      periphery_keys().load().public.clone(),
+    ))
     .await
     .context("Failed to send public key bytes")?;
 
   socket
-    .recv_result()
-    .with_timeout(AUTH_TIMEOUT)
+    .recv_login_success()
     .await
     .context("Failed to receive Server creation result")?;
 

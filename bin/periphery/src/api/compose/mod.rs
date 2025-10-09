@@ -94,7 +94,7 @@ pub struct DockerComposeLsItem {
 
 impl Resolve<super::Args> for GetComposeLog {
   #[instrument(name = "GetComposeLog", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let GetComposeLog {
       project,
       services,
@@ -117,7 +117,7 @@ impl Resolve<super::Args> for GetComposeLog {
 
 impl Resolve<super::Args> for GetComposeLogSearch {
   #[instrument(name = "GetComposeLogSearch", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let GetComposeLogSearch {
       project,
       services,
@@ -148,7 +148,7 @@ impl Resolve<super::Args> for GetComposeContentsOnHost {
   async fn resolve(
     self,
     _: &super::Args,
-  ) -> serror::Result<GetComposeContentsOnHostResponse> {
+  ) -> anyhow::Result<GetComposeContentsOnHostResponse> {
     let GetComposeContentsOnHost {
       name,
       run_directory,
@@ -209,7 +209,7 @@ impl Resolve<super::Args> for WriteComposeContentsToHost {
       file_path = &self.file_path,
     )
   )]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let WriteComposeContentsToHost {
       name,
       run_directory,
@@ -252,7 +252,7 @@ impl Resolve<super::Args> for WriteCommitComposeContents {
   async fn resolve(
     self,
     args: &super::Args,
-  ) -> serror::Result<RepoExecutionResponse> {
+  ) -> anyhow::Result<RepoExecutionResponse> {
     let WriteCommitComposeContents {
       stack,
       repo,
@@ -305,7 +305,7 @@ impl Resolve<super::Args> for ComposePull {
   async fn resolve(
     self,
     args: &super::Args,
-  ) -> serror::Result<ComposePullResponse> {
+  ) -> anyhow::Result<ComposePullResponse> {
     let ComposePull {
       mut stack,
       repo,
@@ -420,7 +420,7 @@ impl Resolve<super::Args> for ComposeUp {
   async fn resolve(
     self,
     args: &super::Args,
-  ) -> serror::Result<ComposeUpResponse> {
+  ) -> anyhow::Result<ComposeUpResponse> {
     let ComposeUp {
       mut stack,
       repo,
@@ -678,7 +678,7 @@ impl Resolve<super::Args> for ComposeUp {
 
 impl Resolve<super::Args> for ComposeExecution {
   #[instrument(name = "ComposeExecution")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let ComposeExecution { project, command } = self;
     let docker_compose = docker_compose();
     let log = run_komodo_command(
@@ -695,7 +695,7 @@ impl Resolve<super::Args> for ComposeExecution {
 
 impl Resolve<super::Args> for ComposeRun {
   #[instrument(name = "ComposeRun", level = "debug", skip_all, fields(stack = &self.stack.name, service = &self.service))]
-  async fn resolve(self, args: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let ComposeRun {
       mut stack,
       repo,

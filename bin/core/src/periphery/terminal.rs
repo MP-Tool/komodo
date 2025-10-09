@@ -14,7 +14,7 @@ use periphery_client::api::terminal::{
 };
 use transport::{
   channel::{Receiver, Sender, channel},
-  message::Message,
+  message::MessageBytes,
 };
 use uuid::Uuid;
 
@@ -26,7 +26,8 @@ impl PeripheryClient {
   pub async fn connect_terminal(
     &self,
     terminal: String,
-  ) -> anyhow::Result<(Uuid, Sender, Receiver)> {
+  ) -> anyhow::Result<(Uuid, Sender<MessageBytes>, Receiver<Bytes>)>
+  {
     tracing::trace!(
       "request | type: ConnectTerminal | terminal name: {terminal}",
     );
@@ -36,22 +37,31 @@ impl PeripheryClient {
         || format!("No connection found for server {}", self.id),
       )?;
 
-    let id = self
+    let channel_id = self
       .request(ConnectTerminal { terminal })
       .await
       .context("Failed to create terminal connection")?;
 
     let (sender, receiever) = channel();
-    connection.channels.insert(id, sender).await;
+    connection.terminals.insert(channel_id, sender).await;
 
-    Ok((id, connection.sender.clone(), receiever))
+    connection
+      .sender
+      .send_terminal(channel_id, Bytes::new())
+      .await
+      .context(
+        "Failed to send TerminalTrigger to begin forwarding.",
+      )?;
+
+    Ok((channel_id, connection.sender.clone(), receiever))
   }
 
   pub async fn connect_container_exec(
     &self,
     container: String,
     shell: String,
-  ) -> anyhow::Result<(Uuid, Sender, Receiver)> {
+  ) -> anyhow::Result<(Uuid, Sender<MessageBytes>, Receiver<Bytes>)>
+  {
     tracing::trace!(
       "request | type: ConnectContainerExec | container name: {container} | shell: {shell}",
     );
@@ -61,15 +71,23 @@ impl PeripheryClient {
         || format!("No connection found for server {}", self.id),
       )?;
 
-    let id = self
+    let channel_id = self
       .request(ConnectContainerExec { container, shell })
       .await
       .context("Failed to create container exec connection")?;
 
     let (sender, receiever) = channel();
-    connection.channels.insert(id, sender).await;
+    connection.terminals.insert(channel_id, sender).await;
 
-    Ok((id, connection.sender.clone(), receiever))
+    connection
+      .sender
+      .send_terminal(channel_id, Bytes::new())
+      .await
+      .context(
+        "Failed to send TerminalTrigger to begin forwarding.",
+      )?;
+
+    Ok((channel_id, connection.sender.clone(), receiever))
   }
 
   /// Executes command on specified terminal,
@@ -102,19 +120,29 @@ impl PeripheryClient {
         || format!("No connection found for server {}", self.id),
       )?;
 
-    let id = self
+    let channel_id = self
       .request(ExecuteTerminal { terminal, command })
       .await
       .context("Failed to create execute terminal connection")?;
 
-    let (sender, receiver) = channel();
+    let (terminal_sender, terminal_receiver) = channel();
+    connection
+      .terminals
+      .insert(channel_id, terminal_sender)
+      .await;
 
-    connection.channels.insert(id, sender).await;
+    connection
+      .sender
+      .send_terminal(channel_id, Bytes::new())
+      .await
+      .context(
+        "Failed to send TerminalTrigger to begin forwarding.",
+      )?;
 
     Ok(ReceiverStream {
-      id,
-      receiver,
-      channels: connection.channels.clone(),
+      channel_id,
+      receiver: terminal_receiver,
+      channels: connection.terminals.clone(),
     })
   }
 
@@ -147,7 +175,7 @@ impl PeripheryClient {
         || format!("No connection found for server {}", self.id),
       )?;
 
-    let id = self
+    let channel_id = self
       .request(ExecuteContainerExec {
         container,
         shell,
@@ -156,22 +184,31 @@ impl PeripheryClient {
       .await
       .context("Failed to create execute terminal connection")?;
 
-    let (sender, receiver) = channel();
+    let (terminal_sender, terminal_receiver) = channel();
+    connection
+      .terminals
+      .insert(channel_id, terminal_sender)
+      .await;
 
-    connection.channels.insert(id, sender).await;
+    // Trigger forwarding to begin now that forwarding channel is ready.
+    // This is required to not miss messages.
+    connection
+      .sender
+      .send_terminal(channel_id, Bytes::new())
+      .await?;
 
     Ok(ReceiverStream {
-      id,
-      receiver,
-      channels: connection.channels.clone(),
+      channel_id,
+      receiver: terminal_receiver,
+      channels: connection.terminals.clone(),
     })
   }
 }
 
 pub struct ReceiverStream {
-  id: Uuid,
-  channels: Arc<CloneCache<Uuid, Sender>>,
-  receiver: Receiver,
+  channel_id: Uuid,
+  channels: Arc<CloneCache<Uuid, Sender<Bytes>>>,
+  receiver: Receiver<Bytes>,
 }
 
 impl Stream for ReceiverStream {
@@ -180,19 +217,15 @@ impl Stream for ReceiverStream {
     mut self: Pin<&mut Self>,
     cx: &mut task::Context<'_>,
   ) -> Poll<Option<Self::Item>> {
-    match self
-      .receiver
-      .poll_recv(cx)
-      .map(|message| message.map(Message::into_data))
-    {
-      Poll::Ready(Some(Ok(bytes)))
+    match self.receiver.poll_recv(cx) {
+      Poll::Ready(Some(bytes))
         if bytes == END_OF_OUTPUT.as_bytes() =>
       {
         self.cleanup();
         Poll::Ready(None)
       }
-      Poll::Ready(Some(Ok(bytes))) => Poll::Ready(Some(Ok(bytes))),
-      Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+      Poll::Ready(Some(bytes)) => Poll::Ready(Some(Ok(bytes))),
+      // Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
       Poll::Ready(None) => {
         self.cleanup();
         Poll::Ready(None)
@@ -206,7 +239,7 @@ impl ReceiverStream {
   fn cleanup(&self) {
     // Not the prettiest but it should be fine
     let channels = self.channels.clone();
-    let id = self.id;
+    let id = self.channel_id;
     tokio::spawn(async move {
       channels.remove(&id).await;
     });

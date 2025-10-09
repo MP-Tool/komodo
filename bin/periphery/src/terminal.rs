@@ -11,12 +11,21 @@ use komodo_client::{
   api::write::TerminalRecreateMode, entities::server::TerminalInfo,
 };
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
+use transport::message::{
+  Decode,
+  wrappers::{ChannelWrapper, WithChannel},
+};
 use uuid::Uuid;
 
-pub type TerminalChannels =
-  CloneCache<Uuid, (mpsc::Sender<StdinMsg>, CancellationToken)>;
+#[derive(Debug)]
+pub struct TerminalChannel {
+  pub sender: mpsc::Sender<StdinMsg>,
+  pub cancel: CancellationToken,
+}
+
+pub type TerminalChannels = CloneCache<Uuid, Arc<TerminalChannel>>;
 
 pub fn terminal_channels() -> &'static TerminalChannels {
   static TERMINAL_CHANNELS: OnceLock<TerminalChannels> =
@@ -24,15 +33,87 @@ pub fn terminal_channels() -> &'static TerminalChannels {
   TERMINAL_CHANNELS.get_or_init(Default::default)
 }
 
-pub async fn handle_message(channel_id: Uuid, data: Bytes) {
-  let Some((channel, _)) = terminal_channels().get(&channel_id).await
-  else {
-    warn!("No terminal channel for {channel_id}");
-    return;
+#[derive(Debug)]
+pub struct TerminalTrigger {
+  sender: Mutex<Option<oneshot::Sender<()>>>,
+  receiver: Mutex<Option<oneshot::Receiver<()>>>,
+}
+
+impl TerminalTrigger {
+  /// This consumes the Trigger Sender.
+  pub async fn send(&self) -> anyhow::Result<()> {
+    let mut sender = self.sender.lock().await;
+    let sender = sender
+      .take()
+      .context("Called TerminalTrigger 'send' more than once.")?;
+    sender.send(()).map_err(|_| anyhow!("Sender already used"))
+  }
+
+  /// This consumes the Trigger Receiver.
+  pub async fn wait(&self) -> anyhow::Result<()> {
+    let mut receiver = self.receiver.lock().await;
+    let receiver = receiver
+      .take()
+      .context("Called TerminalTrigger 'wait' more than once.")?;
+    receiver.await.context("Failed to receive TerminalTrigger")
+  }
+}
+
+/// Periphery must wait for Core to finish setting
+/// up channel forwarding before sending message,
+/// or the first sent messages may be missed.
+#[derive(Default)]
+pub struct TerminalTriggers(CloneCache<Uuid, Arc<TerminalTrigger>>);
+
+pub fn terminal_triggers() -> &'static TerminalTriggers {
+  static TERMINAL_TRIGGERS: OnceLock<TerminalTriggers> =
+    OnceLock::new();
+  TERMINAL_TRIGGERS.get_or_init(Default::default)
+}
+
+impl TerminalTriggers {
+  pub async fn insert(&self, channel: Uuid) -> Arc<TerminalTrigger> {
+    let (sender, receiver) = oneshot::channel();
+    let trigger = Arc::new(TerminalTrigger {
+      sender: Some(sender).into(),
+      receiver: Some(receiver).into(),
+    });
+    self.0.insert(channel, trigger.clone()).await;
+    trigger
+  }
+
+  pub async fn send(&self, channel: &Uuid) -> anyhow::Result<()> {
+    let trigger = self.0.get(channel).await.with_context(|| {
+      format!("No trigger found for channel {channel}")
+    })?;
+    trigger.send().await
+  }
+
+  pub async fn wait(&self, channel: &Uuid) -> anyhow::Result<()> {
+    let trigger = self.0.get(channel).await.with_context(|| {
+      format!("No trigger found for channel {channel}")
+    })?;
+    trigger.wait().await?;
+    self.0.remove(channel).await;
+    Ok(())
+  }
+}
+
+pub async fn handle_message(message: ChannelWrapper<Bytes>) {
+  let WithChannel {
+    channel: channel_id,
+    data,
+  } = match message.decode() {
+    Ok(res) => res,
+    Err(e) => {
+      warn!("Received invalid Terminal bytes | {e:#}");
+      return;
+    }
   };
   let msg = match data.first() {
     Some(&0x00) => {
-      StdinMsg::Bytes(Bytes::copy_from_slice(&data[1..]))
+      let mut data: Vec<_> = data.into();
+      StdinMsg::Bytes(data.drain(1..).collect())
     }
     Some(&0xFF) => {
       if let Ok(dimensions) =
@@ -44,10 +125,20 @@ pub async fn handle_message(channel_id: Uuid, data: Bytes) {
       }
     }
     Some(_) => StdinMsg::Bytes(data),
-    // No data
-    None => return,
+    // Empty bytes are the "begin" trigger for Terminal Executions
+    None => {
+      if let Err(e) = terminal_triggers().send(&channel_id).await {
+        warn!("{e:#}")
+      }
+      return;
+    }
   };
-  if let Err(e) = channel.send(msg).await {
+  let Some(channel) = terminal_channels().get(&channel_id).await
+  else {
+    warn!("No terminal channel for {channel_id}");
+    return;
+  };
+  if let Err(e) = channel.sender.send(msg).await {
     warn!("No receiver for {channel_id} | {e:?}");
   };
 }

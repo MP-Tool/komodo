@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use bytes::Bytes;
 use uuid::Uuid;
 
 use crate::message::{CastBytes, Decode, Encode};
@@ -12,38 +13,52 @@ use crate::message::{CastBytes, Decode, Encode};
 #[derive(Clone, Debug)]
 pub struct ChannelWrapper<T>(T);
 
+impl<T> From<T> for ChannelWrapper<T> {
+  fn from(value: T) -> Self {
+    Self(value)
+  }
+}
+
 impl<T: CastBytes> CastBytes for ChannelWrapper<T> {
-  fn from_bytes(bytes: bytes::Bytes) -> Self {
+  fn from_bytes(bytes: Bytes) -> Self {
     Self(T::from_bytes(bytes))
   }
-  fn into_bytes(self) -> bytes::Bytes {
+  fn into_bytes(self) -> Bytes {
     self.0.into_bytes()
   }
 }
 
-impl<T: CastBytes> Encode<ChannelWrapper<T>> for (Uuid, T) {
-  fn encode(self) -> anyhow::Result<ChannelWrapper<T>> {
-    let (channel, t) = self;
-    let mut bytes: Vec<u8> = t.into_bytes().into();
-    bytes.extend(channel.into_bytes());
-    Ok(ChannelWrapper(T::from_bytes(bytes.into())))
+pub struct WithChannel<T> {
+  pub channel: Uuid,
+  pub data: T,
+}
+
+impl<T: CastBytes + Send> Encode<ChannelWrapper<T>>
+  for WithChannel<T>
+{
+  fn encode(self) -> ChannelWrapper<T> {
+    let mut bytes = self.data.into_vec();
+    bytes.extend(self.channel.into_bytes());
+    ChannelWrapper(T::from_vec(bytes))
   }
 }
 
-impl<T: CastBytes> Decode<(Uuid, T)> for ChannelWrapper<T> {
-  fn decode(self) -> anyhow::Result<(Uuid, T)> {
-    let mut bytes: Vec<u8> = self.0.into_bytes().into();
+impl<T: CastBytes> Decode<WithChannel<T>> for ChannelWrapper<T> {
+  fn decode(self) -> anyhow::Result<WithChannel<T>> {
+    let mut bytes = self.0.into_vec();
     let len = bytes.len();
     if bytes.len() < 16 {
       return Err(anyhow!(
         "ChannelMessage bytes too short to include uuid"
       ));
     }
-    let mut buf = [0u8; 16];
+    let mut channel = [0u8; 16];
     for (i, byte) in bytes.drain(len - 16..).enumerate() {
-      buf[i] = byte;
+      channel[i] = byte;
     }
-    let uuid = Uuid::from_bytes(buf);
-    Ok((uuid, T::from_bytes(bytes.into())))
+    Ok(WithChannel {
+      channel: Uuid::from_bytes(channel),
+      data: T::from_vec(bytes),
+    })
   }
 }

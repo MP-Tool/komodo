@@ -25,7 +25,7 @@ pub mod terminal;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(GetHealthResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct GetHealth {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -35,7 +35,7 @@ pub struct GetHealthResponse {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(GetVersionResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct GetVersion {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -48,7 +48,7 @@ pub struct GetVersionResponse {
 /// This is the data Core uses to update all Server-related status caches.
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(PollStatusResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct PollStatus {
   /// Some servers have stats monitoring disabled.
   pub include_stats: bool,
@@ -74,7 +74,7 @@ pub struct PollStatusResponse {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(ListGitProvidersResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ListGitProviders {}
 
 pub type ListGitProvidersResponse = Vec<GitProvider>;
@@ -83,7 +83,7 @@ pub type ListGitProvidersResponse = Vec<GitProvider>;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(ListDockerRegistriesResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ListDockerRegistries {}
 
 pub type ListDockerRegistriesResponse = Vec<DockerRegistry>;
@@ -92,12 +92,12 @@ pub type ListDockerRegistriesResponse = Vec<DockerRegistry>;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Vec<String>)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ListSecrets {}
 
 //
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct PruneSystem {}

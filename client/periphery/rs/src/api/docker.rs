@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Image)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct InspectImage {
   pub name: String,
 }
@@ -24,7 +24,7 @@ pub struct InspectImage {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Vec<ImageHistoryResponseItem>)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ImageHistory {
   pub name: String,
 }
@@ -33,7 +33,7 @@ pub struct ImageHistory {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct PullImage {
   /// The name of the image.
   pub name: String,
@@ -47,7 +47,7 @@ pub struct PullImage {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct DeleteImage {
   /// Id or name
   pub name: String,
@@ -57,7 +57,7 @@ pub struct DeleteImage {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct PruneImages {}
 
 // =======
@@ -66,7 +66,7 @@ pub struct PruneImages {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Network)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct InspectNetwork {
   pub name: String,
 }
@@ -75,7 +75,7 @@ pub struct InspectNetwork {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct CreateNetwork {
   pub name: String,
   pub driver: Option<String>,
@@ -85,7 +85,7 @@ pub struct CreateNetwork {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct DeleteNetwork {
   /// Id or name
   pub name: String,
@@ -95,7 +95,7 @@ pub struct DeleteNetwork {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct PruneNetworks {}
 
 // ======
@@ -104,7 +104,7 @@ pub struct PruneNetworks {}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Volume)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct InspectVolume {
   pub name: String,
 }
@@ -113,7 +113,7 @@ pub struct InspectVolume {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct DeleteVolume {
   /// Id or name
   pub name: String,
@@ -123,5 +123,5 @@ pub struct DeleteVolume {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct PruneVolumes {}

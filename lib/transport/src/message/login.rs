@@ -1,93 +1,176 @@
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
-use derive_variants::EnumVariants;
+use derive_variants::{EnumVariants, ExtractVariant};
 use noise::key::SpkiPublicKey;
 
-use crate::message::{CastBytes, Decode};
+use crate::{
+  auth::AUTH_TIMEOUT,
+  message::{CastBytes, Decode, Encode, Message},
+  websocket::{Websocket, WebsocketExt},
+};
 
-/// ```markdown
-/// | -- u8[] -- | --------- u8 ------------ |
-/// | <CONTENTS> | ParsedLoginMessageVariant |
-/// ```
-#[derive(Clone, Debug)]
-pub struct LoginMessage(Bytes);
-
-impl CastBytes for LoginMessage {
-  fn from_bytes(bytes: Bytes) -> Self {
-    Self(bytes)
+pub trait LoginWebsocketExt: WebsocketExt {
+  fn send_login_error(
+    &mut self,
+    e: &anyhow::Error,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send {
+    let message = Message::Login(e.encode());
+    self.send(message)
   }
-  fn into_bytes(self) -> Bytes {
-    self.0
-  }
-}
 
-impl Decode<ParsedLoginMessage> for LoginMessage {
-  /// Parses login messages, performing various validations.
-  fn decode(self) -> anyhow::Result<ParsedLoginMessage> {
-    let mut bytes: Vec<u8> = self.0.into();
-    let variant_byte = bytes
-      .pop()
-      .context("Failed to parse login message | bytes are empty")?;
-    let variant = ParsedLoginMessageVariant::from_byte(variant_byte)?;
-    use ParsedLoginMessageVariant::*;
-    match variant {
-      LoginSuccessful => Ok(ParsedLoginMessage::LoginSuccessful),
-      Handshake => Ok(ParsedLoginMessage::Handshake(bytes.into())),
-      OnboardingFlow => {
-        let onboarding_flow = match bytes.as_slice() {
-          &[0] => false,
-          &[1] => true,
-          other => {
-            return Err(anyhow!(
-              "Got unrecognized LoginMessage OnboardingFlow bytes: {other:?}"
-            ));
-          }
-        };
-        Ok(ParsedLoginMessage::OnboardingFlow(onboarding_flow))
-      }
-      PublicKey => {
-        if bytes.is_empty() {
-          return Err(anyhow!(
-            "Got empty LoginMessage OnboardingFlow PublicKey bytes"
-          ));
-        }
-        let public_key = String::from_utf8(bytes)
-          .context("Public key is not valid utf-8")?;
-        Ok(ParsedLoginMessage::PublicKey(SpkiPublicKey::from(
-          public_key,
-        )))
-      }
-      // V1
-      V1PasskeyFlow => {
-        let passkey_login = match bytes.as_slice() {
-          &[0] => false,
-          &[1] => true,
-          other => {
-            return Err(anyhow!(
-              "Got unrecognized LoginMessage V1PasskeyLogin bytes: {other:?}"
-            ));
-          }
-        };
-        Ok(ParsedLoginMessage::V1PasskeyFlow(passkey_login))
-      }
-      V1Passkey => {
-        if bytes.is_empty() {
-          return Err(anyhow!(
-            "Got empty LoginMessage V1Passkey bytes"
-          ));
-        }
-        Ok(ParsedLoginMessage::V1Passkey(bytes.into()))
-      }
+  fn recv_login_message(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<LoginMessage>> + Send {
+    async {
+      let Message::Login(message) =
+        self.recv().with_timeout(AUTH_TIMEOUT).await?
+      else {
+        return Err(anyhow!(
+          "Expected Login message, got other message type"
+        ));
+      };
+      message.decode_into()
+    }
+  }
+
+  fn recv_login_success(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send {
+    async {
+      let LoginMessage::Success = self.recv_login_message().await?
+      else {
+        return Err(anyhow!(
+          "Expected Login Success message, got other message type"
+        ));
+      };
+      Ok(())
+    }
+  }
+
+  fn recv_login_nonce(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<[u8; 32]>> + Send {
+    async {
+      let LoginMessage::Nonce(nonce) =
+        self.recv_login_message().await?
+      else {
+        return Err(anyhow!(
+          "Expected Login Nonce message, got other message type"
+        ));
+      };
+      Ok(nonce)
+    }
+  }
+
+  fn recv_login_handshake_bytes(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<Bytes>> + Send {
+    async {
+      let LoginMessage::Handshake(bytes) =
+        self.recv_login_message().await?
+      else {
+        return Err(anyhow!(
+          "Expected Login Handshake message, got other message type"
+        ));
+      };
+      Ok(bytes)
+    }
+  }
+
+  fn recv_login_onboarding_flow(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<bool>> + Send {
+    async {
+      let LoginMessage::OnboardingFlow(onboarding_flow) =
+        self.recv_login_message().await?
+      else {
+        return Err(anyhow!(
+          "Expected Login OnboardingFlow message, got other message type"
+        ));
+      };
+      Ok(onboarding_flow)
+    }
+  }
+
+  fn recv_login_public_key(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<SpkiPublicKey>> + Send {
+    async {
+      let LoginMessage::PublicKey(public_key) =
+        self.recv_login_message().await?
+      else {
+        return Err(anyhow!(
+          "Expected Login PublicKey message, got other message type"
+        ));
+      };
+      Ok(public_key)
+    }
+  }
+
+  fn recv_login_v1_passkey_flow(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<bool>> + Send {
+    async {
+      let LoginMessage::V1PasskeyFlow(v1_passkey_flow) =
+        self.recv_login_message().await?
+      else {
+        return Err(anyhow!(
+          "Expected Login V1PasskeyFlow message, got other message type"
+        ));
+      };
+      Ok(v1_passkey_flow)
+    }
+  }
+
+  fn recv_login_v1_passkey(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<Bytes>> + Send {
+    async {
+      let LoginMessage::V1Passkey(bytes) =
+        self.recv_login_message().await?
+      else {
+        return Err(anyhow!(
+          "Expected Login V1Passkey message, got other message type"
+        ));
+      };
+      Ok(bytes)
     }
   }
 }
 
-#[derive(EnumVariants)]
+impl<W: Websocket> LoginWebsocketExt for W {}
+
+impl From<LoginMessage> for Message {
+  fn from(value: LoginMessage) -> Self {
+    Self::Login(Ok(value.encode()).encode())
+  }
+}
+
+/// ```markdown
+/// | -- u8[] -- | --------- u8 ------------ |
+/// | <CONTENTS> | LoginMessageVariant |
+/// ```
+#[derive(Clone, Debug)]
+pub struct LoginMessageBytes(Bytes);
+
+impl CastBytes for LoginMessageBytes {
+  fn from_bytes(bytes: Bytes) -> Self {
+    Self(bytes.into())
+  }
+  fn into_bytes(self) -> Bytes {
+    self.0.into()
+  }
+}
+
+#[derive(EnumVariants, Clone)]
 #[variant_derive(Debug, Clone, Copy)]
-pub enum ParsedLoginMessage {
+pub enum LoginMessage {
   /// At the end of every login flow,
   /// Send a success message
-  LoginSuccessful,
+  Success,
+  /// Every handshake includes a random 32 byte nonce
+  /// to identify the connection.
+  Nonce([u8; 32]),
   /// Bytes that are part of the noise handshake.
   Handshake(Bytes),
   /// Used during Periphery -> Core connections.
@@ -109,17 +192,113 @@ pub enum ParsedLoginMessage {
   V1Passkey(Bytes),
 }
 
-impl ParsedLoginMessageVariant {
-  pub fn from_byte(byte: u8) -> anyhow::Result<Self> {
-    use ParsedLoginMessageVariant::*;
-    let variant = match byte {
-      0 => LoginSuccessful,
-      1 => Handshake,
-      2 => OnboardingFlow,
-      3 => PublicKey,
+impl Encode<LoginMessageBytes> for LoginMessage {
+  fn encode(self) -> LoginMessageBytes {
+    let variant_byte = self.extract_variant().as_byte();
+    let mut bytes = match self {
+      LoginMessage::Success => Vec::new(),
+      LoginMessage::Nonce(nonce) => nonce.to_vec(),
+      LoginMessage::Handshake(bytes) => bytes.into(),
+      LoginMessage::OnboardingFlow(onboarding_flow) => {
+        let byte = if onboarding_flow { 1 } else { 0 };
+        vec![byte]
+      }
+      LoginMessage::PublicKey(spki_public_key) => {
+        spki_public_key.into_inner().into()
+      }
+      LoginMessage::V1PasskeyFlow(passkey_flow) => {
+        let byte = if passkey_flow { 1 } else { 0 };
+        vec![byte]
+      }
+      LoginMessage::V1Passkey(bytes) => bytes.into(),
+    };
+    bytes.push(variant_byte);
+    LoginMessageBytes(bytes.into())
+  }
+}
+
+impl Decode<LoginMessage> for LoginMessageBytes {
+  /// Parses login messages, performing various validations.
+  fn decode(self) -> anyhow::Result<LoginMessage> {
+    let mut bytes: Vec<u8> = self.0.into();
+    let variant_byte = bytes
+      .pop()
+      .context("Failed to parse login message | bytes are empty")?;
+    let variant = LoginMessageVariant::from_byte(variant_byte)?;
+    use LoginMessageVariant::*;
+    match variant {
+      Success => Ok(LoginMessage::Success),
+
+      Nonce => Ok(LoginMessage::Nonce(
+        bytes
+          .try_into()
+          .map_err(|_| anyhow!("Invalid connection nonce"))?,
+      )),
+
+      Handshake => Ok(LoginMessage::Handshake(bytes.into())),
+
+      OnboardingFlow => {
+        let onboarding_flow = match bytes.as_slice() {
+          &[0] => false,
+          &[1] => true,
+          other => {
+            return Err(anyhow!(
+              "Got unrecognized LoginMessage OnboardingFlow bytes: {other:?}"
+            ));
+          }
+        };
+        Ok(LoginMessage::OnboardingFlow(onboarding_flow))
+      }
+
+      PublicKey => {
+        if bytes.is_empty() {
+          return Err(anyhow!(
+            "Got empty LoginMessage OnboardingFlow PublicKey bytes"
+          ));
+        }
+        let public_key = String::from_utf8(bytes)
+          .context("Public key is not valid utf-8")?;
+        Ok(LoginMessage::PublicKey(SpkiPublicKey::from(public_key)))
+      }
+
       // V1
-      4 => V1PasskeyFlow,
-      5 => V1Passkey,
+      V1PasskeyFlow => {
+        let passkey_login = match bytes.as_slice() {
+          &[0] => false,
+          &[1] => true,
+          other => {
+            return Err(anyhow!(
+              "Got unrecognized LoginMessage V1PasskeyLogin bytes: {other:?}"
+            ));
+          }
+        };
+        Ok(LoginMessage::V1PasskeyFlow(passkey_login))
+      }
+
+      V1Passkey => {
+        if bytes.is_empty() {
+          return Err(anyhow!(
+            "Got empty LoginMessage V1Passkey bytes"
+          ));
+        }
+        Ok(LoginMessage::V1Passkey(bytes.into()))
+      }
+    }
+  }
+}
+
+impl LoginMessageVariant {
+  pub fn from_byte(byte: u8) -> anyhow::Result<Self> {
+    use LoginMessageVariant::*;
+    let variant = match byte {
+      0 => Success,
+      1 => Nonce,
+      2 => Handshake,
+      3 => OnboardingFlow,
+      4 => PublicKey,
+      // V1
+      5 => V1PasskeyFlow,
+      6 => V1Passkey,
       other => {
         return Err(anyhow!(
           "Got unrecognized LoginMessageVariant byte: {other}"
@@ -130,15 +309,16 @@ impl ParsedLoginMessageVariant {
   }
 
   pub fn as_byte(self) -> u8 {
-    use ParsedLoginMessageVariant::*;
+    use LoginMessageVariant::*;
     match self {
-      LoginSuccessful => 0,
-      Handshake => 1,
-      OnboardingFlow => 2,
-      PublicKey => 3,
+      Success => 0,
+      Nonce => 1,
+      Handshake => 2,
+      OnboardingFlow => 3,
+      PublicKey => 4,
       // V1
-      V1PasskeyFlow => 4,
-      V1Passkey => 5,
+      V1PasskeyFlow => 5,
+      V1Passkey => 6,
     }
   }
 }

@@ -5,21 +5,24 @@ use std::{
 
 use anyhow::anyhow;
 use arc_swap::ArcSwap;
-use bytes::Bytes;
 use cache::CloneCache;
 use noise::key::SpkiPublicKey;
 use resolver_api::Resolve;
-use response::JsonBytes;
 use transport::{
   auth::{
     ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
     PublicKeyValidator,
   },
   channel::{BufferedChannel, BufferedReceiver, Sender},
-  message::{Message, MessageState},
-  websocket::{Websocket, WebsocketReceiver, WebsocketSender as _},
+  message::{
+    CastBytes, Decode, Encode, Message, MessageBytes,
+    json::JsonMessageBytes,
+    wrappers::{ChannelWrapper, WithChannel},
+  },
+  websocket::{
+    Websocket, WebsocketReceiverExt as _, WebsocketSender as _,
+  },
 };
-use uuid::Uuid;
 
 use crate::{
   api::{Args, PeripheryRequest},
@@ -30,7 +33,8 @@ pub mod client;
 pub mod server;
 
 // Core Address / Host -> Channel
-pub type CoreChannels = CloneCache<String, Arc<BufferedChannel>>;
+pub type CoreChannels =
+  CloneCache<String, Arc<BufferedChannel<MessageBytes>>>;
 
 pub fn core_channels() -> &'static CoreChannels {
   static CORE_CHANNELS: OnceLock<CoreChannels> = OnceLock::new();
@@ -126,8 +130,8 @@ async fn handle_login<W: Websocket, L: LoginFlow>(
 async fn handle_socket<W: Websocket>(
   socket: W,
   args: &Arc<Args>,
-  sender: &Sender,
-  receiver: &mut BufferedReceiver,
+  sender: &Sender<MessageBytes>,
+  receiver: &mut BufferedReceiver<MessageBytes>,
 ) {
   let config = periphery_config();
   info!(
@@ -153,12 +157,12 @@ async fn handle_socket<W: Websocket>(
           break;
         }
       };
-      match ws_write.send(message).await {
+      match ws_write.send_inner(message.into_bytes()).await {
         // Clears the stored message from receiver buffer.
         Ok(_) => receiver.clear_buffer(),
         Err(e) => {
           warn!("Failed to send response | {e:?}");
-          let _ = ws_write.close(None).await;
+          let _ = ws_write.close().await;
           break;
         }
       }
@@ -167,19 +171,19 @@ async fn handle_socket<W: Websocket>(
 
   let handle_reads = async {
     loop {
-      let (data, channel, state) = match ws_read.recv_parts().await {
+      let message = match ws_read.recv().await {
         Ok(res) => res,
         Err(e) => {
           warn!("{e:#}");
           break;
         }
       };
-      match state {
-        MessageState::Request => {
-          handle_request(args.clone(), sender.clone(), channel, data)
+      match message {
+        Message::Request(message) => {
+          handle_request(args.clone(), sender.clone(), message)
         }
-        MessageState::Terminal => {
-          crate::terminal::handle_message(channel, data).await
+        Message::Terminal(message) => {
+          crate::terminal::handle_message(message).await
         }
         // Rest shouldn't be received by Periphery
         _ => {}
@@ -195,30 +199,35 @@ async fn handle_socket<W: Websocket>(
 
 fn handle_request(
   args: Arc<Args>,
-  sender: Sender,
-  req_id: Uuid,
-  request: Bytes,
+  sender: Sender<MessageBytes>,
+  message: ChannelWrapper<JsonMessageBytes>,
 ) {
   tokio::spawn(async move {
-    let request =
-      match serde_json::from_slice::<PeripheryRequest>(&request) {
-        Ok(req) => req,
-        Err(e) => {
-          // TODO: handle:
-          warn!("Failed to parse transport bytes | {e:#}");
-          return;
-        }
-      };
+    let (channel, request): (_, PeripheryRequest) = match message
+      .decode()
+      .and_then(|res| Ok((res.channel, res.data.decode()?)))
+    {
+      Ok(res) => res,
+      Err(e) => {
+        // TODO: handle:
+        warn!("Failed to parse Request bytes | {e:#}");
+        return;
+      }
+    };
 
     let resolve_response = async {
-      let message: Message = match request.resolve(&args).await {
-        Ok(JsonBytes::Ok(res)) => {
-          (res, req_id, MessageState::Successful).into()
-        }
-        Ok(JsonBytes::Err(e)) => (&e.into(), req_id).into(),
-        Err(e) => (&e.error, req_id).into(),
+      let data = match request.resolve(&args).await {
+        Ok(res) => res,
+        Err(e) => (&e).encode(),
       };
-      if let Err(e) = sender.send(message).await {
+      let message = WithChannel {
+        channel,
+        data: Some(data).encode(),
+      }
+      .encode();
+      if let Err(e) =
+        sender.send_message(Message::Response(message)).await
+      {
         error!("Failed to send response over channel | {e:?}");
       }
     };
@@ -226,9 +235,7 @@ fn handle_request(
     let ping_in_progress = async {
       loop {
         tokio::time::sleep(Duration::from_secs(5)).await;
-        if let Err(e) =
-          sender.send((req_id, MessageState::InProgress)).await
-        {
+        if let Err(e) = sender.send_in_progress(channel).await {
           error!("Failed to ping in progress over channel | {e:?}");
         }
       }

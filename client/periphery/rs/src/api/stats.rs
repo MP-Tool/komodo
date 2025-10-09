@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Vec<SystemProcess>)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct GetSystemProcesses {}
 
 //

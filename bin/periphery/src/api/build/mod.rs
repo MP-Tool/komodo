@@ -38,7 +38,7 @@ impl Resolve<super::Args> for GetDockerfileContentsOnHost {
   async fn resolve(
     self,
     _: &super::Args,
-  ) -> serror::Result<GetDockerfileContentsOnHostResponse> {
+  ) -> anyhow::Result<GetDockerfileContentsOnHostResponse> {
     let GetDockerfileContentsOnHost {
       name,
       build_path,
@@ -84,7 +84,7 @@ impl Resolve<super::Args> for WriteDockerfileContentsToHost {
       dockerfile_path = &self.dockerfile_path,
     )
   )]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let WriteDockerfileContentsToHost {
       name,
       build_path,
@@ -125,7 +125,7 @@ impl Resolve<super::Args> for build::Build {
   async fn resolve(
     self,
     _: &super::Args,
-  ) -> serror::Result<Vec<Log>> {
+  ) -> anyhow::Result<Vec<Log>> {
     let build::Build {
       mut build,
       repo: linked_repo,
@@ -323,7 +323,7 @@ impl Resolve<super::Args> for build::Build {
 
 impl Resolve<super::Args> for PruneBuilders {
   #[instrument(name = "PruneBuilders", skip_all)]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let command = String::from("docker builder prune -a -f");
     Ok(run_komodo_command("Prune Builders", None, command).await)
   }
@@ -333,7 +333,7 @@ impl Resolve<super::Args> for PruneBuilders {
 
 impl Resolve<super::Args> for PruneBuildx {
   #[instrument(name = "PruneBuildx", skip_all)]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let command = String::from("docker buildx prune -a -f");
     Ok(run_komodo_command("Prune Buildx", None, command).await)
   }

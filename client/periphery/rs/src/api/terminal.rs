@@ -12,12 +12,12 @@ pub const END_OF_OUTPUT: &str = "__KOMODO_END_OF_OUTPUT__";
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Vec<TerminalInfo>)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ListTerminals {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(NoData)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct CreateTerminal {
   /// The name of the terminal to create
   pub name: String,
@@ -40,7 +40,7 @@ fn default_command() -> String {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Uuid)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ConnectTerminal {
   /// The name of the terminal to connect to
   pub terminal: String,
@@ -50,7 +50,7 @@ pub struct ConnectTerminal {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Uuid)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ConnectContainerExec {
   /// The name of the container to connect to.
   pub container: String,
@@ -65,7 +65,7 @@ pub struct ConnectContainerExec {
 /// Used to disconnect both Terminals and Container Exec sessions.
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(NoData)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct DisconnectTerminal {
   /// The connection id of the terminal to disconnect from
   pub id: Uuid,
@@ -75,7 +75,7 @@ pub struct DisconnectTerminal {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(NoData)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct DeleteTerminal {
   /// The name of the terminal to delete
   pub terminal: String,
@@ -85,7 +85,7 @@ pub struct DeleteTerminal {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(NoData)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct DeleteAllTerminals {}
 
 //
@@ -93,7 +93,7 @@ pub struct DeleteAllTerminals {}
 /// Note: The `terminal` must already exist, created by [CreateTerminal].
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Uuid)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ExecuteTerminal {
   /// Specify the terminal to execute the command on.
   pub terminal: String,
@@ -105,7 +105,7 @@ pub struct ExecuteTerminal {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Uuid)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ExecuteContainerExec {
   /// The name of the container to execute command in.
   pub container: String,

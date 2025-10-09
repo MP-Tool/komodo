@@ -1,19 +1,25 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use anyhow::{Context, anyhow};
 use periphery_client::CONNECTION_RETRY_SECONDS;
 use transport::{
   auth::{
-    AUTH_TIMEOUT, AddressConnectionIdentifiers, ClientLoginFlow,
+    AddressConnectionIdentifiers, ClientLoginFlow,
     ConnectionIdentifiers,
   },
   fix_ws_address,
-  websocket::{Websocket, tungstenite::TungsteniteWebsocket},
+  message::{
+    Encode, Message,
+    login::{LoginMessage, LoginWebsocketExt},
+  },
+  websocket::{
+    Websocket, WebsocketExt as _, tungstenite::TungsteniteWebsocket,
+  },
 };
 
 use crate::{
   config::{core_config, core_connection_query},
-  periphery::ConnectionChannels,
+  periphery::PeripheryClient,
   state::periphery_connections,
 };
 
@@ -24,7 +30,7 @@ impl PeripheryConnectionArgs<'_> {
     self,
     id: String,
     insecure: bool,
-  ) -> anyhow::Result<Arc<ConnectionChannels>> {
+  ) -> anyhow::Result<PeripheryClient> {
     let Some(address) = self.address else {
       return Err(anyhow!(
         "Cannot spawn client connection with empty address"
@@ -39,7 +45,8 @@ impl PeripheryConnectionArgs<'_> {
     let (connection, mut receiver) =
       periphery_connections().insert(id.clone(), self).await;
 
-    let channels = connection.channels.clone();
+    let responses = connection.responses.clone();
+    let terminals = connection.terminals.clone();
 
     tokio::spawn(async move {
       loop {
@@ -85,7 +92,11 @@ impl PeripheryConnectionArgs<'_> {
       }
     });
 
-    Ok(channels)
+    Ok(PeripheryClient {
+      id,
+      responses,
+      terminals,
+    })
   }
 }
 
@@ -98,27 +109,18 @@ impl PeripheryConnection {
     identifiers: ConnectionIdentifiers<'_>,
   ) -> anyhow::Result<()> {
     // Get the required auth type
-    let bytes = socket
-      .recv_result()
-      .with_timeout(AUTH_TIMEOUT)
-      .await
-      .context("Failed to receive login type indicator")?;
+    let v1_passkey_flow =
+      socket
+        .recv_login_v1_passkey_flow()
+        .await
+        .context("Failed to receive Login V1PasskeyFlow message")?;
 
-    match bytes.iter().as_slice() {
-      // Noise auth
-      &[0] => {
-        self
-          .handle_login::<_, ClientLoginFlow>(socket, identifiers)
-          .await
-      }
-      // Passkey auth
-      &[1] => {
-        handle_passkey_login(socket, self.args.passkey.as_deref())
-          .await
-      }
-      other => Err(anyhow!(
-        "Receieved invalid login type pattern: {other:?}"
-      )),
+    if v1_passkey_flow {
+      handle_passkey_login(socket, self.args.passkey.as_deref()).await
+    } else {
+      self
+        .handle_login::<_, ClientLoginFlow>(socket, identifiers)
+        .await
     }
   }
 }
@@ -141,23 +143,22 @@ async fn handle_passkey_login(
     };
 
     socket
-      .send(passkey)
+      .send(LoginMessage::V1Passkey(passkey.into()))
       .await
-      .context("Failed to send passkey")?;
+      .context("Failed to send Login V1Passkey message")?;
 
     // Receive login state message and return based on value
     socket
-      .recv_result()
-      .with_timeout(AUTH_TIMEOUT)
+      .recv_login_success()
       .await
-      .context("Failed to receive authentication state message")?;
+      .context("Failed to receive Login Success message")?;
 
-    Ok(())
+    anyhow::Ok(())
   }
   .await;
   if let Err(e) = res {
     if let Err(e) = socket
-      .send(&e)
+      .send(Message::Login((&e).encode()))
       .await
       .context("Failed to send login failed to client")
     {
@@ -165,7 +166,7 @@ async fn handle_passkey_login(
       warn!("{e:#}");
     }
     // Close socket
-    let _ = socket.close(None).await;
+    let _ = socket.close().await;
     // Return the original error
     Err(e)
   } else {

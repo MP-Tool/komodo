@@ -7,7 +7,7 @@ use crate::{
 use anyhow::anyhow;
 use axum::{
   Router,
-  extract::ws::{Message, WebSocket},
+  extract::ws::{self, WebSocket},
   routing::get,
 };
 use bytes::Bytes;
@@ -20,7 +20,7 @@ use periphery_client::api::terminal::DisconnectTerminal;
 use tokio_util::sync::CancellationToken;
 use transport::{
   channel::{Receiver, Sender},
-  message::{Message as TransportMessage, MessageState},
+  message::MessageBytes,
 };
 use uuid::Uuid;
 
@@ -47,7 +47,7 @@ async fn user_ws_login(
   mut socket: WebSocket,
 ) -> Option<(WebSocket, User)> {
   let login_msg = match socket.recv().await {
-    Some(Ok(Message::Text(login_msg))) => {
+    Some(Ok(ws::Message::Text(login_msg))) => {
       LoginMessage::Ok(login_msg.to_string())
     }
     Some(Ok(msg)) => {
@@ -63,7 +63,7 @@ async fn user_ws_login(
   let login_msg = match login_msg {
     LoginMessage::Ok(login_msg) => login_msg,
     LoginMessage::Err(msg) => {
-      let _ = socket.send(Message::text(msg)).await;
+      let _ = socket.send(ws::Message::text(msg)).await;
       let _ = socket.close().await;
       return None;
     }
@@ -73,12 +73,12 @@ async fn user_ws_login(
     Ok(WsLoginMessage::Jwt { jwt }) => {
       match auth_jwt_check_enabled(&jwt).await {
         Ok(user) => {
-          let _ = socket.send(Message::text("LOGGED_IN")).await;
+          let _ = socket.send(ws::Message::text("LOGGED_IN")).await;
           Some((socket, user))
         }
         Err(e) => {
           let _ = socket
-            .send(Message::text(format!(
+            .send(ws::Message::text(format!(
               "failed to authenticate user using jwt | {e:#}"
             )))
             .await;
@@ -91,12 +91,12 @@ async fn user_ws_login(
     Ok(WsLoginMessage::ApiKeys { key, secret }) => {
       match auth_api_key_check_enabled(&key, &secret).await {
         Ok(user) => {
-          let _ = socket.send(Message::text("LOGGED_IN")).await;
+          let _ = socket.send(ws::Message::text("LOGGED_IN")).await;
           Some((socket, user))
         }
         Err(e) => {
           let _ = socket
-            .send(Message::text(format!(
+            .send(ws::Message::text(format!(
               "failed to authenticate user using api keys | {e:#}"
             )))
             .await;
@@ -107,7 +107,7 @@ async fn user_ws_login(
     }
     Err(e) => {
       let _ = socket
-        .send(Message::text(format!(
+        .send(ws::Message::text(format!(
           "failed to parse login message: {e:#}"
         )))
         .await;
@@ -145,7 +145,7 @@ async fn handle_container_terminal(
     Err(e) => {
       debug!("couldn't get periphery | {e:#}");
       let _ = client_socket
-        .send(Message::text(format!("ERROR: {e:#}")))
+        .send(ws::Message::text(format!("ERROR: {e:#}")))
         .await;
       let _ = client_socket.close().await;
       return;
@@ -162,7 +162,7 @@ async fn handle_container_terminal(
           "Failed connect to periphery container exec websocket | {e:#}"
         );
         let _ = client_socket
-          .send(Message::text(format!("ERROR: {e:#}")))
+          .send(ws::Message::text(format!("ERROR: {e:#}")))
           .await;
         let _ = client_socket.close().await;
         return;
@@ -185,10 +185,10 @@ async fn forward_ws_channel(
   periphery: PeripheryClient,
   client_socket: axum::extract::ws::WebSocket,
   periphery_connection_id: Uuid,
-  periphery_sender: Sender,
-  mut periphery_receiver: Receiver,
+  periphery_sender: Sender<MessageBytes>,
+  mut periphery_receiver: Receiver<Bytes>,
 ) {
-  let (mut core_send, mut core_receive) = client_socket.split();
+  let (mut client_send, mut client_receive) = client_socket.split();
   let cancel = CancellationToken::new();
 
   periphery_receiver.set_cancel(cancel.clone());
@@ -197,21 +197,17 @@ async fn forward_ws_channel(
 
   let core_to_periphery = async {
     loop {
-      let res = tokio::select! {
-        res = core_receive.next() => res,
+      let client_recv_res = tokio::select! {
+        res = client_receive.next() => res,
         _ = cancel.cancelled() => {
           trace!("core to periphery read: cancelled from inside");
           break;
         }
       };
-      match res {
-        Some(Ok(Message::Binary(bytes))) => {
+      match client_recv_res {
+        Some(Ok(ws::Message::Binary(bytes))) => {
           if let Err(e) = periphery_sender
-            .send((
-              bytes,
-              periphery_connection_id,
-              MessageState::Terminal,
-            ))
+            .send_terminal(periphery_connection_id, bytes)
             .await
           {
             debug!("Failed to send terminal message | {e:?}",);
@@ -219,14 +215,10 @@ async fn forward_ws_channel(
             break;
           };
         }
-        Some(Ok(Message::Text(text))) => {
+        Some(Ok(ws::Message::Text(text))) => {
           let bytes: Bytes = text.into();
           if let Err(e) = periphery_sender
-            .send((
-              bytes,
-              periphery_connection_id,
-              MessageState::Terminal,
-            ))
+            .send_terminal(periphery_connection_id, bytes)
             .await
           {
             debug!("Failed to send terminal message | {e:?}",);
@@ -235,7 +227,7 @@ async fn forward_ws_channel(
           };
         }
         // TODO: Disconnect from periphery when client disconnects
-        Some(Ok(Message::Close(_frame))) => {
+        Some(Ok(ws::Message::Close(_frame))) => {
           cancel.cancel();
           break;
         }
@@ -256,13 +248,10 @@ async fn forward_ws_channel(
   let periphery_to_core = async {
     loop {
       // Already adheres to cancellation token
-      let res = periphery_receiver
-        .recv()
-        .await
-        .and_then(TransportMessage::into_data);
-      match res {
+      match periphery_receiver.recv().await {
         Ok(bytes) => {
-          if let Err(e) = core_send.send(Message::Binary(bytes)).await
+          if let Err(e) =
+            client_send.send(ws::Message::Binary(bytes)).await
           {
             debug!("{e:?}");
             cancel.cancel();
@@ -270,7 +259,8 @@ async fn forward_ws_channel(
           };
         }
         Err(_) => {
-          let _ = core_send.send(Message::text("STREAM EOF")).await;
+          let _ =
+            client_send.send(ws::Message::text("STREAM EOF")).await;
           cancel.cancel();
           break;
         }
@@ -294,6 +284,6 @@ async fn forward_ws_channel(
   if let Some(connection) =
     periphery_connections().get(&periphery.id).await
   {
-    connection.channels.remove(&periphery_connection_id).await;
+    connection.terminals.remove(&periphery_connection_id).await;
   }
 }

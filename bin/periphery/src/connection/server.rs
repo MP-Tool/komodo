@@ -22,11 +22,14 @@ use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
   CoreConnectionQuery,
   auth::{
-    AUTH_TIMEOUT, ConnectionIdentifiers, HeaderConnectionIdentifiers,
+    ConnectionIdentifiers, HeaderConnectionIdentifiers,
     ServerLoginFlow,
   },
-  message::MessageState,
-  websocket::{Websocket, axum::AxumWebsocket},
+  message::{
+    Encode, Message,
+    login::{LoginMessage, LoginWebsocketExt},
+  },
+  websocket::{Websocket, WebsocketExt, axum::AxumWebsocket},
 };
 
 use crate::{
@@ -109,7 +112,7 @@ async fn handler(
         warn!("Failed to forward connection | {e:#}");
 
         if let Err(e) = socket
-          .send(&e)
+          .send_login_error(&e)
           .await
           .context("Failed to send forward failed to client")
         {
@@ -118,7 +121,7 @@ async fn handler(
         }
 
         // Close socket
-        let _ = socket.close(None).await;
+        let _ = socket.close().await;
 
         return;
       }
@@ -161,11 +164,10 @@ async fn handle_login(
   let config = periphery_config();
   match (&config.core_public_keys, &config.passkeys) {
     (Some(_), _) | (_, None) => {
-      // Send login type [0] (Noise auth)
       socket
-        .send([0])
+        .send(LoginMessage::V1PasskeyFlow(false))
         .await
-        .context("Failed to send login type indicator")?;
+        .context("Failed to send Login V1PasskeyFlow message")?;
       super::handle_login::<_, ServerLoginFlow>(socket, identifiers)
         .await
     }
@@ -185,38 +187,37 @@ async fn handle_passkey_login(
     );
   };
   let res = async {
-    // Send login type
     socket
-      // Passkey auth: [1]
-      .send([1])
+      .send(LoginMessage::V1PasskeyFlow(true))
       .await
       .context("Failed to send login type indicator")?;
 
     // Receieve passkey
     let passkey = socket
-      .recv_result()
-      .with_timeout(AUTH_TIMEOUT)
+      .recv_login_v1_passkey()
       .await
-      .context("Failed to receive passkey from Core")?;
+      .context("Failed to receive Login V1Passkey from Core")?;
 
     if passkeys
       .iter()
       .any(|expected_passkey| expected_passkey.as_bytes() == passkey)
     {
       socket
-        .send(MessageState::Successful)
+        .send(LoginMessage::Success)
         .await
         .context("Failed to send login type indicator")?;
       Ok(())
     } else {
       let e = anyhow!("Invalid passkey");
-      if let Err(e) =
-        socket.send(&e).await.context("Failed to send login failed")
+      if let Err(e) = socket
+        .send(Message::Login((&e).encode()))
+        .await
+        .context("Failed to send login failed")
       {
         // Log additional error
         warn!("{e:#}");
         // Close socket
-        let _ = socket.close(None).await;
+        let _ = socket.close().await;
       }
       // Return the original error
       Err(e)
@@ -225,7 +226,7 @@ async fn handle_passkey_login(
   .await;
   if let Err(e) = res {
     if let Err(e) = socket
-      .send(&e)
+      .send(Message::Login((&e).encode()))
       .await
       .context("Failed to send login failed to client")
     {
@@ -233,7 +234,7 @@ async fn handle_passkey_login(
       warn!("{e:#}");
     }
     // Close socket
-    let _ = socket.close(None).await;
+    let _ = socket.close().await;
     // Return the original error
     Err(e)
   } else {

@@ -33,7 +33,7 @@ impl Resolve<super::Args> for Deploy {
       stop_time = self.stop_time,
     )
   )]
-  async fn resolve(self, args: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let Deploy {
       mut deployment,
       stop_signal,

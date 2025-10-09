@@ -16,7 +16,7 @@ impl Resolve<super::Args> for RotatePrivateKey {
   async fn resolve(
     self,
     _: &super::Args,
-  ) -> serror::Result<RotatePrivateKeyResponse> {
+  ) -> anyhow::Result<RotatePrivateKeyResponse> {
     let public_key = periphery_keys().rotate().await?.into_inner();
     info!("New Public Key: {public_key}");
     Ok(RotatePrivateKeyResponse { public_key })
@@ -26,7 +26,7 @@ impl Resolve<super::Args> for RotatePrivateKey {
 //
 
 impl Resolve<super::Args> for RotateCorePublicKey {
-  async fn resolve(self, _: &super::Args) -> serror::Result<NoData> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<NoData> {
     let config = periphery_config();
 
     let Some(core_public_keys_spec) =

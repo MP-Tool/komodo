@@ -2924,7 +2924,6 @@ dependencies = [
  "periphery_client",
  "portable-pty",
  "resolver_api",
- "response",
  "run_command",
  "rustls 0.23.32",
  "secret_file",
@@ -3800,10 +3799,10 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 name = "periphery_client"
 version = "2.0.0-dev-46"
 dependencies = [
+ "anyhow",
  "komodo_client",
  "resolver_api",
  "serde",
- "serror",
  "uuid",
 ]
 

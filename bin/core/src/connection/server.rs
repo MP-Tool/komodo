@@ -22,11 +22,14 @@ use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
   PeripheryConnectionQuery,
   auth::{
-    AUTH_TIMEOUT, HeaderConnectionIdentifiers, LoginFlow,
-    LoginFlowArgs, PublicKeyValidator, ServerLoginFlow,
+    HeaderConnectionIdentifiers, LoginFlow, LoginFlowArgs,
+    PublicKeyValidator, ServerLoginFlow,
   },
-  message::MessageState,
-  websocket::{Websocket, axum::AxumWebsocket},
+  message::{
+    Encode, Message,
+    login::{LoginMessage, LoginWebsocketExt},
+  },
+  websocket::{Websocket, WebsocketExt as _, axum::AxumWebsocket},
 };
 
 use crate::{
@@ -120,9 +123,11 @@ async fn existing_server_handler(
       format!("server={}", urlencoding::encode(&server_query));
     let mut socket = AxumWebsocket(socket);
 
-    if let Err(e) = socket.send([0]).await.context(
-      "Failed to send the login flow indicator over connection",
-    ) {
+    if let Err(e) = socket
+      .send(LoginMessage::OnboardingFlow(false))
+      .await
+      .context("Failed to send Login OnboardingFlow false message")
+    {
       connection.set_error(e).await;
       return;
     };
@@ -152,8 +157,8 @@ async fn onboard_server_handler(
       format!("server={}", urlencoding::encode(&server_query));
     let mut socket = AxumWebsocket(socket);
 
-    if let Err(e) = socket.send([1]).await.context(
-      "Failed to send the login flow indicator over connection",
+    if let Err(e) = socket.send(LoginMessage::OnboardingFlow(true)).await.context(
+      "Failed to send Login OnboardingFlow true message",
     ).context("Server onboarding error") {
       warn!("{e:#}");
       return;
@@ -175,15 +180,9 @@ async fn onboard_server_handler(
     };
 
     // Post onboarding login 1: Receive public key
-    let public_key = socket
-      .recv_result()
-      .with_timeout(AUTH_TIMEOUT)
+    let public_key = match socket
+      .recv_login_public_key()
       .await
-      .and_then(|bytes| {
-        String::from_utf8(bytes.into())
-          .context("Public key bytes are not valid utf8")
-      });
-    let public_key = match public_key
     {
       Ok(public_key) => public_key,
       Err(e) => {
@@ -194,7 +193,7 @@ async fn onboard_server_handler(
 
     let server_id = match create_server_maybe_builder(
       server_query,
-      public_key,
+      public_key.into_inner(),
       onboarding_key.copy_server,
       onboarding_key.tags,
       onboarding_key.create_builder
@@ -203,7 +202,7 @@ async fn onboard_server_handler(
       Err(e) => {
         warn!("{e:#}");
         if let Err(e) = socket
-          .send(&e)
+          .send(Message::Login((&e).encode()))
           .await
           .context("Failed to send Server creation failed to client")
         {
@@ -215,9 +214,9 @@ async fn onboard_server_handler(
     };
 
     if let Err(e) = socket
-      .send(MessageState::Successful)
+      .send(LoginMessage::Success)
       .await
-      .context("Failed to send Server creation successful to client")
+      .context("Failed to send Login Onboarding Successful message")
     {
       // Log additional error
       warn!("{e:#}");
@@ -225,7 +224,7 @@ async fn onboard_server_handler(
 
     // Server created, close and trigger reconnect
     // and handling using existing server handler.
-    let _ = socket.close(None).await;
+    let _ = socket.close().await;
 
     // Add the server to onboarding key "Onboarded"
     let res = db_client()

@@ -1,5 +1,4 @@
 use anyhow::{Context, anyhow};
-use axum::http::StatusCode;
 use formatting::format_serror;
 use komodo_client::entities::{
   DefaultRepoFolder, LatestCommit, update::Log,
@@ -10,7 +9,6 @@ use periphery_client::api::git::{
   RenameRepo,
 };
 use resolver_api::Resolve;
-use serror::AddStatusCodeError;
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -23,7 +21,7 @@ impl Resolve<super::Args> for GetLatestCommit {
   async fn resolve(
     self,
     _: &super::Args,
-  ) -> serror::Result<Option<LatestCommit>> {
+  ) -> anyhow::Result<Option<LatestCommit>> {
     let repo_path = match self.path {
       Some(p) => PathBuf::from(p),
       None => periphery_config().repo_dir().join(self.name),
@@ -48,7 +46,7 @@ impl Resolve<super::Args> for CloneRepo {
   async fn resolve(
     self,
     _: &super::Args,
-  ) -> serror::Result<PeripheryRepoExecutionResponse> {
+  ) -> anyhow::Result<PeripheryRepoExecutionResponse> {
     let CloneRepo {
       args,
       git_token,
@@ -93,7 +91,7 @@ impl Resolve<super::Args> for PullRepo {
   async fn resolve(
     self,
     _: &super::Args,
-  ) -> serror::Result<PeripheryRepoExecutionResponse> {
+  ) -> anyhow::Result<PeripheryRepoExecutionResponse> {
     let PullRepo {
       args,
       git_token,
@@ -137,7 +135,7 @@ impl Resolve<super::Args> for PullOrCloneRepo {
   async fn resolve(
     self,
     _: &super::Args,
-  ) -> serror::Result<PeripheryRepoExecutionResponse> {
+  ) -> anyhow::Result<PeripheryRepoExecutionResponse> {
     let PullOrCloneRepo {
       args,
       git_token,
@@ -173,7 +171,7 @@ impl Resolve<super::Args> for PullOrCloneRepo {
 
 impl Resolve<super::Args> for RenameRepo {
   #[instrument(name = "RenameRepo")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let RenameRepo {
       curr_name,
       new_name,
@@ -194,7 +192,7 @@ impl Resolve<super::Args> for RenameRepo {
 
 impl Resolve<super::Args> for DeleteRepo {
   #[instrument(name = "DeleteRepo")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<Log> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let DeleteRepo { name, is_build } = self;
     // If using custom clone path, it will be passed by core instead of name.
     // So the join will resolve to just the absolute path.
@@ -222,16 +220,13 @@ impl Resolve<super::Args> for DeleteRepo {
 
 fn default_folder(
   default_folder: DefaultRepoFolder,
-) -> serror::Result<PathBuf> {
+) -> anyhow::Result<PathBuf> {
   match default_folder {
     DefaultRepoFolder::Stacks => Ok(periphery_config().stack_dir()),
     DefaultRepoFolder::Builds => Ok(periphery_config().build_dir()),
     DefaultRepoFolder::Repos => Ok(periphery_config().repo_dir()),
-    DefaultRepoFolder::NotApplicable => {
-      Err(
-        anyhow!("The clone args should not have a default_folder of NotApplicable using this method.")
-          .status_code(StatusCode::BAD_REQUEST)
-      )
-    }
+    DefaultRepoFolder::NotApplicable => Err(anyhow!(
+      "The clone args should not have a default_folder of NotApplicable using this method."
+    )),
   }
 }

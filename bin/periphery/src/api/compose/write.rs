@@ -167,8 +167,7 @@ async fn write_stack_linked_repo<'a>(
       replacers,
     }
     .resolve(req_args)
-    .await
-    .map_err(|e| e.error)?
+    .await?
   } else {
     PullOrCloneRepo {
       args,
@@ -181,8 +180,7 @@ async fn write_stack_linked_repo<'a>(
       replacers,
     }
     .resolve(req_args)
-    .await
-    .map_err(|e| e.error)?
+    .await?
   };
 
   res.logs().extend(clone_res.res.logs);
@@ -253,8 +251,7 @@ async fn write_stack_inline_repo<'a>(
       replacers: Default::default(),
     }
     .resolve(req_args)
-    .await
-    .map_err(|e| e.error)?
+    .await?
   } else {
     PullOrCloneRepo {
       args,
@@ -267,8 +264,7 @@ async fn write_stack_inline_repo<'a>(
       replacers: Default::default(),
     }
     .resolve(req_args)
-    .await
-    .map_err(|e| e.error)?
+    .await?
   };
 
   res.logs().extend(clone_res.res.logs);

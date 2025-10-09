@@ -1,32 +1,33 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
-use cache::CloneCache;
 use periphery_client::api;
 use resolver_api::HasResponse;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::json;
-use serror::deserialize_error_bytes;
-use tracing::warn;
 use transport::{
-  channel::{Sender, channel},
-  message::MessageState,
+  channel::channel,
+  message::{
+    Decode, Encode, Message, json::JsonMessage, wrappers::WithChannel,
+  },
 };
 use uuid::Uuid;
 
 use crate::{
-  connection::{PeripheryConnection, PeripheryConnectionArgs},
+  connection::{
+    PeripheryConnection, PeripheryConnectionArgs, ResponseChannels,
+    TerminalChannels,
+  },
   state::periphery_connections,
 };
 
 pub mod terminal;
 
-pub type ConnectionChannels = CloneCache<Uuid, Sender>;
-
 #[derive(Debug)]
 pub struct PeripheryClient {
   pub id: String,
-  channels: Arc<ConnectionChannels>,
+  pub responses: Arc<ResponseChannels>,
+  pub terminals: Arc<TerminalChannels>,
 }
 
 impl PeripheryClient {
@@ -43,17 +44,17 @@ impl PeripheryClient {
       if args.address.is_none() {
         return Err(anyhow!("Server {id} is not connected"));
       }
-      let channels = args
+      return args
         .spawn_client_connection(id.clone(), insecure_tls)
-        .await?;
-      return Ok(PeripheryClient { id, channels });
+        .await;
     };
 
     // Ensure the connection args are unchanged.
     if args.matches(&connection.args) {
       return Ok(PeripheryClient {
         id,
-        channels: connection.channels.clone(),
+        responses: connection.responses.clone(),
+        terminals: connection.terminals.clone(),
       });
     }
 
@@ -69,14 +70,12 @@ impl PeripheryClient {
         .with_context(|| format!("Server {id} is not connected"))?;
       Ok(PeripheryClient {
         id,
-        channels: connection.channels.clone(),
+        responses: connection.responses.clone(),
+        terminals: connection.terminals.clone(),
       })
     } else {
       // Core -> Periphery connection
-      let channels = args
-        .spawn_client_connection(id.clone(), insecure_tls)
-        .await?;
-      Ok(PeripheryClient { id, channels })
+      args.spawn_client_connection(id.clone(), insecure_tls).await
     }
   }
 
@@ -111,60 +110,46 @@ impl PeripheryClient {
     // Polls connected 3 times before bailing
     connection.bail_if_not_connected().await?;
 
-    let id = Uuid::new_v4();
+    let channel_id = Uuid::new_v4();
     let (response_sender, mut response_receiever) = channel();
-    self.channels.insert(id, response_sender).await;
+    self.responses.insert(channel_id, response_sender).await;
 
     let req_type = T::req_type();
-    let data = serde_json::to_vec(&json!({
+    let data = JsonMessage(&json!({
       "type": req_type,
       "params": request
     }))
-    .context("Failed to serialize request to bytes")?;
+    .encode()?;
 
     if let Err(e) = connection
-      .send((data, id, MessageState::Request))
+      .send(Message::Request(
+        WithChannel {
+          channel: channel_id,
+          data,
+        }
+        .encode(),
+      ))
       .await
       .context("Failed to send request over channel")
     {
       // cleanup
-      self.channels.remove(&id).await;
+      self.terminals.remove(&channel_id).await;
       return Err(e);
     }
 
     // Poll for the associated response
     loop {
-      let (data, _, state) = tokio::select! {
-        msg = response_receiever.recv_parts() => msg?,
-        // Periphery will send InProgress every 5s to avoid timeout
-        _ = tokio::time::sleep(Duration::from_secs(10)) => {
-          return Err(anyhow!("Response timed out"));
-        }
+      let message = response_receiever
+        .recv()
+        .with_timeout(Duration::from_secs(10))
+        .await?;
+
+      // Still in progress, sent to avoid timeout.
+      let Some(message) = message.decode()? else {
+        continue;
       };
-      match state {
-        // TODO: improve the allocation in .to_vec
-        MessageState::Successful => {
-          // cleanup
-          self.channels.remove(&id).await;
-          return serde_json::from_slice(&data)
-            .context("Failed to parse successful response");
-        }
-        MessageState::Failed => {
-          // cleanup
-          self.channels.remove(&id).await;
-          return Err(deserialize_error_bytes(&data));
-        }
-        MessageState::InProgress => continue,
-        // Shouldn't be received by this receiver
-        other => {
-          // TODO: delete log
-          warn!(
-            "Server {} | Got other message over over response channel: {other:?}",
-            self.id
-          );
-          continue;
-        }
-      }
+
+      return message.decode_into();
     }
   }
 }

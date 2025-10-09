@@ -1,7 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
-use axum::http::StatusCode;
 use bytes::Bytes;
 use futures::{Stream, StreamExt, TryStreamExt};
 use komodo_client::{
@@ -10,9 +9,8 @@ use komodo_client::{
 };
 use periphery_client::api::terminal::*;
 use resolver_api::Resolve;
-use serror::AddStatusCodeError;
 use tokio_util::{codec::LinesCodecError, sync::CancellationToken};
-use transport::{channel::Sender, message::MessageState};
+use transport::{channel::Sender, message::MessageBytes};
 use uuid::Uuid;
 
 use crate::{
@@ -26,7 +24,7 @@ impl Resolve<super::Args> for ListTerminals {
   async fn resolve(
     self,
     _: &super::Args,
-  ) -> serror::Result<Vec<TerminalInfo>> {
+  ) -> anyhow::Result<Vec<TerminalInfo>> {
     clean_up_terminals().await;
     Ok(list_terminals().await)
   }
@@ -36,12 +34,11 @@ impl Resolve<super::Args> for ListTerminals {
 
 impl Resolve<super::Args> for CreateTerminal {
   #[instrument(name = "CreateTerminal", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<NoData> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<NoData> {
     if periphery_config().disable_terminals {
-      return Err(
-        anyhow!("Terminals are disabled in the periphery config")
-          .status_code(StatusCode::FORBIDDEN),
-      );
+      return Err(anyhow!(
+        "Terminals are disabled in the periphery config"
+      ));
     }
     create_terminal(self.name, self.command, self.recreate)
       .await
@@ -54,7 +51,7 @@ impl Resolve<super::Args> for CreateTerminal {
 
 impl Resolve<super::Args> for DeleteTerminal {
   #[instrument(name = "DeleteTerminal", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<NoData> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<NoData> {
     delete_terminal(&self.terminal).await;
     Ok(NoData {})
   }
@@ -64,7 +61,7 @@ impl Resolve<super::Args> for DeleteTerminal {
 
 impl Resolve<super::Args> for DeleteAllTerminals {
   #[instrument(name = "DeleteAllTerminals", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<NoData> {
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<NoData> {
     delete_all_terminals().await;
     Ok(NoData {})
   }
@@ -74,12 +71,11 @@ impl Resolve<super::Args> for DeleteAllTerminals {
 
 impl Resolve<super::Args> for ConnectTerminal {
   #[instrument(name = "ConnectTerminal", level = "debug")]
-  async fn resolve(self, args: &super::Args) -> serror::Result<Uuid> {
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_terminals {
-      return Err(
-        anyhow!("Terminals are disabled in the periphery config")
-          .status_code(StatusCode::FORBIDDEN),
-      );
+      return Err(anyhow!(
+        "Terminals are disabled in the periphery config"
+      ));
     }
 
     let channel =
@@ -110,7 +106,7 @@ impl Resolve<super::Args> for ConnectTerminal {
 
 impl Resolve<super::Args> for ConnectContainerExec {
   #[instrument(name = "ConnectContainerExec", level = "debug")]
-  async fn resolve(self, args: &super::Args) -> serror::Result<Uuid> {
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_container_exec {
       return Err(
         anyhow!("Container exec is disabled in the periphery config")
@@ -162,11 +158,10 @@ impl Resolve<super::Args> for ConnectContainerExec {
 
 impl Resolve<super::Args> for DisconnectTerminal {
   #[instrument(name = "DisconnectTerminal", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> serror::Result<NoData> {
-    if let Some((_, cancel)) =
-      terminal_channels().remove(&self.id).await
+  async fn resolve(self, _: &super::Args) -> anyhow::Result<NoData> {
+    if let Some(channel) = terminal_channels().remove(&self.id).await
     {
-      cancel.cancel();
+      channel.cancel.cancel();
     }
     Ok(NoData {})
   }
@@ -176,12 +171,11 @@ impl Resolve<super::Args> for DisconnectTerminal {
 
 impl Resolve<super::Args> for ExecuteTerminal {
   #[instrument(name = "ExecuteTerminal", level = "debug")]
-  async fn resolve(self, args: &super::Args) -> serror::Result<Uuid> {
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_terminals {
-      return Err(
-        anyhow!("Terminals are disabled in the periphery config")
-          .status_code(StatusCode::FORBIDDEN),
-      );
+      return Err(anyhow!(
+        "Terminals are disabled in the Periphery config"
+      ));
     }
 
     let channel =
@@ -191,11 +185,14 @@ impl Resolve<super::Args> for ExecuteTerminal {
 
     let terminal = get_terminal(&self.terminal).await?;
 
-    let stdout =
-      setup_execute_command_on_terminal(&terminal, &self.command)
-        .await?;
-
     let channel_id = Uuid::new_v4();
+
+    let stdout = setup_execute_command_on_terminal(
+      channel_id,
+      &terminal,
+      &self.command,
+    )
+    .await?;
 
     tokio::spawn(async move {
       forward_execute_command_on_terminal_response(
@@ -214,10 +211,10 @@ impl Resolve<super::Args> for ExecuteTerminal {
 
 impl Resolve<super::Args> for ExecuteContainerExec {
   #[instrument(name = "ExecuteContainerExec", level = "debug")]
-  async fn resolve(self, args: &super::Args) -> serror::Result<Uuid> {
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_container_exec {
       return Err(
-        anyhow!("Container exec is disabled in the periphery config")
+        anyhow!("Container exec is disabled in the Periphery config")
           .into(),
       );
     }
@@ -237,6 +234,11 @@ impl Resolve<super::Args> for ExecuteContainerExec {
       );
     }
 
+    let channel =
+      core_channels().get(&args.core).await.with_context(|| {
+        format!("Failed to find channel for {}", args.core)
+      })?;
+
     // Create terminal (recreate if shell changed)
     let terminal = create_terminal(
       container.clone(),
@@ -249,15 +251,12 @@ impl Resolve<super::Args> for ExecuteContainerExec {
     // Wait a bit for terminal to initialize
     tokio::time::sleep(Duration::from_millis(500)).await;
 
-    let stdout =
-      setup_execute_command_on_terminal(&terminal, &command).await?;
-
     let channel_id = Uuid::new_v4();
 
-    let channel =
-      core_channels().get(&args.core).await.with_context(|| {
-        format!("Failed to find channel for {}", args.core)
-      })?;
+    let stdout = setup_execute_command_on_terminal(
+      channel_id, &terminal, &command,
+    )
+    .await?;
 
     tokio::spawn(async move {
       forward_execute_command_on_terminal_response(
@@ -273,27 +272,42 @@ impl Resolve<super::Args> for ExecuteContainerExec {
 }
 
 async fn handle_terminal_forwarding(
-  sender: &Sender,
+  sender: &Sender<MessageBytes>,
   channel: Uuid,
   terminal: Arc<Terminal>,
 ) {
   let cancel = CancellationToken::new();
 
-  terminal_channels()
-    .insert(channel, (terminal.stdin.clone(), cancel.clone()))
-    .await;
+  let (_, trigger) = tokio::join!(
+    terminal_channels().insert(
+      channel,
+      Arc::new(TerminalChannel {
+        sender: terminal.stdin.clone(),
+        cancel: cancel.clone(),
+      }),
+    ),
+    terminal_triggers().insert(channel),
+  );
+
+  if let Err(e) = trigger.wait().await {
+    warn!(
+      "Failed to init terminal | Failed to receive begin trigger | {e:#}"
+    );
+    terminal_channels().remove(&channel).await;
+    return;
+  }
 
   let init_res = async {
     let (a, b) = terminal.history.bytes_parts();
     if !a.is_empty() {
       sender
-        .send((a, channel, MessageState::Terminal))
+        .send_terminal(channel, a)
         .await
         .context("Failed to send history part a")?;
     }
     if !b.is_empty() {
       sender
-        .send((b, channel, MessageState::Terminal))
+        .send_terminal(channel, b)
         .await
         .context("Failed to send history part b")?;
     }
@@ -312,7 +326,7 @@ async fn handle_terminal_forwarding(
   let mut stdout = terminal.stdout.resubscribe();
   loop {
     let res = tokio::select! {
-      res = stdout.recv() => res.context("Failed to get message over stdout receiver"),
+      res = stdout.recv() => res,
       _ = terminal.cancel.cancelled() => {
         trace!("ws write: cancelled from outside");
         // let _ = ws_sender.send("PTY KILLED")).await;
@@ -329,46 +343,39 @@ async fn handle_terminal_forwarding(
         break
       }
     };
-    match res {
-      Ok(bytes) => {
-        if let Err(e) =
-          sender.send((bytes, channel, MessageState::Terminal)).await
-        {
-          debug!("Failed to send to WS: {e:?}");
-          cancel.cancel();
-          break;
-        }
-      }
+
+    let bytes = match res {
+      Ok(bytes) => bytes,
       Err(e) => {
-        debug!("PTY -> WS channel read error: {e:?}");
-        let _ = sender
-          .send((
-            format!("ERROR: {e:#}"),
-            channel,
-            MessageState::Terminal,
-          ))
-          .await;
+        debug!("Terminal receiver failed | {e:?}");
         terminal.cancel();
         break;
       }
+    };
+
+    if let Err(e) = sender.send_terminal(channel, bytes).await {
+      debug!("Failed to send to WS: {e:?}");
+      cancel.cancel();
+      break;
     }
   }
 
   // Clean up
-  if let Some((_, cancel)) =
+  if let Some(terminal_channel) =
     terminal_channels().remove(&channel).await
   {
     trace!("Cancel called for {channel}");
-    cancel.cancel();
+    terminal_channel.cancel.cancel();
   }
   clean_up_terminals().await;
 }
 
 /// This is run before spawning task handler
 async fn setup_execute_command_on_terminal(
+  channel_id: Uuid,
   terminal: &Terminal,
   command: &str,
-) -> serror::Result<
+) -> anyhow::Result<
   impl Stream<Item = Result<String, LinesCodecError>> + 'static,
 > {
   // Read the bytes into lines
@@ -414,27 +421,32 @@ async fn setup_execute_command_on_terminal(
     }
   }
 
+  terminal_triggers().insert(channel_id).await;
+
   Ok(stdout)
 }
 
 async fn forward_execute_command_on_terminal_response(
-  sender: &Sender,
-  id: Uuid,
+  sender: &Sender<MessageBytes>,
+  channel: Uuid,
   mut stdout: impl Stream<Item = Result<String, LinesCodecError>> + Unpin,
 ) {
+  if let Err(e) = terminal_triggers().wait(&channel).await {
+    warn!("{e:#}");
+    return;
+  }
+
   loop {
     match stdout.next().await {
       Some(Ok(line)) if line.as_str() == END_OF_OUTPUT => {
-        if let Err(e) =
-          sender.send((line, id, MessageState::Terminal)).await
-        {
+        if let Err(e) = sender.send_terminal(channel, line).await {
           warn!("Got ws_sender send error on END_OF_OUTPUT | {e:?}");
         }
         break;
       }
       Some(Ok(line)) => {
         if let Err(e) =
-          sender.send((line + "\n", id, MessageState::Terminal)).await
+          sender.send_terminal(channel, line + "\n").await
         {
           warn!("Got ws_sender send error | {e:?}");
           break;

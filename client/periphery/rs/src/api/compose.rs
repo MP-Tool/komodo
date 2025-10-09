@@ -17,7 +17,7 @@ use std::collections::HashMap;
 /// `files_on_host`.
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(GetComposeContentsOnHostResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct GetComposeContentsOnHost {
   /// The name of the stack
   pub name: String,
@@ -37,7 +37,7 @@ pub struct GetComposeContentsOnHostResponse {
 /// The stack folder must already exist for this to work
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct GetComposeLog {
   /// The name of the project
   pub project: String,
@@ -62,7 +62,7 @@ fn default_tail() -> u64 {
 /// The stack folder must already exist for this to work
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct GetComposeLogSearch {
   /// The name of the project
   pub project: String,
@@ -90,7 +90,7 @@ pub struct GetComposeLogSearch {
 /// `files_on_host`.
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct WriteComposeContentsToHost {
   /// The name of the stack
   pub name: String,
@@ -109,7 +109,7 @@ pub struct WriteComposeContentsToHost {
 /// Only works with git repo based stacks.
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(RepoExecutionResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct WriteCommitComposeContents {
   /// The stack to write to.
   pub stack: Stack,
@@ -131,7 +131,7 @@ pub struct WriteCommitComposeContents {
 /// and runs docker compose up. Response: [ComposePullResponse]
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(ComposePullResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ComposePull {
   /// The stack to deploy
   pub stack: Stack,
@@ -166,7 +166,7 @@ pub struct ComposePullResponse {
 /// docker compose up.
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(ComposeUpResponse)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ComposeUp {
   /// The stack to deploy
   pub stack: Stack,
@@ -223,7 +223,7 @@ pub struct ComposeRunResponse {
 /// General compose command runner
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ComposeExecution {
   /// The compose project name to run the execution on.
   /// Usually its he name of the stack / folder under the `stack_dir`.
@@ -237,7 +237,7 @@ pub struct ComposeExecution {
 /// docker compose run one-time service execution.
 #[derive(Debug, Clone, Serialize, Deserialize, Resolve)]
 #[response(Log)]
-#[error(serror::Error)]
+#[error(anyhow::Error)]
 pub struct ComposeRun {
   /// The stack to run a service for
   pub stack: Stack,

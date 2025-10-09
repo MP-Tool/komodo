@@ -1,24 +1,28 @@
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
 use futures_util::FutureExt;
+use serde::Serialize;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::{
-  message::{Message, MessageState},
+  message::{
+    Encode, Message, MessageBytes, json::JsonMessage,
+    wrappers::WithChannel,
+  },
   timeout::MaybeWithTimeout,
 };
 
 const RESPONSE_BUFFER_MAX_LEN: usize = 1_024;
 
 #[derive(Debug)]
-pub struct BufferedChannel {
-  pub sender: Sender,
-  pub receiver: Mutex<BufferedReceiver>,
+pub struct BufferedChannel<T> {
+  pub sender: Sender<T>,
+  pub receiver: Mutex<BufferedReceiver<T>>,
 }
 
-impl Default for BufferedChannel {
+impl<T: Send + Clone> Default for BufferedChannel<T> {
   fn default() -> Self {
     let (sender, receiver) = buffered_channel();
     BufferedChannel {
@@ -28,10 +32,10 @@ impl Default for BufferedChannel {
   }
 }
 
-impl BufferedChannel {
+impl<T> BufferedChannel<T> {
   pub fn receiver(
     &self,
-  ) -> anyhow::Result<MutexGuard<'_, BufferedReceiver>> {
+  ) -> anyhow::Result<MutexGuard<'_, BufferedReceiver<T>>> {
     self
       .receiver
       .try_lock()
@@ -40,7 +44,7 @@ impl BufferedChannel {
 }
 
 /// Create a channel
-pub fn channel() -> (Sender, Receiver) {
+pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
   let (sender, receiver) = mpsc::channel(RESPONSE_BUFFER_MAX_LEN);
   (
     Sender(sender),
@@ -52,30 +56,101 @@ pub fn channel() -> (Sender, Receiver) {
 }
 
 /// Create a buffered channel
-pub fn buffered_channel() -> (Sender, BufferedReceiver) {
+pub fn buffered_channel<T: Send + Clone>()
+-> (Sender<T>, BufferedReceiver<T>) {
   let (sender, receiver) = channel();
   (sender, BufferedReceiver::new(receiver))
 }
 
 #[derive(Debug, Clone)]
-pub struct Sender(mpsc::Sender<Message>);
+pub struct Sender<T>(mpsc::Sender<T>);
 
-impl Sender {
-  pub async fn send(
+impl<T> Sender<T> {
+  pub async fn send(&self, data: T) -> anyhow::Result<()> {
+    self.0.send(data).await.map_err(|e| anyhow!("{e:?}"))
+  }
+}
+
+impl Sender<MessageBytes> {
+  pub async fn send_message(
     &self,
-    message: impl Into<Message>,
-  ) -> Result<(), mpsc::error::SendError<Message>> {
-    self.0.send(message.into()).await
+    message: impl Encode<MessageBytes>,
+  ) -> anyhow::Result<()> {
+    self.send(message.encode()).await
+  }
+
+  pub async fn send_request<'a, T: Serialize + Send>(
+    &self,
+    channel: Uuid,
+    request: &'a T,
+  ) -> anyhow::Result<()>
+  where
+    &'a T: Send,
+  {
+    let data = JsonMessage(request).encode()?;
+    let message =
+      Message::Request(WithChannel { channel, data }.encode());
+    self.send_message(message).await
+  }
+
+  pub async fn send_in_progress(
+    &self,
+    channel: Uuid,
+  ) -> anyhow::Result<()> {
+    let message = Message::Response(
+      WithChannel {
+        channel,
+        data: None.encode(),
+      }
+      .encode(),
+    );
+    self.send_message(message).await
+  }
+
+  pub async fn send_response<'a, T: Serialize + Send>(
+    &self,
+    channel: Uuid,
+    response: anyhow::Result<&'a T>,
+  ) -> anyhow::Result<()>
+  where
+    &'a T: Send,
+  {
+    let data = response
+      .and_then(|json| JsonMessage(json).encode())
+      .encode();
+    let message = Message::Response(
+      WithChannel {
+        channel,
+        data: Some(data).encode(),
+      }
+      .encode(),
+    );
+    self.send_message(message).await
+  }
+
+  pub async fn send_terminal(
+    &self,
+    channel: Uuid,
+    data: impl Into<Bytes>,
+  ) -> anyhow::Result<()> {
+    let message = Message::Terminal(
+      WithChannel {
+        channel,
+        data: data.into(),
+      }
+      .encode(),
+    );
+    self.send_message(message).await
   }
 }
 
 #[derive(Debug)]
-pub struct Receiver {
-  receiver: mpsc::Receiver<Message>,
+pub struct Receiver<T> {
+  receiver: mpsc::Receiver<T>,
   cancel: Option<CancellationToken>,
 }
 
-impl Receiver {
+impl<T: Send> Receiver<T> {
   pub fn set_cancel(&mut self, cancel: CancellationToken) {
     self.cancel = Some(cancel);
   }
@@ -83,7 +158,7 @@ impl Receiver {
   pub fn poll_recv(
     &mut self,
     cx: &mut std::task::Context<'_>,
-  ) -> std::task::Poll<Option<Message>> {
+  ) -> std::task::Poll<Option<T>> {
     if let Some(cancel) = &self.cancel
       && cancel.is_cancelled()
     {
@@ -94,9 +169,8 @@ impl Receiver {
 
   pub fn recv(
     &mut self,
-  ) -> MaybeWithTimeout<
-    impl Future<Output = anyhow::Result<Message>> + Send,
-  > {
+  ) -> MaybeWithTimeout<impl Future<Output = anyhow::Result<T>> + Send>
+  {
     MaybeWithTimeout::new(async {
       let recv = self
         .receiver
@@ -112,30 +186,17 @@ impl Receiver {
       }
     })
   }
-
-  pub fn recv_parts(
-    &mut self,
-  ) -> MaybeWithTimeout<
-    impl Future<Output = anyhow::Result<(Bytes, Uuid, MessageState)>>
-    + Send,
-  > {
-    MaybeWithTimeout::new(self.recv().map(|res| {
-      res
-        .context("Channel is permanently closed.")
-        .and_then(Message::into_parts)
-    }))
-  }
 }
 
 /// Control when the latest message is dropped, in case it must be re-transmitted.
 #[derive(Debug)]
-pub struct BufferedReceiver {
-  receiver: Receiver,
-  buffer: Option<Message>,
+pub struct BufferedReceiver<T> {
+  receiver: Receiver<T>,
+  buffer: Option<T>,
 }
 
-impl BufferedReceiver {
-  pub fn new(receiver: Receiver) -> BufferedReceiver {
+impl<T: Send + Clone> BufferedReceiver<T> {
+  pub fn new(receiver: Receiver<T>) -> BufferedReceiver<T> {
     BufferedReceiver {
       receiver,
       buffer: None,
@@ -154,9 +215,8 @@ impl BufferedReceiver {
   ///   - return borrow of buffer.
   pub fn recv(
     &mut self,
-  ) -> MaybeWithTimeout<
-    impl Future<Output = anyhow::Result<Message>> + Send,
-  > {
+  ) -> MaybeWithTimeout<impl Future<Output = anyhow::Result<T>> + Send>
+  {
     MaybeWithTimeout::new(async {
       if let Some(buffer) = self.buffer.clone() {
         Ok(buffer)
@@ -166,17 +226,6 @@ impl BufferedReceiver {
         Ok(message)
       }
     })
-  }
-
-  pub fn recv_parts(
-    &mut self,
-  ) -> MaybeWithTimeout<
-    impl Future<Output = anyhow::Result<(Bytes, Uuid, MessageState)>>
-    + Send,
-  > {
-    MaybeWithTimeout::new(
-      self.recv().map(|res| res.and_then(Message::into_parts)),
-    )
   }
 
   /// Clears buffer.

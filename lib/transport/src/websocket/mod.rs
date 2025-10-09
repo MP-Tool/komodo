@@ -1,15 +1,16 @@
-//! Wrappers to normalize behavior of websockets between Tungstenite and Axum,
-//! as well as streamline process of handling socket messages.
+//! Wrappers to normalize behavior of websockets between Tungstenite and Axum
 
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
-use futures_util::FutureExt;
-use serror::deserialize_error_bytes;
+use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::{
-  message::{Message, MessageState},
+  message::{
+    CastBytes, Decode, Encode, Message, MessageBytes,
+    json::JsonMessage, wrappers::WithChannel,
+  },
   timeout::MaybeWithTimeout,
 };
 
@@ -20,7 +21,7 @@ pub mod tungstenite;
 /// for easier handling.
 pub enum WebsocketMessage<CloseFrame> {
   /// Standard message
-  Message(Message),
+  Message(MessageBytes),
   /// Graceful close message
   Close(Option<CloseFrame>),
   /// Stream closed
@@ -34,36 +35,44 @@ pub trait Websocket: Send {
   /// Abstraction over websocket splitting
   fn split(self) -> (impl WebsocketSender, impl WebsocketReceiver);
 
+  fn send_inner(
+    &mut self,
+    bytes: Bytes,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send;
+
+  /// Send close message
+  fn close(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send;
+
   /// Looping receiver for websocket messages which only returns
   /// on significant messages.
-  fn recv(
+  fn recv_inner(
     &mut self,
   ) -> MaybeWithTimeout<
     impl Future<
       Output = anyhow::Result<WebsocketMessage<Self::CloseFrame>>,
     > + Send,
   >;
+}
 
+pub trait WebsocketExt: Websocket {
   fn send(
     &mut self,
-    message: impl Into<Message>,
-  ) -> impl Future<Output = anyhow::Result<()>>;
-
-  /// Send close message
-  fn close(
-    &mut self,
-    frame: Option<Self::CloseFrame>,
-  ) -> impl Future<Output = anyhow::Result<()>>;
+    message: impl Encode<MessageBytes>,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send {
+    self.send_inner(message.encode().into_vec().into())
+  }
 
   /// Looping receiver for websocket messages which only returns on messages.
-  fn recv_message(
+  fn recv(
     &mut self,
   ) -> MaybeWithTimeout<
     impl Future<Output = anyhow::Result<Message>> + Send,
   > {
     MaybeWithTimeout::new(async {
-      match self.recv().await? {
-        WebsocketMessage::Message(message) => Ok(message),
+      match self.recv_inner().await? {
+        WebsocketMessage::Message(message) => message.decode(),
         WebsocketMessage::Close(frame) => {
           Err(anyhow!("Connection closed with framed: {frame:?}"))
         }
@@ -73,36 +82,100 @@ pub trait Websocket: Send {
       }
     })
   }
+}
 
-  /// Receive message + message.into_parts
-  fn recv_parts(
+impl<W: Websocket> WebsocketExt for W {}
+
+/// Traits for split websocket receiver
+pub trait WebsocketSender {
+  /// Streamlined sending on bytes
+  fn send_inner(
     &mut self,
-  ) -> MaybeWithTimeout<
-    impl Future<Output = anyhow::Result<(Bytes, Uuid, MessageState)>>
-    + Send,
-  > {
-    MaybeWithTimeout::new(
-      self
-        .recv_message()
-        .map(|res| res.and_then(|message| message.into_parts())),
-    )
+    bytes: Bytes,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send;
+
+  /// Send close message
+  fn close(
+    &mut self,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send;
+}
+
+pub trait WebsocketSenderExt: WebsocketSender + Send {
+  fn send(
+    &mut self,
+    message: impl Encode<MessageBytes>,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send {
+    self.send_inner(message.encode().into_vec().into())
   }
 
-  /// Auto deserializes non-successful message errors.
-  /// Discards the channels.
-  fn recv_result(
+  fn send_request<'a, T: Serialize + Send>(
     &mut self,
-  ) -> MaybeWithTimeout<
-    impl Future<Output = anyhow::Result<Bytes>> + Send,
-  > {
-    MaybeWithTimeout::new(self.recv_parts().map(|res| {
-      res.and_then(|(data, _, state)| match state {
-        MessageState::Successful => Ok(data),
-        _ => Err(deserialize_error_bytes(&data)),
-      })
-    }))
+    channel: Uuid,
+    request: &'a T,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send
+  where
+    &'a T: Send,
+  {
+    async move {
+      let data = JsonMessage(request).encode()?;
+      let message =
+        Message::Request(WithChannel { channel, data }.encode());
+      self.send(message).await
+    }
+  }
+
+  fn send_in_progress(
+    &mut self,
+    channel: Uuid,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send {
+    let message = Message::Response(
+      WithChannel {
+        channel,
+        data: None.encode(),
+      }
+      .encode(),
+    );
+    self.send(message)
+  }
+
+  fn send_response<'a, T: Serialize + Send>(
+    &mut self,
+    channel: Uuid,
+    response: anyhow::Result<&'a T>,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send
+  where
+    &'a T: Send,
+  {
+    let data = response
+      .and_then(|json| JsonMessage(json).encode())
+      .encode();
+    let message = Message::Response(
+      WithChannel {
+        channel,
+        data: Some(data).encode(),
+      }
+      .encode(),
+    );
+    self.send(message)
+  }
+
+  fn send_terminal(
+    &mut self,
+    channel: Uuid,
+    data: impl Into<Bytes>,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send {
+    let message = Message::Terminal(
+      WithChannel {
+        channel,
+        data: data.into(),
+      }
+      .encode(),
+    );
+    self.send(message)
   }
 }
+
+impl<S: WebsocketSender + Send> WebsocketSenderExt for S {}
 
 /// Traits for split websocket receiver
 pub trait WebsocketReceiver: Send {
@@ -113,25 +186,27 @@ pub trait WebsocketReceiver: Send {
 
   /// Looping receiver for websocket messages which only returns
   /// on significant messages. Must implement cancel support.
-  fn recv(
+  fn recv_inner(
     &mut self,
   ) -> impl Future<
     Output = anyhow::Result<WebsocketMessage<Self::CloseFrame>>,
   > + Send;
+}
 
+pub trait WebsocketReceiverExt: WebsocketReceiver {
   /// Looping receiver for websocket messages which only returns on messages.
-  fn recv_message(
+  fn recv(
     &mut self,
   ) -> MaybeWithTimeout<
     impl Future<Output = anyhow::Result<Message>> + Send,
   > {
     MaybeWithTimeout::new(async {
       match self
-        .recv()
+        .recv_inner()
         .await
         .context("Failed to read websocket message")?
       {
-        WebsocketMessage::Message(message) => Ok(message),
+        WebsocketMessage::Message(message) => message.decode(),
         WebsocketMessage::Close(frame) => {
           Err(anyhow!("Connection closed with framed: {frame:?}"))
         }
@@ -141,35 +216,6 @@ pub trait WebsocketReceiver: Send {
       }
     })
   }
-
-  /// Receive message + message.into_parts
-  fn recv_parts(
-    &mut self,
-  ) -> MaybeWithTimeout<
-    impl Future<Output = anyhow::Result<(Bytes, Uuid, MessageState)>>
-    + Send,
-  > {
-    MaybeWithTimeout::new(
-      self
-        .recv_message()
-        .map(|res| res.and_then(|message| message.into_parts())),
-    )
-  }
 }
 
-/// Traits for split websocket receiver
-pub trait WebsocketSender {
-  type CloseFrame: std::fmt::Debug + Send + Sync + 'static;
-
-  /// Streamlined sending on bytes
-  fn send(
-    &mut self,
-    message: Message,
-  ) -> impl Future<Output = anyhow::Result<()>> + Send;
-
-  /// Send close message
-  fn close(
-    &mut self,
-    frame: Option<Self::CloseFrame>,
-  ) -> impl Future<Output = anyhow::Result<()>> + Send;
-}
+impl<R: WebsocketReceiver> WebsocketReceiverExt for R {}

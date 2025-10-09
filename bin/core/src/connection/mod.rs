@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::anyhow;
+use bytes::Bytes;
 use cache::CloneCache;
 use database::mungos::{by_id::update_one_by_id, mongodb::bson::doc};
 use komodo_client::entities::{
@@ -15,7 +16,7 @@ use komodo_client::entities::{
   server::Server,
 };
 use serror::serror_into_anyhow_error;
-use tokio::sync::{RwLock, mpsc::error::SendError};
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use transport::{
   auth::{
@@ -23,16 +24,20 @@ use transport::{
     PublicKeyValidator,
   },
   channel::{BufferedReceiver, Sender, buffered_channel},
-  message::Message,
+  message::{
+    CastBytes, Decode, Encode, Message, MessageBytes,
+    json::JsonMessageBytes,
+    wrappers::{OptionWrapper, ResultWrapper, WithChannel},
+  },
   websocket::{
     Websocket, WebsocketMessage, WebsocketReceiver as _,
     WebsocketSender as _,
   },
 };
+use uuid::Uuid;
 
 use crate::{
   config::{core_keys, periphery_public_keys},
-  periphery::ConnectionChannels,
   state::db_client,
 };
 
@@ -52,7 +57,7 @@ impl PeripheryConnections {
     &self,
     server_id: String,
     args: PeripheryConnectionArgs<'_>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver) {
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver<MessageBytes>) {
     let (connection, receiver) = if let Some(existing_connection) =
       self.0.remove(&server_id).await
     {
@@ -243,12 +248,20 @@ impl<'a> From<&'a OwnedPeripheryConnectionArgs>
   }
 }
 
+/// Sends None as InProgress ping.
+pub type ResponseChannels = CloneCache<
+  Uuid,
+  Sender<OptionWrapper<ResultWrapper<JsonMessageBytes>>>,
+>;
+
+pub type TerminalChannels = CloneCache<Uuid, Sender<Bytes>>;
+
 #[derive(Debug)]
 pub struct PeripheryConnection {
   /// The connection args
   pub args: OwnedPeripheryConnectionArgs,
   /// Send and receive bytes over the connection socket.
-  pub sender: Sender,
+  pub sender: Sender<MessageBytes>,
   /// Cancel the connection
   pub cancel: CancellationToken,
   /// Whether Periphery is currently connected.
@@ -257,14 +270,16 @@ pub struct PeripheryConnection {
   // at the same server id.
   /// Stores latest connection error
   pub error: Arc<RwLock<Option<serror::Serror>>>,
-  /// Forward bytes from Periphery to specific channel handlers.
-  pub channels: Arc<ConnectionChannels>,
+  /// Forward bytes from Periphery to response channel handlers.
+  pub responses: Arc<ResponseChannels>,
+  /// Forward bytes from Periphery to terminal channel handlers.
+  pub terminals: Arc<TerminalChannels>,
 }
 
 impl PeripheryConnection {
   pub fn new(
     args: impl Into<OwnedPeripheryConnectionArgs>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver) {
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver<MessageBytes>) {
     let (sender, receiever) = buffered_channel();
     (
       PeripheryConnection {
@@ -273,7 +288,8 @@ impl PeripheryConnection {
         cancel: CancellationToken::new(),
         connected: AtomicBool::new(false),
         error: Default::default(),
-        channels: Default::default(),
+        responses: Default::default(),
+        terminals: Default::default(),
       }
       .into(),
       receiever,
@@ -283,7 +299,7 @@ impl PeripheryConnection {
   pub fn with_new_args(
     &self,
     args: impl Into<OwnedPeripheryConnectionArgs>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver) {
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver<MessageBytes>) {
     // Ensure this connection is cancelled.
     self.cancel();
     let (sender, receiever) = buffered_channel();
@@ -294,7 +310,8 @@ impl PeripheryConnection {
         cancel: CancellationToken::new(),
         connected: AtomicBool::new(false),
         error: self.error.clone(),
-        channels: self.channels.clone(),
+        responses: self.responses.clone(),
+        terminals: self.terminals.clone(),
       }
       .into(),
       receiever,
@@ -321,7 +338,7 @@ impl PeripheryConnection {
   pub async fn handle_socket<W: Websocket>(
     &self,
     socket: W,
-    receiver: &mut BufferedReceiver,
+    receiver: &mut BufferedReceiver<MessageBytes>,
   ) {
     let cancel = self.cancel.child_token();
 
@@ -338,7 +355,7 @@ impl PeripheryConnection {
         let Ok(message) = receiver.recv().await else {
           break;
         };
-        match ws_write.send(message).await {
+        match ws_write.send_inner(message.into_bytes()).await {
           Ok(_) => receiver.clear_buffer(),
           Err(e) => {
             self.set_error(e).await;
@@ -347,13 +364,13 @@ impl PeripheryConnection {
         }
       }
       // Cancel again if not already
-      let _ = ws_write.close(None).await;
+      let _ = ws_write.close().await;
       cancel.cancel();
     };
 
     let handle_reads = async {
       loop {
-        match ws_read.recv().await {
+        match ws_read.recv_inner().await {
           Ok(WebsocketMessage::Message(message)) => {
             self.handle_incoming_message(message).await
           }
@@ -376,31 +393,71 @@ impl PeripheryConnection {
     self.set_connected(false);
   }
 
-  pub async fn handle_incoming_message(&self, message: Message) {
-    let channel = match message.channel() {
+  pub async fn handle_incoming_message(&self, message: MessageBytes) {
+    let message: Message = match message.decode() {
       Ok(res) => res,
       Err(e) => {
-        // TODO: handle better
-        warn!("Failed to read channel | {e:#}");
+        warn!("Failed to parse Message bytes | {e:#}");
         return;
       }
     };
-    let Some(channel) = self.channels.get(&channel).await else {
-      // TODO: handle better
-      debug!("Failed to send response | No response channel found");
-      return;
-    };
-    if let Err(e) = channel.send(message).await {
-      // TODO: handle better
-      warn!("Failed to send response | Channel failure | {e:#}");
+    match message {
+      Message::Response(data) => match data.decode() {
+        Ok(WithChannel {
+          channel: channel_id,
+          data,
+        }) => {
+          let Some(channel) = self.responses.get(&channel_id).await
+          else {
+            warn!(
+              "Failed to forward Response message | No response channel found at {channel_id}"
+            );
+            return;
+          };
+          if let Err(e) = channel.send(data).await {
+            warn!(
+              "Failed to send response | Channel failure at {channel_id} | {e:#}"
+            );
+          }
+        }
+        Err(e) => {
+          warn!("Failed to read Response message | {e:#}");
+        }
+      },
+      Message::Terminal(data) => match data.decode() {
+        Ok(WithChannel {
+          channel: channel_id,
+          data,
+        }) => {
+          let Some(channel) = self.terminals.get(&channel_id).await
+          else {
+            warn!(
+              "Failed to forward Terminal message | No terminal channel found at {channel_id}"
+            );
+            return;
+          };
+          if let Err(e) = channel.send(data).await {
+            warn!(
+              "Failed to forward Terminal message | Channel failure at {channel_id} | {e:#}"
+            );
+          }
+        }
+        Err(e) => {
+          warn!("Failed to read Terminal message | {e:#}");
+        }
+      },
+      //
+      other => {
+        warn!("Received unexpected transport message | {other:?}");
+      }
     }
   }
 
   pub async fn send(
     &self,
-    message: impl Into<Message>,
-  ) -> Result<(), SendError<Message>> {
-    self.sender.send(message).await
+    message: impl Encode<MessageBytes>,
+  ) -> anyhow::Result<()> {
+    self.sender.send_message(message).await
   }
 
   pub fn set_connected(&self, connected: bool) {

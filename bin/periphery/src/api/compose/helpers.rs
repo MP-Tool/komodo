@@ -166,8 +166,7 @@ pub async fn pull_or_clone_stack(
     replacers: Default::default(),
   }
   .resolve(req_args)
-  .await
-  .map_err(|e| e.error)?;
+  .await?;
 
   Ok(root)
 }

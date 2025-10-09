@@ -14,7 +14,7 @@ repository.workspace = true
 komodo_client.workspace = true
 # mogh
 resolver_api.workspace = true
-serror.workspace = true
 # external
+anyhow.workspace = true
 serde.workspace = true
 uuid.workspace = true

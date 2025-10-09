@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, anyhow};
 use axum::http::HeaderValue;
+use bytes::Bytes;
 use futures_util::{
   SinkExt, Stream, StreamExt, TryStreamExt,
   stream::{SplitSink, SplitStream},
@@ -17,7 +18,10 @@ use tokio_tungstenite::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{message::Message, timeout::MaybeWithTimeout};
+use crate::{
+  message::{CastBytes, MessageBytes},
+  timeout::MaybeWithTimeout,
+};
 
 use super::{
   Websocket, WebsocketMessage, WebsocketReceiver, WebsocketSender,
@@ -38,7 +42,7 @@ impl Websocket for TungsteniteWebsocket {
     )
   }
 
-  fn recv(
+  fn recv_inner(
     &mut self,
   ) -> MaybeWithTimeout<
     impl Future<
@@ -48,26 +52,77 @@ impl Websocket for TungsteniteWebsocket {
     MaybeWithTimeout::new(try_next(&mut self.0))
   }
 
-  async fn send(
-    &mut self,
-    message: impl Into<Message>,
-  ) -> anyhow::Result<()> {
+  async fn send_inner(&mut self, bytes: Bytes) -> anyhow::Result<()> {
     self
       .0
-      .send(tungstenite::Message::Binary(message.into().into_inner()))
+      .send(tungstenite::Message::Binary(bytes))
       .await
       .context("Failed to send message over websocket")
   }
 
-  async fn close(
-    &mut self,
-    frame: Option<Self::CloseFrame>,
-  ) -> anyhow::Result<()> {
+  async fn close(&mut self) -> anyhow::Result<()> {
     self
       .0
-      .close(frame)
+      .close(None)
       .await
       .context("Failed to send websocket close frame")
+  }
+}
+
+pub type InnerWebsocketSender = SplitSink<
+  WebSocketStream<MaybeTlsStream<TcpStream>>,
+  tungstenite::Message,
+>;
+
+pub struct TungsteniteWebsocketSender(pub InnerWebsocketSender);
+
+impl WebsocketSender for TungsteniteWebsocketSender {
+  async fn send_inner(&mut self, bytes: Bytes) -> anyhow::Result<()> {
+    self
+      .0
+      .send(tungstenite::Message::Binary(bytes))
+      .await
+      .context("Failed to send message over websocket")
+  }
+
+  async fn close(&mut self) -> anyhow::Result<()> {
+    self
+      .0
+      .send(tungstenite::Message::Close(None))
+      .await
+      .context("Failed to send websocket close frame")
+  }
+}
+
+async fn try_next<S>(
+  stream: &mut S,
+) -> anyhow::Result<WebsocketMessage<CloseFrame>>
+where
+  S: Stream<Item = Result<tungstenite::Message, tungstenite::Error>>
+    + Unpin,
+{
+  loop {
+    match stream.try_next().await? {
+      Some(tungstenite::Message::Binary(bytes)) => {
+        return Ok(WebsocketMessage::Message(
+          MessageBytes::from_vec(bytes.into()),
+        ));
+      }
+      Some(tungstenite::Message::Text(text)) => {
+        let bytes: Bytes = text.into();
+        return Ok(WebsocketMessage::Message(
+          MessageBytes::from_vec(bytes.into()),
+        ));
+      }
+      Some(tungstenite::Message::Close(frame)) => {
+        return Ok(WebsocketMessage::Close(frame));
+      }
+      None => return Ok(WebsocketMessage::Closed),
+      // Ignored messages
+      Some(tungstenite::Message::Ping(_))
+      | Some(tungstenite::Message::Pong(_))
+      | Some(tungstenite::Message::Frame(_)) => continue,
+    }
   }
 }
 
@@ -95,7 +150,7 @@ impl WebsocketReceiver for TungsteniteWebsocketReceiver {
     self.cancel = Some(cancel);
   }
 
-  async fn recv(
+  async fn recv_inner(
     &mut self,
   ) -> anyhow::Result<WebsocketMessage<Self::CloseFrame>> {
     let fut = try_next(&mut self.receiver);
@@ -106,67 +161,6 @@ impl WebsocketReceiver for TungsteniteWebsocketReceiver {
       }
     } else {
       fut.await
-    }
-  }
-}
-
-pub type InnerWebsocketSender = SplitSink<
-  WebSocketStream<MaybeTlsStream<TcpStream>>,
-  tungstenite::Message,
->;
-
-pub struct TungsteniteWebsocketSender(pub InnerWebsocketSender);
-
-impl WebsocketSender for TungsteniteWebsocketSender {
-  type CloseFrame = CloseFrame;
-
-  async fn send(&mut self, message: Message) -> anyhow::Result<()> {
-    self
-      .0
-      .send(tungstenite::Message::Binary(message.into_inner()))
-      .await
-      .context("Failed to send message over websocket")
-  }
-
-  async fn close(
-    &mut self,
-    frame: Option<Self::CloseFrame>,
-  ) -> anyhow::Result<()> {
-    self
-      .0
-      .send(tungstenite::Message::Close(frame))
-      .await
-      .context("Failed to send websocket close frame")
-  }
-}
-
-async fn try_next<S>(
-  stream: &mut S,
-) -> anyhow::Result<WebsocketMessage<CloseFrame>>
-where
-  S: Stream<Item = Result<tungstenite::Message, tungstenite::Error>>
-    + Unpin,
-{
-  loop {
-    match stream.try_next().await? {
-      Some(tungstenite::Message::Binary(bytes)) => {
-        return Ok(WebsocketMessage::Message(Message::from_bytes(
-          bytes,
-        )));
-      }
-      Some(tungstenite::Message::Text(text)) => {
-        return Ok(WebsocketMessage::Message(
-          Message::from_tungstenite_utf8(text),
-        ));
-      }
-      Some(tungstenite::Message::Close(frame)) => {
-        return Ok(WebsocketMessage::Close(frame));
-      }
-      None => return Ok(WebsocketMessage::Closed),
-      // Ignored messages
-      Some(tungstenite::Message::Ping(_))
-      | Some(tungstenite::Message::Pong(_))
-      | Some(tungstenite::Message::Frame(_)) => continue,
     }
   }
 }
