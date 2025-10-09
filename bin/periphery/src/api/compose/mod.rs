@@ -287,7 +287,6 @@ impl Resolve<super::Args> for WriteCommitComposeContents {
       &stack.config.branch,
     )
     .await
-    .map_err(Into::into)
   }
 }
 
@@ -365,7 +364,7 @@ impl Resolve<super::Args> for ComposePull {
     // Validate files
     for (full_path, path) in &file_paths {
       if !full_path.exists() {
-        return Err(anyhow!("Missing compose file at {path}").into());
+        return Err(anyhow!("Missing compose file at {path}"));
       }
     }
 

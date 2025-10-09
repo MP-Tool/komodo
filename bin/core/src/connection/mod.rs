@@ -7,7 +7,6 @@ use std::{
 };
 
 use anyhow::anyhow;
-use bytes::Bytes;
 use cache::CloneCache;
 use database::mungos::{by_id::update_one_by_id, mongodb::bson::doc};
 use komodo_client::entities::{
@@ -254,7 +253,7 @@ pub type ResponseChannels = CloneCache<
   Sender<OptionWrapper<ResultWrapper<JsonMessageBytes>>>,
 >;
 
-pub type TerminalChannels = CloneCache<Uuid, Sender<Bytes>>;
+pub type TerminalChannels = CloneCache<Uuid, Sender<Vec<u8>>>;
 
 #[derive(Debug)]
 pub struct PeripheryConnection {

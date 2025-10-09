@@ -125,7 +125,7 @@ impl RotatableKeyPair {
         })?;
         (EncodedKeyPair::load_maybe_generate(&path)?, Some(path))
       } else {
-        (EncodedKeyPair::from_private_key(&private_key_spec)?, None)
+        (EncodedKeyPair::from_private_key(private_key_spec)?, None)
       };
     Ok(Self {
       keys: ArcSwap::new(Arc::new(keys)),

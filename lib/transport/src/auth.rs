@@ -81,7 +81,7 @@ impl LoginFlow for ServerLoginFlow {
         .next_message()
         .context("Failed to write handshake_m2")?;
       socket
-        .send(LoginMessage::Handshake(handshake_m2.into()))
+        .send(LoginMessage::Handshake(handshake_m2))
         .await
         .context("Failed to send handshake_m2")?;
 
@@ -161,7 +161,7 @@ impl LoginFlow for ClientLoginFlow {
         .next_message()
         .context("Failed to write handshake m1")?;
       socket
-        .send(LoginMessage::Handshake(handshake_m1.into()))
+        .send(LoginMessage::Handshake(handshake_m1))
         .await
         .context("Failed to send handshake_m1")?;
 
@@ -188,7 +188,7 @@ impl LoginFlow for ClientLoginFlow {
         .next_message()
         .context("Failed to write handshake_m3")?;
       socket
-        .send(LoginMessage::Handshake(handshake_m3.into()))
+        .send(LoginMessage::Handshake(handshake_m3))
         .await
         .context("Failed to send handshake_m3")?;
 

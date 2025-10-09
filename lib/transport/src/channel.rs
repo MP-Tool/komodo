@@ -1,5 +1,4 @@
 use anyhow::{Context, anyhow};
-use bytes::Bytes;
 use futures_util::FutureExt;
 use serde::Serialize;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
@@ -131,7 +130,7 @@ impl Sender<MessageBytes> {
   pub async fn send_terminal(
     &self,
     channel: Uuid,
-    data: impl Into<Bytes>,
+    data: impl Into<Vec<u8>>,
   ) -> anyhow::Result<()> {
     let message = Message::Terminal(
       WithChannel {

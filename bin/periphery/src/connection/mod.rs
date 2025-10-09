@@ -75,7 +75,7 @@ impl CorePublicKeys {
         {
           SpkiPublicKey::from_file(path)
         } else {
-          SpkiPublicKey::from_maybe_pem(&public_key)
+          SpkiPublicKey::from_maybe_pem(public_key)
         };
         match (res, config.server_enabled) {
           (Ok(public_key), _) => Some(public_key),

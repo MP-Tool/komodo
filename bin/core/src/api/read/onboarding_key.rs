@@ -32,7 +32,7 @@ impl Resolve<ReadArgs> for ListOnboardingKeys {
           "Failed to query database for Server onboarding keys",
         )?;
 
-    // No expiry keys first, followed 
+    // No expiry keys first, followed
     keys.sort_by(|a, b| {
       if a.expires == b.expires {
         Ordering::Equal

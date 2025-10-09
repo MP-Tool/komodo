@@ -1,5 +1,4 @@
 use anyhow::Context;
-use bytes::Bytes;
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::message::{
@@ -11,14 +10,14 @@ use crate::message::{
 /// | <JSON BYTES> |
 /// ```
 #[derive(Clone, Debug)]
-pub struct JsonMessageBytes(Bytes);
+pub struct JsonMessageBytes(Vec<u8>);
 
 impl CastBytes for JsonMessageBytes {
-  fn from_bytes(bytes: Bytes) -> Self {
-    Self(bytes.into())
+  fn from_vec(vec: Vec<u8>) -> Self {
+    Self(vec)
   }
-  fn into_bytes(self) -> Bytes {
-    self.0.into()
+  fn into_vec(self) -> Vec<u8> {
+    self.0
   }
 }
 
@@ -32,7 +31,7 @@ where
   fn encode(self) -> anyhow::Result<JsonMessageBytes> {
     let bytes = serde_json::to_vec(self.0)
       .context("Failed to serialize data to bytes")?;
-    Ok(JsonMessageBytes(bytes.into()))
+    Ok(JsonMessageBytes(bytes))
   }
 }
 

@@ -186,7 +186,7 @@ async fn forward_ws_channel(
   client_socket: axum::extract::ws::WebSocket,
   periphery_connection_id: Uuid,
   periphery_sender: Sender<MessageBytes>,
-  mut periphery_receiver: Receiver<Bytes>,
+  mut periphery_receiver: Receiver<Vec<u8>>,
 ) {
   let (mut client_send, mut client_receive) = client_socket.split();
   let cancel = CancellationToken::new();
@@ -251,7 +251,7 @@ async fn forward_ws_channel(
       match periphery_receiver.recv().await {
         Ok(bytes) => {
           if let Err(e) =
-            client_send.send(ws::Message::Binary(bytes)).await
+            client_send.send(ws::Message::Binary(bytes.into())).await
           {
             debug!("{e:?}");
             cancel.cancel();

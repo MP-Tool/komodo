@@ -25,6 +25,12 @@ impl<T: CastBytes> CastBytes for OptionWrapper<T> {
   fn into_bytes(self) -> Bytes {
     self.0.into_bytes()
   }
+  fn from_vec(vec: Vec<u8>) -> Self {
+    Self(T::from_vec(vec))
+  }
+  fn into_vec(self) -> Vec<u8> {
+    self.0.into_vec()
+  }
 }
 
 impl<T: CastBytes + Send> Encode<OptionWrapper<T>> for Option<T> {
@@ -35,7 +41,7 @@ impl<T: CastBytes + Send> Encode<OptionWrapper<T>> for Option<T> {
         bytes.push(0);
         OptionWrapper(T::from_vec(bytes))
       }
-      None => OptionWrapper(T::from_bytes(Bytes::from_owner([1]))),
+      None => OptionWrapper(T::from_vec(vec![1])),
     }
   }
 }

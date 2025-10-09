@@ -1,7 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
-use bytes::Bytes;
 use futures::{Stream, StreamExt, TryStreamExt};
 use komodo_client::{
   api::write::TerminalRecreateMode,
@@ -43,7 +42,6 @@ impl Resolve<super::Args> for CreateTerminal {
     create_terminal(self.name, self.command, self.recreate)
       .await
       .map(|_| NoData {})
-      .map_err(Into::into)
   }
 }
 
@@ -108,10 +106,9 @@ impl Resolve<super::Args> for ConnectContainerExec {
   #[instrument(name = "ConnectContainerExec", level = "debug")]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_container_exec {
-      return Err(
-        anyhow!("Container exec is disabled in the periphery config")
-          .into(),
-      );
+      return Err(anyhow!(
+        "Container exec is disabled in the periphery config"
+      ));
     }
 
     let channel =
@@ -122,12 +119,9 @@ impl Resolve<super::Args> for ConnectContainerExec {
     let ConnectContainerExec { container, shell } = self;
 
     if container.contains("&&") || shell.contains("&&") {
-      return Err(
-        anyhow!(
-          "The use of '&&' is forbidden in the container name or shell"
-        )
-        .into(),
-      );
+      return Err(anyhow!(
+        "The use of '&&' is forbidden in the container name or shell"
+      ));
     }
 
     // Create (recreate if shell changed)
@@ -213,10 +207,9 @@ impl Resolve<super::Args> for ExecuteContainerExec {
   #[instrument(name = "ExecuteContainerExec", level = "debug")]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_container_exec {
-      return Err(
-        anyhow!("Container exec is disabled in the Periphery config")
-          .into(),
-      );
+      return Err(anyhow!(
+        "Container exec is disabled in the Periphery config"
+      ));
     }
 
     let Self {
@@ -226,12 +219,9 @@ impl Resolve<super::Args> for ExecuteContainerExec {
     } = self;
 
     if container.contains("&&") || shell.contains("&&") {
-      return Err(
-        anyhow!(
-          "The use of '&&' is forbidden in the container name or shell"
-        )
-        .into(),
-      );
+      return Err(anyhow!(
+        "The use of '&&' is forbidden in the container name or shell"
+      ));
     }
 
     let channel =
@@ -396,7 +386,7 @@ async fn setup_execute_command_on_terminal(
 
   terminal
     .stdin
-    .send(StdinMsg::Bytes(Bytes::from(full_command)))
+    .send(StdinMsg::Bytes(full_command.into()))
     .await
     .context("Failed to send command to terminal stdin")?;
 
@@ -411,12 +401,9 @@ async fn setup_execute_command_on_terminal(
       // Keep looping until the start sentinel received.
       Some(_) => {}
       None => {
-        return Err(
-          anyhow!(
-            "Stdout stream terminated before start sentinel received"
-          )
-          .into(),
-        );
+        return Err(anyhow!(
+          "Stdout stream terminated before start sentinel received"
+        ));
       }
     }
   }

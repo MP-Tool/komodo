@@ -26,7 +26,7 @@ impl PeripheryClient {
   pub async fn connect_terminal(
     &self,
     terminal: String,
-  ) -> anyhow::Result<(Uuid, Sender<MessageBytes>, Receiver<Bytes>)>
+  ) -> anyhow::Result<(Uuid, Sender<MessageBytes>, Receiver<Vec<u8>>)>
   {
     tracing::trace!(
       "request | type: ConnectTerminal | terminal name: {terminal}",
@@ -60,7 +60,7 @@ impl PeripheryClient {
     &self,
     container: String,
     shell: String,
-  ) -> anyhow::Result<(Uuid, Sender<MessageBytes>, Receiver<Bytes>)>
+  ) -> anyhow::Result<(Uuid, Sender<MessageBytes>, Receiver<Vec<u8>>)>
   {
     tracing::trace!(
       "request | type: ConnectContainerExec | container name: {container} | shell: {shell}",
@@ -109,7 +109,7 @@ impl PeripheryClient {
     terminal: String,
     command: String,
   ) -> anyhow::Result<
-    impl Stream<Item = anyhow::Result<Bytes>> + 'static,
+    impl Stream<Item = anyhow::Result<Vec<u8>>> + 'static,
   > {
     tracing::trace!(
       "sending request | type: ExecuteTerminal | terminal name: {terminal} | command: {command}",
@@ -207,12 +207,12 @@ impl PeripheryClient {
 
 pub struct ReceiverStream {
   channel_id: Uuid,
-  channels: Arc<CloneCache<Uuid, Sender<Bytes>>>,
-  receiver: Receiver<Bytes>,
+  channels: Arc<CloneCache<Uuid, Sender<Vec<u8>>>>,
+  receiver: Receiver<Vec<u8>>,
 }
 
 impl Stream for ReceiverStream {
-  type Item = anyhow::Result<Bytes>;
+  type Item = anyhow::Result<Vec<u8>>;
   fn poll_next(
     mut self: Pin<&mut Self>,
     cx: &mut task::Context<'_>,

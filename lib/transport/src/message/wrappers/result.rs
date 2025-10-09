@@ -26,6 +26,12 @@ impl<T: CastBytes> CastBytes for ResultWrapper<T> {
   fn into_bytes(self) -> Bytes {
     self.0.into_bytes()
   }
+  fn from_vec(vec: Vec<u8>) -> Self {
+    Self(T::from_vec(vec))
+  }
+  fn into_vec(self) -> Vec<u8> {
+    self.0.into_vec()
+  }
 }
 
 impl<T: CastBytes + Send> Encode<ResultWrapper<T>>

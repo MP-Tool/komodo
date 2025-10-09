@@ -162,7 +162,7 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
   fn send_terminal(
     &mut self,
     channel: Uuid,
-    data: impl Into<Bytes>,
+    data: impl Into<Vec<u8>>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
     let message = Message::Terminal(
       WithChannel {

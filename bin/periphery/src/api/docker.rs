@@ -24,7 +24,7 @@ use crate::docker::{docker_client, docker_login};
 impl Resolve<super::Args> for InspectImage {
   #[instrument(name = "InspectImage", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Image> {
-    Ok(docker_client().inspect_image(&self.name).await?)
+    docker_client().inspect_image(&self.name).await
   }
 }
 
@@ -36,7 +36,7 @@ impl Resolve<super::Args> for ImageHistory {
     self,
     _: &super::Args,
   ) -> anyhow::Result<Vec<ImageHistoryResponseItem>> {
-    Ok(docker_client().image_history(&self.name).await?)
+    docker_client().image_history(&self.name).await
   }
 }
 
@@ -69,7 +69,7 @@ impl Resolve<super::Args> for PullImage {
 
     // Early return from cache if lasted pulled with PULL_TIMEOUT
     if locked.last_ts + PULL_TIMEOUT > komodo_timestamp() {
-      return locked.clone_res().map_err(Into::into);
+      return locked.clone_res();
     }
 
     let res = async {
@@ -94,7 +94,7 @@ impl Resolve<super::Args> for PullImage {
     // then immediately also use this same result.
     locked.set(&res, komodo_timestamp());
 
-    res.map_err(Into::into)
+    res
   }
 }
 
@@ -125,7 +125,7 @@ impl Resolve<super::Args> for PruneImages {
 impl Resolve<super::Args> for InspectNetwork {
   #[instrument(name = "InspectNetwork", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Network> {
-    Ok(docker_client().inspect_network(&self.name).await?)
+    docker_client().inspect_network(&self.name).await
   }
 }
 
@@ -171,7 +171,7 @@ impl Resolve<super::Args> for PruneNetworks {
 impl Resolve<super::Args> for InspectVolume {
   #[instrument(name = "InspectVolume", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Volume> {
-    Ok(docker_client().inspect_volume(&self.name).await?)
+    docker_client().inspect_volume(&self.name).await
   }
 }
 

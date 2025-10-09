@@ -172,7 +172,9 @@ impl Resolve<super::Args> for build::Build {
       && linked_repo.is_none()
       && dockerfile.is_empty()
     {
-      return Err(anyhow!("Build must be files on host mode, have a repo attached, or have dockerfile contents set to build").into());
+      return Err(anyhow!(
+        "Build must be files on host mode, have a repo attached, or have dockerfile contents set to build"
+      ));
     }
 
     let registry_tokens = registry_tokens

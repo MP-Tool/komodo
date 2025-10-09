@@ -99,10 +99,10 @@ impl TerminalTriggers {
   }
 }
 
-pub async fn handle_message(message: ChannelWrapper<Bytes>) {
+pub async fn handle_message(message: ChannelWrapper<Vec<u8>>) {
   let WithChannel {
     channel: channel_id,
-    data,
+    mut data,
   } = match message.decode() {
     Ok(res) => res,
     Err(e) => {
@@ -111,10 +111,7 @@ pub async fn handle_message(message: ChannelWrapper<Bytes>) {
     }
   };
   let msg = match data.first() {
-    Some(&0x00) => {
-      let mut data: Vec<_> = data.into();
-      StdinMsg::Bytes(data.drain(1..).collect())
-    }
+    Some(&0x00) => StdinMsg::Bytes(data.drain(1..).collect()),
     Some(&0xFF) => {
       if let Ok(dimensions) =
         serde_json::from_slice::<ResizeDimensions>(&data[1..])
@@ -244,7 +241,7 @@ pub struct ResizeDimensions {
 
 #[derive(Clone)]
 pub enum StdinMsg {
-  Bytes(Bytes),
+  Bytes(Vec<u8>),
   Resize(ResizeDimensions),
 }
 

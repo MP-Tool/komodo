@@ -30,7 +30,7 @@ impl Resolve<super::Args> for InspectContainer {
     self,
     _: &super::Args,
   ) -> anyhow::Result<Container> {
-    Ok(docker_client().inspect_container(&self.name).await?)
+    docker_client().inspect_container(&self.name).await
   }
 }
 
@@ -106,10 +106,7 @@ impl Resolve<super::Args> for GetFullContainerStats {
     self,
     _: &super::Args,
   ) -> anyhow::Result<FullContainerStats> {
-    docker_client()
-      .full_container_stats(&self.name)
-      .await
-      .map_err(Into::into)
+    docker_client().full_container_stats(&self.name).await
   }
 }
 
@@ -121,7 +118,7 @@ impl Resolve<super::Args> for GetContainerStatsList {
     self,
     _: &super::Args,
   ) -> anyhow::Result<Vec<ContainerStats>> {
-    Ok(get_container_stats(None).await?)
+    get_container_stats(None).await
   }
 }
 

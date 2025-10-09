@@ -1,5 +1,4 @@
 use anyhow::{Context, anyhow};
-use bytes::Bytes;
 use derive_variants::{EnumVariants, ExtractVariant};
 use noise::key::SpkiPublicKey;
 
@@ -64,7 +63,7 @@ pub trait LoginWebsocketExt: WebsocketExt {
 
   fn recv_login_handshake_bytes(
     &mut self,
-  ) -> impl Future<Output = anyhow::Result<Bytes>> + Send {
+  ) -> impl Future<Output = anyhow::Result<Vec<u8>>> + Send {
     async {
       let LoginMessage::Handshake(bytes) =
         self.recv_login_message().await?
@@ -124,7 +123,7 @@ pub trait LoginWebsocketExt: WebsocketExt {
 
   fn recv_login_v1_passkey(
     &mut self,
-  ) -> impl Future<Output = anyhow::Result<Bytes>> + Send {
+  ) -> impl Future<Output = anyhow::Result<Vec<u8>>> + Send {
     async {
       let LoginMessage::V1Passkey(bytes) =
         self.recv_login_message().await?
@@ -151,14 +150,14 @@ impl From<LoginMessage> for Message {
 /// | <CONTENTS> | LoginMessageVariant |
 /// ```
 #[derive(Clone, Debug)]
-pub struct LoginMessageBytes(Bytes);
+pub struct LoginMessageBytes(Vec<u8>);
 
 impl CastBytes for LoginMessageBytes {
-  fn from_bytes(bytes: Bytes) -> Self {
-    Self(bytes.into())
+  fn from_vec(vec: Vec<u8>) -> Self {
+    Self(vec)
   }
-  fn into_bytes(self) -> Bytes {
-    self.0.into()
+  fn into_vec(self) -> Vec<u8> {
+    self.0
   }
 }
 
@@ -172,7 +171,7 @@ pub enum LoginMessage {
   /// to identify the connection.
   Nonce([u8; 32]),
   /// Bytes that are part of the noise handshake.
-  Handshake(Bytes),
+  Handshake(Vec<u8>),
   /// Used during Periphery -> Core connections.
   /// Core must let Periphery know which flow to use
   /// before the handshake is started, so it can use
@@ -189,7 +188,7 @@ pub enum LoginMessage {
   V1PasskeyFlow(bool),
   /// Core will send the passkey to Periphery to validate
   /// in the V1PasskeyLogin flow.
-  V1Passkey(Bytes),
+  V1Passkey(Vec<u8>),
 }
 
 impl Encode<LoginMessageBytes> for LoginMessage {
@@ -198,7 +197,7 @@ impl Encode<LoginMessageBytes> for LoginMessage {
     let mut bytes = match self {
       LoginMessage::Success => Vec::new(),
       LoginMessage::Nonce(nonce) => nonce.to_vec(),
-      LoginMessage::Handshake(bytes) => bytes.into(),
+      LoginMessage::Handshake(bytes) => bytes,
       LoginMessage::OnboardingFlow(onboarding_flow) => {
         let byte = if onboarding_flow { 1 } else { 0 };
         vec![byte]
@@ -210,17 +209,17 @@ impl Encode<LoginMessageBytes> for LoginMessage {
         let byte = if passkey_flow { 1 } else { 0 };
         vec![byte]
       }
-      LoginMessage::V1Passkey(bytes) => bytes.into(),
+      LoginMessage::V1Passkey(bytes) => bytes,
     };
     bytes.push(variant_byte);
-    LoginMessageBytes(bytes.into())
+    LoginMessageBytes(bytes)
   }
 }
 
 impl Decode<LoginMessage> for LoginMessageBytes {
   /// Parses login messages, performing various validations.
   fn decode(self) -> anyhow::Result<LoginMessage> {
-    let mut bytes: Vec<u8> = self.0.into();
+    let mut bytes = self.0;
     let variant_byte = bytes
       .pop()
       .context("Failed to parse login message | bytes are empty")?;
@@ -235,7 +234,7 @@ impl Decode<LoginMessage> for LoginMessageBytes {
           .map_err(|_| anyhow!("Invalid connection nonce"))?,
       )),
 
-      Handshake => Ok(LoginMessage::Handshake(bytes.into())),
+      Handshake => Ok(LoginMessage::Handshake(bytes)),
 
       OnboardingFlow => {
         let onboarding_flow = match bytes.as_slice() {
@@ -281,7 +280,7 @@ impl Decode<LoginMessage> for LoginMessageBytes {
             "Got empty LoginMessage V1Passkey bytes"
           ));
         }
-        Ok(LoginMessage::V1Passkey(bytes.into()))
+        Ok(LoginMessage::V1Passkey(bytes))
       }
     }
   }

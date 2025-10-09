@@ -73,7 +73,6 @@ impl Resolve<super::Args> for CloneRepo {
       replacers,
     )
     .await
-    .map_err(Into::into)
   }
 }
 
@@ -117,7 +116,6 @@ impl Resolve<super::Args> for PullRepo {
       replacers,
     )
     .await
-    .map_err(Into::into)
   }
 }
 
@@ -163,7 +161,6 @@ impl Resolve<super::Args> for PullOrCloneRepo {
       replacers,
     )
     .await
-    .map_err(Into::into)
   }
 }
 
