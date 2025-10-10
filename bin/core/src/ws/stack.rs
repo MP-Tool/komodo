@@ -21,10 +21,11 @@ pub async fn exec(
     stack,
     service,
     shell,
+    recreate,
   }): Query<ConnectStackExecQuery>,
   ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-  ws.on_upgrade(|socket| async move {
+  ws.on_upgrade(async move |socket| {
     let Some((client_socket, server, container)) =
       login_get_server_container(socket, &stack, &service).await
     else {
@@ -36,6 +37,7 @@ pub async fn exec(
       &server,
       container,
       shell,
+      recreate,
     )
     .await
   })
@@ -43,12 +45,14 @@ pub async fn exec(
 
 #[instrument(name = "ConnectStackAttach", skip(ws))]
 pub async fn attach(
-  Query(ConnectStackAttachQuery { stack, service }): Query<
-    ConnectStackAttachQuery,
-  >,
+  Query(ConnectStackAttachQuery {
+    stack,
+    service,
+    recreate,
+  }): Query<ConnectStackAttachQuery>,
   ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-  ws.on_upgrade(|socket| async move {
+  ws.on_upgrade(async move |socket| {
     let Some((client_socket, server, container)) =
       login_get_server_container(socket, &stack, &service).await
     else {
@@ -59,6 +63,7 @@ pub async fn attach(
       client_socket,
       &server,
       container,
+      recreate,
     )
     .await
   })
@@ -69,11 +74,8 @@ async fn login_get_server_container(
   stack: &str,
   service: &str,
 ) -> Option<(axum::extract::ws::WebSocket, Server, String)> {
-  let Some((mut client_socket, user)) =
-    super::user_ws_login(socket).await
-  else {
-    return None;
-  };
+  let (mut client_socket, user) =
+    super::user_ws_login(socket).await?;
 
   let stack = match get_check_permissions::<Stack>(
     stack,

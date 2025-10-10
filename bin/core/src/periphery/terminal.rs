@@ -8,6 +8,7 @@ use anyhow::Context;
 use bytes::Bytes;
 use cache::CloneCache;
 use futures::Stream;
+use komodo_client::api::write::TerminalRecreateMode;
 use periphery_client::{
   api::terminal::{
     ConnectContainerAttach, ConnectContainerExec, ConnectTerminal,
@@ -63,6 +64,7 @@ impl PeripheryClient {
     &self,
     container: String,
     shell: String,
+    recreate: TerminalRecreateMode,
   ) -> anyhow::Result<(
     Uuid,
     Sender<EncodedTransportMessage>,
@@ -78,7 +80,11 @@ impl PeripheryClient {
       )?;
 
     let channel_id = self
-      .request(ConnectContainerExec { container, shell })
+      .request(ConnectContainerExec {
+        container,
+        shell,
+        recreate,
+      })
       .await
       .context("Failed to create container exec connection")?;
 
@@ -99,6 +105,7 @@ impl PeripheryClient {
   pub async fn connect_container_attach(
     &self,
     container: String,
+    recreate: TerminalRecreateMode,
   ) -> anyhow::Result<(
     Uuid,
     Sender<EncodedTransportMessage>,
@@ -114,7 +121,10 @@ impl PeripheryClient {
       )?;
 
     let channel = self
-      .request(ConnectContainerAttach { container })
+      .request(ConnectContainerAttach {
+        container,
+        recreate,
+      })
       .await
       .context("Failed to create container attach connection")?;
 
@@ -207,6 +217,7 @@ impl PeripheryClient {
     container: String,
     shell: String,
     command: String,
+    recreate: TerminalRecreateMode,
   ) -> anyhow::Result<ReceiverStream> {
     tracing::trace!(
       "sending request | type: ExecuteContainerExec | container: {container} | shell: {shell} | command: {command}",
@@ -222,6 +233,7 @@ impl PeripheryClient {
         container,
         shell,
         command,
+        recreate,
       })
       .await
       .context("Failed to create execute terminal connection")?;

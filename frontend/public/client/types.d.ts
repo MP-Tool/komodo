@@ -4501,12 +4501,32 @@ export interface CommitSync {
     /** Id or name */
     sync: string;
 }
+/**
+ * Configures the behavior of [CreateTerminal] if the
+ * specified terminal name already exists.
+ */
+export declare enum TerminalRecreateMode {
+    /**
+     * Never kill the old terminal if it already exists.
+     * If the command is different, returns error.
+     */
+    Never = "Never",
+    /** Always kill the old terminal and create new one */
+    Always = "Always",
+    /** Only kill and recreate if the command is different. */
+    DifferentCommand = "DifferentCommand"
+}
 /** Query to connect to a container attach session (interactive shell over websocket) on the given server. */
 export interface ConnectContainerAttachQuery {
     /** Server Id or name */
     server: string;
     /** The container name */
     container: string;
+    /**
+     * Specify the recreate behavior.
+     * Default is 'DifferentCommand'
+     */
+    recreate: TerminalRecreateMode;
 }
 /** Query to connect to a container exec session (interactive shell over websocket) on the given server. */
 export interface ConnectContainerExecQuery {
@@ -4516,6 +4536,11 @@ export interface ConnectContainerExecQuery {
     container: string;
     /** The shell to use (eg. `sh` or `bash`) */
     shell: string;
+    /**
+     * Specify the recreate behavior.
+     * Default is 'DifferentCommand'
+     */
+    recreate: TerminalRecreateMode;
 }
 /**
  * Query to connect to a container attach session (interactive shell over websocket) on the given Deployment.
@@ -4524,6 +4549,11 @@ export interface ConnectContainerExecQuery {
 export interface ConnectDeploymentAttachQuery {
     /** Deployment Id or name */
     deployment: string;
+    /**
+     * Specify the recreate behavior.
+     * Default is 'DifferentCommand'
+     */
+    recreate: TerminalRecreateMode;
 }
 /**
  * Query to connect to a container exec session (interactive shell over websocket) on the given Deployment.
@@ -4534,6 +4564,11 @@ export interface ConnectDeploymentExecQuery {
     deployment: string;
     /** The shell to use (eg. `sh` or `bash`) */
     shell: string;
+    /**
+     * Specify the recreate behavior.
+     * Default is 'DifferentCommand'
+     */
+    recreate: TerminalRecreateMode;
 }
 /**
  * Query to connect to a container attach session (interactive shell over websocket) on the given Stack / service.
@@ -4544,6 +4579,11 @@ export interface ConnectStackAttachQuery {
     stack: string;
     /** The service name to attach to */
     service: string;
+    /**
+     * Specify the recreate behavior.
+     * Default is 'DifferentCommand'
+     */
+    recreate: TerminalRecreateMode;
 }
 /**
  * Query to connect to a container exec session (interactive shell over websocket) on the given Stack / service.
@@ -4556,6 +4596,11 @@ export interface ConnectStackExecQuery {
     service: string;
     /** The shell to use (eg. `sh` or `bash`) */
     shell: string;
+    /**
+     * Specify the recreate behavior.
+     * Default is 'DifferentCommand'
+     */
+    recreate: TerminalRecreateMode;
 }
 /** Query to connect to a terminal (interactive shell over websocket) on the given server. */
 export interface ConnectTerminalQuery {
@@ -5094,21 +5139,6 @@ export interface CreateTag {
     color?: TagColor;
 }
 /**
- * Configures the behavior of [CreateTerminal] if the
- * specified terminal name already exists.
- */
-export declare enum TerminalRecreateMode {
-    /**
-     * Never kill the old terminal if it already exists.
-     * If the command is different, returns error.
-     */
-    Never = "Never",
-    /** Always kill the old terminal and create new one */
-    Always = "Always",
-    /** Only kill and recreate if the command is different. */
-    DifferentCommand = "DifferentCommand"
-}
-/**
  * Create a terminal on the server.
  * Response: [NoData]
  */
@@ -5473,6 +5503,11 @@ export interface ExecuteContainerExecBody {
     shell: string;
     /** The command to execute. */
     command: string;
+    /**
+     * Specify the recreate behavior.
+     * Default is 'DifferentCommand'
+     */
+    recreate: TerminalRecreateMode;
 }
 /** Execute a command in the given containers shell. */
 export interface ExecuteDeploymentExecBody {
@@ -5482,6 +5517,11 @@ export interface ExecuteDeploymentExecBody {
     shell: string;
     /** The command to execute. */
     command: string;
+    /**
+     * Specify the recreate behavior.
+     * Default is 'DifferentCommand'
+     */
+    recreate: TerminalRecreateMode;
 }
 /** Execute a command in the given containers shell. */
 export interface ExecuteStackExecBody {
@@ -5493,17 +5533,17 @@ export interface ExecuteStackExecBody {
     shell: string;
     /** The command to execute. */
     command: string;
+    /**
+     * Specify the recreate behavior.
+     * Default is 'DifferentCommand'
+     */
+    recreate: TerminalRecreateMode;
 }
 /** Execute a terminal command on the given server. */
 export interface ExecuteTerminalBody {
     /** Server Id or name */
     server: string;
-    /**
-     * The name of the terminal on the server to use to execute.
-     * If the terminal at name exists, it will be used to execute the command.
-     * Otherwise, a new terminal will be created for this command, which will
-     * persist until it exits or is deleted.
-     */
+    /** The name of the terminal on the server to use to execute. */
     terminal: string;
     /** The command to execute. */
     command: string;
@@ -8080,6 +8120,10 @@ export type AuthRequest = {
     type: "GetUser";
     params: GetUser;
 };
+export declare enum ContainerTerminalMode {
+    Exec = "exec",
+    Attach = "attach"
+}
 /** Days of the week */
 export declare enum DayOfWeek {
     Monday = "Monday",

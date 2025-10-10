@@ -2,9 +2,9 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
 use futures::{Stream, StreamExt, TryStreamExt};
-use komodo_client::{
-  api::write::TerminalRecreateMode,
-  entities::{KOMODO_EXIT_CODE, NoData, server::TerminalInfo},
+use komodo_client::entities::{
+  ContainerTerminalMode, KOMODO_EXIT_CODE, NoData,
+  server::TerminalInfo,
 };
 use periphery_client::{
   api::terminal::*, transport::EncodedTransportMessage,
@@ -27,7 +27,7 @@ impl Resolve<super::Args> for ListTerminals {
     _: &super::Args,
   ) -> anyhow::Result<Vec<TerminalInfo>> {
     clean_up_terminals().await;
-    Ok(list_terminals().await)
+    Ok(list_terminals(self.container.as_deref()).await)
   }
 }
 
@@ -41,7 +41,7 @@ impl Resolve<super::Args> for CreateTerminal {
         "Terminals are disabled in the periphery config"
       ));
     }
-    create_terminal(self.name, self.command, self.recreate)
+    create_terminal(self.name, self.command, self.recreate, None)
       .await
       .map(|_| NoData {})
   }
@@ -110,7 +110,11 @@ impl Resolve<super::Args> for ConnectContainerExec {
         || format!("Failed to find channel for {}", args.core),
       )?;
 
-    let ConnectContainerExec { container, shell } = self;
+    let ConnectContainerExec {
+      container,
+      shell,
+      recreate,
+    } = self;
 
     if container.contains("&&") || shell.contains("&&") {
       return Err(anyhow!(
@@ -122,7 +126,8 @@ impl Resolve<super::Args> for ConnectContainerExec {
     let terminal = create_terminal(
       container.clone(),
       format!("docker exec -it {container} {shell}"),
-      TerminalRecreateMode::DifferentCommand,
+      recreate,
+      Some((container, ContainerTerminalMode::Exec)),
     )
     .await
     .context("Failed to create terminal for container exec")?;
@@ -150,7 +155,10 @@ impl Resolve<super::Args> for ConnectContainerAttach {
         || format!("Failed to find channel for {}", args.core),
       )?;
 
-    let ConnectContainerAttach { container } = self;
+    let ConnectContainerAttach {
+      container,
+      recreate,
+    } = self;
 
     if container.contains("&&") {
       return Err(anyhow!(
@@ -161,8 +169,9 @@ impl Resolve<super::Args> for ConnectContainerAttach {
     // Create (recreate if shell changed)
     let terminal = create_terminal(
       container.clone(),
-      format!("docker attach {container}"),
-      TerminalRecreateMode::DifferentCommand,
+      format!("docker attach {container} --sig-proxy=false"),
+      recreate,
+      Some((container, ContainerTerminalMode::Attach)),
     )
     .await
     .context("Failed to create terminal for container attach")?;
@@ -242,6 +251,7 @@ impl Resolve<super::Args> for ExecuteContainerExec {
       container,
       shell,
       command,
+      recreate,
     } = self;
 
     if container.contains("&&") || shell.contains("&&") {
@@ -255,11 +265,11 @@ impl Resolve<super::Args> for ExecuteContainerExec {
         || format!("Failed to find channel for {}", args.core),
       )?;
 
-    // Create terminal (recreate if shell changed)
     let terminal = create_terminal(
       container.clone(),
       format!("docker exec -it {container} {shell}"),
-      TerminalRecreateMode::DifferentCommand,
+      recreate,
+      Some((container, ContainerTerminalMode::Exec)),
     )
     .await
     .context("Failed to create terminal for container exec")?;

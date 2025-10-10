@@ -604,6 +604,11 @@ export var SearchCombinator;
     SearchCombinator["Or"] = "Or";
     SearchCombinator["And"] = "And";
 })(SearchCombinator || (SearchCombinator = {}));
+export var ContainerTerminalMode;
+(function (ContainerTerminalMode) {
+    ContainerTerminalMode["Exec"] = "exec";
+    ContainerTerminalMode["Attach"] = "attach";
+})(ContainerTerminalMode || (ContainerTerminalMode = {}));
 /** Days of the week */
 export var DayOfWeek;
 (function (DayOfWeek) {

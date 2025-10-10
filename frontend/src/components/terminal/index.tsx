@@ -26,7 +26,7 @@ export const Terminal = ({
   _reconnect,
   _clear,
 }: {
-  make_ws: (callbacks: TerminalCallbacks) => WebSocket;
+  make_ws: (callbacks: TerminalCallbacks) => WebSocket | undefined;
   selected: boolean;
   _reconnect: boolean;
   _clear?: boolean;
@@ -140,6 +140,8 @@ export const Terminal = ({
     };
 
     const ws = make_ws(callbacks);
+
+    if (!ws) return;
 
     wsRef.current = ws;
 

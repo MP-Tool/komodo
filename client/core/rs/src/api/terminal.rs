@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
+use crate::api::write::TerminalRecreateMode;
+
 /// Query to connect to a terminal (interactive shell over websocket) on the given server.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -21,9 +23,6 @@ pub struct ExecuteTerminalBody {
   /// Server Id or name
   pub server: String,
   /// The name of the terminal on the server to use to execute.
-  /// If the terminal at name exists, it will be used to execute the command.
-  /// Otherwise, a new terminal will be created for this command, which will
-  /// persist until it exits or is deleted.
   pub terminal: String,
   /// The command to execute.
   pub command: String,
@@ -39,6 +38,10 @@ pub struct ConnectContainerExecQuery {
   pub container: String,
   /// The shell to use (eg. `sh` or `bash`)
   pub shell: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 /// Query to connect to a container attach session (interactive shell over websocket) on the given server.
@@ -49,6 +52,10 @@ pub struct ConnectContainerAttachQuery {
   pub server: String,
   /// The container name
   pub container: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 /// Execute a command in the given containers shell.
@@ -63,6 +70,10 @@ pub struct ExecuteContainerExecBody {
   pub shell: String,
   /// The command to execute.
   pub command: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 /// Query to connect to a container exec session (interactive shell over websocket) on the given Deployment.
@@ -74,6 +85,10 @@ pub struct ConnectDeploymentExecQuery {
   pub deployment: String,
   /// The shell to use (eg. `sh` or `bash`)
   pub shell: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 /// Query to connect to a container attach session (interactive shell over websocket) on the given Deployment.
@@ -83,6 +98,10 @@ pub struct ConnectDeploymentExecQuery {
 pub struct ConnectDeploymentAttachQuery {
   /// Deployment Id or name
   pub deployment: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 /// Execute a command in the given containers shell.
@@ -95,6 +114,10 @@ pub struct ExecuteDeploymentExecBody {
   pub shell: String,
   /// The command to execute.
   pub command: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 /// Query to connect to a container exec session (interactive shell over websocket) on the given Stack / service.
@@ -108,6 +131,10 @@ pub struct ConnectStackExecQuery {
   pub service: String,
   /// The shell to use (eg. `sh` or `bash`)
   pub shell: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 /// Query to connect to a container attach session (interactive shell over websocket) on the given Stack / service.
@@ -119,6 +146,10 @@ pub struct ConnectStackAttachQuery {
   pub stack: String,
   /// The service name to attach to
   pub service: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 /// Execute a command in the given containers shell.
@@ -133,4 +164,12 @@ pub struct ExecuteStackExecBody {
   pub shell: String,
   /// The command to execute.
   pub command: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
+}
+
+fn default_container_recreate_mode() -> TerminalRecreateMode {
+  TerminalRecreateMode::DifferentCommand
 }

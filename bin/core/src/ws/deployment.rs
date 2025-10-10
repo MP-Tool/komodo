@@ -17,12 +17,14 @@ use crate::{permission::get_check_permissions, resource::get};
 
 #[instrument(name = "ConnectDeploymentExec", skip(ws))]
 pub async fn exec(
-  Query(ConnectDeploymentExecQuery { deployment, shell }): Query<
-    ConnectDeploymentExecQuery,
-  >,
+  Query(ConnectDeploymentExecQuery {
+    deployment,
+    shell,
+    recreate,
+  }): Query<ConnectDeploymentExecQuery>,
   ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-  ws.on_upgrade(|socket| async move {
+  ws.on_upgrade(async move |socket| {
     let Some((mut client_socket, user)) =
       super::user_ws_login(socket).await
     else {
@@ -65,6 +67,7 @@ pub async fn exec(
       &server,
       deployment.name,
       shell,
+      recreate,
     )
     .await
   })
@@ -72,12 +75,13 @@ pub async fn exec(
 
 #[instrument(name = "ConnectDeploymentAttach", skip(ws))]
 pub async fn attach(
-  Query(ConnectDeploymentAttachQuery { deployment }): Query<
-    ConnectDeploymentAttachQuery,
-  >,
+  Query(ConnectDeploymentAttachQuery {
+    deployment,
+    recreate,
+  }): Query<ConnectDeploymentAttachQuery>,
   ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-  ws.on_upgrade(|socket| async move {
+  ws.on_upgrade(async move |socket| {
     let Some((mut client_socket, user)) =
       super::user_ws_login(socket).await
     else {
@@ -119,6 +123,7 @@ pub async fn attach(
       client_socket,
       &server,
       deployment.name,
+      recreate,
     )
     .await
   })

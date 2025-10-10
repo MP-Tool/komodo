@@ -13,7 +13,11 @@ pub const END_OF_OUTPUT: &str = "__KOMODO_END_OF_OUTPUT__";
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(Vec<TerminalInfo>)]
 #[error(anyhow::Error)]
-pub struct ListTerminals {}
+pub struct ListTerminals {
+  /// If none, only includes non-container terminals.
+  /// if Some, only includes that containers terminals.
+  pub container: Option<String>,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(NoData)]
@@ -58,6 +62,10 @@ pub struct ConnectContainerExec {
   /// Default: `sh`
   #[serde(default = "default_container_shell")]
   pub shell: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 //
@@ -68,6 +76,10 @@ pub struct ConnectContainerExec {
 pub struct ConnectContainerAttach {
   /// The name of the container to attach to.
   pub container: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 //
@@ -125,8 +137,16 @@ pub struct ExecuteContainerExec {
   pub shell: String,
   /// The command to execute.
   pub command: String,
+  /// Specify the recreate behavior.
+  /// Default is 'DifferentCommand'
+  #[serde(default = "default_container_recreate_mode")]
+  pub recreate: TerminalRecreateMode,
 }
 
 fn default_container_shell() -> String {
   String::from("sh")
+}
+
+fn default_container_recreate_mode() -> TerminalRecreateMode {
+  TerminalRecreateMode::DifferentCommand
 }

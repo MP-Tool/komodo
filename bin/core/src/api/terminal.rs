@@ -95,6 +95,7 @@ async fn execute_container_exec_inner(
     container,
     shell,
     command,
+    recreate,
   }: ExecuteContainerExecBody,
   user: User,
 ) -> serror::Result<axum::body::Body> {
@@ -110,7 +111,7 @@ async fn execute_container_exec_inner(
   let periphery = periphery_client(&server).await?;
 
   let stream = periphery
-    .execute_container_exec(container, shell, command)
+    .execute_container_exec(container, shell, command, recreate)
     .await
     .context(
       "Failed to execute container exec command on periphery",
@@ -143,6 +144,7 @@ async fn execute_deployment_exec_inner(
     deployment,
     shell,
     command,
+    recreate,
   }: ExecuteDeploymentExecBody,
   user: User,
 ) -> serror::Result<axum::body::Body> {
@@ -160,7 +162,7 @@ async fn execute_deployment_exec_inner(
   let periphery = periphery_client(&server).await?;
 
   let stream = periphery
-    .execute_container_exec(deployment.name, shell, command)
+    .execute_container_exec(deployment.name, shell, command, recreate)
     .await
     .context(
       "Failed to execute container exec command on periphery",
@@ -194,6 +196,7 @@ async fn execute_stack_exec_inner(
     service,
     shell,
     command,
+    recreate,
   }: ExecuteStackExecBody,
   user: User,
 ) -> serror::Result<axum::body::Body> {
@@ -226,7 +229,7 @@ async fn execute_stack_exec_inner(
   let periphery = periphery_client(&server).await?;
 
   let stream = periphery
-    .execute_container_exec(container, shell, command)
+    .execute_container_exec(container, shell, command, recreate)
     .await
     .context(
       "Failed to execute container exec command on periphery",

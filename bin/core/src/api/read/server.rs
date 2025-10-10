@@ -885,7 +885,9 @@ impl Resolve<ReadArgs> for ListTerminals {
     if self.fresh || komodo_timestamp() > cache.ttl {
       cache.list = periphery_client(&server)
         .await?
-        .request(periphery_client::api::terminal::ListTerminals {})
+        .request(periphery_client::api::terminal::ListTerminals {
+          container: None,
+        })
         .await
         .context("Failed to get fresh terminal list")?;
       cache.ttl = komodo_timestamp() + TERMINAL_CACHE_TIMEOUT;

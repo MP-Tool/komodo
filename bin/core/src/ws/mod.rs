@@ -13,6 +13,7 @@ use axum::{
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
 use komodo_client::{
+  api::write::TerminalRecreateMode,
   entities::{server::Server, user::User},
   ws::WsLoginMessage,
 };
@@ -141,6 +142,7 @@ async fn handle_container_exec_terminal(
   server: &Server,
   container: String,
   shell: String,
+  recreate: TerminalRecreateMode,
 ) {
   let periphery = match crate::helpers::periphery_client(server).await
   {
@@ -158,7 +160,10 @@ async fn handle_container_exec_terminal(
   trace!("connecting to periphery container exec websocket");
 
   let (periphery_connection_id, periphery_sender, periphery_receiver) =
-    match periphery.connect_container_exec(container, shell).await {
+    match periphery
+      .connect_container_exec(container, shell, recreate)
+      .await
+    {
       Ok(ws) => ws,
       Err(e) => {
         debug!(
@@ -188,6 +193,7 @@ async fn handle_container_attach_terminal(
   mut client_socket: WebSocket,
   server: &Server,
   container: String,
+  recreate: TerminalRecreateMode,
 ) {
   let periphery = match crate::helpers::periphery_client(server).await
   {
@@ -205,7 +211,10 @@ async fn handle_container_attach_terminal(
   trace!("connecting to periphery container exec websocket");
 
   let (periphery_connection_id, periphery_sender, periphery_receiver) =
-    match periphery.connect_container_attach(container).await {
+    match periphery
+      .connect_container_attach(container, recreate)
+      .await
+    {
       Ok(ws) => ws,
       Err(e) => {
         debug!(

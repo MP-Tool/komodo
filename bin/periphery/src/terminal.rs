@@ -9,7 +9,8 @@ use bytes::Bytes;
 use cache::CloneCache;
 use encoding::{Decode as _, WithChannel};
 use komodo_client::{
-  api::write::TerminalRecreateMode, entities::server::TerminalInfo,
+  api::write::TerminalRecreateMode,
+  entities::{ContainerTerminalMode, server::TerminalInfo},
 };
 use periphery_client::transport::EncodedTerminalMessage;
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
@@ -146,6 +147,7 @@ pub async fn create_terminal(
   name: String,
   command: String,
   recreate: TerminalRecreateMode,
+  container: Option<(String, ContainerTerminalMode)>,
 ) -> anyhow::Result<Arc<Terminal>> {
   trace!(
     "CreateTerminal: {name} | command: {command} | recreate: {recreate:?}"
@@ -165,7 +167,7 @@ pub async fn create_terminal(
     }
   }
   let terminal = Arc::new(
-    Terminal::new(command)
+    Terminal::new(command, container)
       .await
       .context("Failed to init terminal")?,
   );
@@ -181,11 +183,25 @@ pub async fn delete_terminal(name: &str) {
   }
 }
 
-pub async fn list_terminals() -> Vec<TerminalInfo> {
+pub async fn list_terminals(
+  container: Option<&str>,
+) -> Vec<TerminalInfo> {
   let mut terminals = terminals()
     .read()
     .await
     .iter()
+    .filter(|(_, terminal)| {
+      // If no container passed, returns all
+      let Some(container) = container else {
+        return true;
+      };
+      let Some(term_container) =
+        terminal.container.as_ref().map(|c| c.0.as_str())
+      else {
+        return false;
+      };
+      term_container == container
+    })
     .map(|(name, terminal)| TerminalInfo {
       name: name.to_string(),
       command: terminal.command.clone(),
@@ -252,10 +268,16 @@ pub struct Terminal {
   pub stdout: StdoutReceiver,
 
   pub history: Arc<History>,
+
+  /// If terminal is for a container.
+  pub container: Option<(String, ContainerTerminalMode)>,
 }
 
 impl Terminal {
-  async fn new(command: String) -> anyhow::Result<Terminal> {
+  async fn new(
+    command: String,
+    container: Option<(String, ContainerTerminalMode)>,
+  ) -> anyhow::Result<Terminal> {
     trace!("Creating terminal with command: {command}");
 
     let terminal = native_pty_system()
@@ -421,6 +443,7 @@ impl Terminal {
       stdin,
       stdout,
       history,
+      container,
     })
   }
 

@@ -18,10 +18,11 @@ pub async fn exec(
     server,
     container,
     shell,
+    recreate,
   }): Query<ConnectContainerExecQuery>,
   ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-  ws.on_upgrade(|socket| async move {
+  ws.on_upgrade(async move |socket| {
     let Some((mut client_socket, user)) =
       super::user_ws_login(socket).await
     else {
@@ -51,6 +52,7 @@ pub async fn exec(
       &server,
       container,
       shell,
+      recreate,
     )
     .await
   })
@@ -58,12 +60,14 @@ pub async fn exec(
 
 #[instrument(name = "ConnectContainerAttach", skip(ws))]
 pub async fn attach(
-  Query(ConnectContainerAttachQuery { server, container }): Query<
-    ConnectContainerAttachQuery,
-  >,
+  Query(ConnectContainerAttachQuery {
+    server,
+    container,
+    recreate,
+  }): Query<ConnectContainerAttachQuery>,
   ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-  ws.on_upgrade(|socket| async move {
+  ws.on_upgrade(async move |socket| {
     let Some((mut client_socket, user)) =
       super::user_ws_login(socket).await
     else {
@@ -92,6 +96,7 @@ pub async fn attach(
       client_socket,
       &server,
       container,
+      recreate,
     )
     .await
   })
