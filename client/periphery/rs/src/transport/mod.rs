@@ -96,7 +96,7 @@ pub enum DecodedTransportMessage {
 impl Encode<TransportMessage> for DecodedTransportMessage {
   fn encode(self) -> TransportMessage {
     use DecodedTransportMessage::*;
-    match self.into() {
+    match self {
       Login(res) => TransportMessage::Login(EncodedLoginMessage(
         res.map(LoginMessage::encode).encode(),
       )),

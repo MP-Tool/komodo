@@ -11,7 +11,9 @@ use encoding::{
   EncodedJsonMessage,
 };
 use noise::key::SpkiPublicKey;
-use periphery_client::transport::{EncodedTransportMessage, TransportMessage};
+use periphery_client::transport::{
+  EncodedTransportMessage, TransportMessage,
+};
 use resolver_api::Resolve;
 use transport::{
   auth::{
