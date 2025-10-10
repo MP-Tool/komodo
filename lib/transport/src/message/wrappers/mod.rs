@@ -2,6 +2,6 @@ mod channel;
 mod option;
 mod result;
 
-pub use channel::{ChannelWrapper, WithChannel};
-pub use option::OptionWrapper;
-pub use result::ResultWrapper;
+pub use channel::{EncodedChannel, WithChannel};
+pub use option::EncodedOption;
+pub use result::EncodedResult;

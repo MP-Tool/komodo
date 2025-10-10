@@ -15,9 +15,9 @@ use transport::{
   },
   channel::{BufferedChannel, BufferedReceiver, Sender},
   message::{
-    CastBytes, Decode, Encode, Message, MessageBytes,
-    json::JsonMessageBytes,
-    wrappers::{ChannelWrapper, WithChannel},
+    CastBytes, Decode, Encode, EncodedTransportMessage,
+    TransportMessage, json::EncodedJsonMessage,
+    wrappers::EncodedChannel,
   },
   websocket::{
     Websocket, WebsocketReceiverExt as _, WebsocketSender as _,
@@ -34,7 +34,7 @@ pub mod server;
 
 // Core Address / Host -> Channel
 pub type CoreChannels =
-  CloneCache<String, Arc<BufferedChannel<MessageBytes>>>;
+  CloneCache<String, Arc<BufferedChannel<EncodedTransportMessage>>>;
 
 pub fn core_channels() -> &'static CoreChannels {
   static CORE_CHANNELS: OnceLock<CoreChannels> = OnceLock::new();
@@ -130,8 +130,8 @@ async fn handle_login<W: Websocket, L: LoginFlow>(
 async fn handle_socket<W: Websocket>(
   socket: W,
   args: &Arc<Args>,
-  sender: &Sender<MessageBytes>,
-  receiver: &mut BufferedReceiver<MessageBytes>,
+  sender: &Sender<EncodedTransportMessage>,
+  receiver: &mut BufferedReceiver<EncodedTransportMessage>,
 ) {
   let config = periphery_config();
   info!(
@@ -179,11 +179,11 @@ async fn handle_socket<W: Websocket>(
         }
       };
       match message {
-        Message::Request(message) => {
-          handle_request(args.clone(), sender.clone(), message)
+        TransportMessage::Request(message) => {
+          handle_request(args.clone(), sender.clone(), message.0)
         }
-        Message::Terminal(message) => {
-          crate::terminal::handle_message(message).await
+        TransportMessage::Terminal(message) => {
+          crate::terminal::handle_message(message.0).await
         }
         // Rest shouldn't be received by Periphery
         _ => {}
@@ -199,8 +199,8 @@ async fn handle_socket<W: Websocket>(
 
 fn handle_request(
   args: Arc<Args>,
-  sender: Sender<MessageBytes>,
-  message: ChannelWrapper<JsonMessageBytes>,
+  sender: Sender<EncodedTransportMessage>,
+  message: EncodedChannel<EncodedJsonMessage>,
 ) {
   tokio::spawn(async move {
     let (channel, request): (_, PeripheryRequest) = match message
@@ -216,18 +216,11 @@ fn handle_request(
     };
 
     let resolve_response = async {
-      let data = match request.resolve(&args).await {
+      let response = match request.resolve(&args).await {
         Ok(res) => res,
         Err(e) => (&e).encode(),
       };
-      let message = WithChannel {
-        channel,
-        data: Some(data).encode(),
-      }
-      .encode();
-      if let Err(e) =
-        sender.send_message(Message::Response(message)).await
-      {
+      if let Err(e) = sender.send_response(channel, response).await {
         error!("Failed to send response over channel | {e:?}");
       }
     };

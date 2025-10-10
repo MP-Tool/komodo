@@ -11,15 +11,15 @@ use crate::message::{CastBytes, Decode, Encode};
 /// | <CONTENTS> |  Channel Uuid  |
 /// ```
 #[derive(Clone, Debug)]
-pub struct ChannelWrapper<T>(T);
+pub struct EncodedChannel<T>(T);
 
-impl<T> From<T> for ChannelWrapper<T> {
+impl<T> From<T> for EncodedChannel<T> {
   fn from(value: T) -> Self {
     Self(value)
   }
 }
 
-impl<T: CastBytes> CastBytes for ChannelWrapper<T> {
+impl<T: CastBytes> CastBytes for EncodedChannel<T> {
   fn from_bytes(bytes: Bytes) -> Self {
     Self(T::from_bytes(bytes))
   }
@@ -39,17 +39,35 @@ pub struct WithChannel<T> {
   pub data: T,
 }
 
-impl<T: CastBytes + Send> Encode<ChannelWrapper<T>>
-  for WithChannel<T>
-{
-  fn encode(self) -> ChannelWrapper<T> {
-    let mut bytes = self.data.into_vec();
-    bytes.extend(self.channel.into_bytes());
-    ChannelWrapper(T::from_vec(bytes))
+impl<T> WithChannel<T> {
+  pub fn map<R>(self, map: impl FnOnce(T) -> R) -> WithChannel<R> {
+    WithChannel {
+      channel: self.channel,
+      data: map(self.data),
+    }
   }
 }
 
-impl<T: CastBytes> Decode<WithChannel<T>> for ChannelWrapper<T> {
+impl<T, E: Encode<T>> Encode<WithChannel<T>> for WithChannel<E> {
+  fn encode(self) -> WithChannel<T> {
+    WithChannel {
+      channel: self.channel,
+      data: self.data.encode(),
+    }
+  }
+}
+
+impl<T: CastBytes + Send> Encode<EncodedChannel<T>>
+  for WithChannel<T>
+{
+  fn encode(self) -> EncodedChannel<T> {
+    let mut bytes = self.data.into_vec();
+    bytes.extend(self.channel.into_bytes());
+    EncodedChannel(T::from_vec(bytes))
+  }
+}
+
+impl<T: CastBytes> Decode<WithChannel<T>> for EncodedChannel<T> {
   fn decode(self) -> anyhow::Result<WithChannel<T>> {
     let mut bytes = self.0.into_vec();
     let len = bytes.len();

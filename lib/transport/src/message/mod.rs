@@ -4,8 +4,8 @@ pub mod json;
 pub mod login;
 pub mod wrappers;
 
-mod root;
-pub use root::*;
+mod transport;
+pub use transport::*;
 
 pub trait Encode<Target>: Sized + Send {
   fn encode(self) -> Target;

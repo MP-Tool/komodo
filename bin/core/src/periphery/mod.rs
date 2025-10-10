@@ -8,7 +8,7 @@ use serde_json::json;
 use transport::{
   channel::channel,
   message::{
-    Decode, Encode, Message, json::JsonMessage, wrappers::WithChannel,
+    Decode, Encode, TransportMessage, json::JsonMessage, wrappers::WithChannel,
   },
 };
 use uuid::Uuid;
@@ -122,7 +122,7 @@ impl PeripheryClient {
     .encode()?;
 
     if let Err(e) = connection
-      .send(Message::Request(
+      .send(TransportMessage::Request(
         WithChannel {
           channel: channel_id,
           data,

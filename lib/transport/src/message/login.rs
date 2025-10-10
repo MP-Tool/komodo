@@ -4,7 +4,10 @@ use noise::key::SpkiPublicKey;
 
 use crate::{
   auth::AUTH_TIMEOUT,
-  message::{CastBytes, Decode, Encode, Message},
+  message::{
+    CastBytes, Decode, DecodedTransportMessage, Encode,
+    EncodedLoginMessage, TransportMessage,
+  },
   websocket::{Websocket, WebsocketExt},
 };
 
@@ -13,7 +16,8 @@ pub trait LoginWebsocketExt: WebsocketExt {
     &mut self,
     e: &anyhow::Error,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    let message = Message::Login(e.encode());
+    let message =
+      TransportMessage::Login(EncodedLoginMessage(e.encode()));
     self.send(message)
   }
 
@@ -21,14 +25,14 @@ pub trait LoginWebsocketExt: WebsocketExt {
     &mut self,
   ) -> impl Future<Output = anyhow::Result<LoginMessage>> + Send {
     async {
-      let Message::Login(message) =
+      let TransportMessage::Login(message) =
         self.recv().with_timeout(AUTH_TIMEOUT).await?
       else {
         return Err(anyhow!(
           "Expected Login message, got other message type"
         ));
       };
-      message.decode_into()
+      message.0.decode_into()
     }
   }
 
@@ -139,9 +143,9 @@ pub trait LoginWebsocketExt: WebsocketExt {
 
 impl<W: Websocket> LoginWebsocketExt for W {}
 
-impl From<LoginMessage> for Message {
+impl From<LoginMessage> for TransportMessage {
   fn from(value: LoginMessage) -> Self {
-    Self::Login(Ok(value.encode()).encode())
+    DecodedTransportMessage::Login(Ok(value)).encode()
   }
 }
 
@@ -150,9 +154,9 @@ impl From<LoginMessage> for Message {
 /// | <CONTENTS> | LoginMessageVariant |
 /// ```
 #[derive(Clone, Debug)]
-pub struct LoginMessageBytes(Vec<u8>);
+pub struct InnerEncodedLoginMessage(Vec<u8>);
 
-impl CastBytes for LoginMessageBytes {
+impl CastBytes for InnerEncodedLoginMessage {
   fn from_vec(vec: Vec<u8>) -> Self {
     Self(vec)
   }
@@ -191,8 +195,8 @@ pub enum LoginMessage {
   V1Passkey(Vec<u8>),
 }
 
-impl Encode<LoginMessageBytes> for LoginMessage {
-  fn encode(self) -> LoginMessageBytes {
+impl Encode<InnerEncodedLoginMessage> for LoginMessage {
+  fn encode(self) -> InnerEncodedLoginMessage {
     let variant_byte = self.extract_variant().as_byte();
     let mut bytes = match self {
       LoginMessage::Success => Vec::new(),
@@ -212,11 +216,11 @@ impl Encode<LoginMessageBytes> for LoginMessage {
       LoginMessage::V1Passkey(bytes) => bytes,
     };
     bytes.push(variant_byte);
-    LoginMessageBytes(bytes)
+    InnerEncodedLoginMessage(bytes)
   }
 }
 
-impl Decode<LoginMessage> for LoginMessageBytes {
+impl Decode<LoginMessage> for InnerEncodedLoginMessage {
   /// Parses login messages, performing various validations.
   fn decode(self) -> anyhow::Result<LoginMessage> {
     let mut bytes = self.0;

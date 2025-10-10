@@ -24,9 +24,9 @@ use transport::{
   },
   channel::{BufferedReceiver, Sender, buffered_channel},
   message::{
-    CastBytes, Decode, Encode, Message, MessageBytes,
-    json::JsonMessageBytes,
-    wrappers::{OptionWrapper, ResultWrapper, WithChannel},
+    CastBytes, Decode, Encode, TransportMessage, EncodedTransportMessage,
+    json::EncodedJsonMessage,
+    wrappers::{EncodedOption, EncodedResult, WithChannel},
   },
   websocket::{
     Websocket, WebsocketMessage, WebsocketReceiver as _,
@@ -56,7 +56,7 @@ impl PeripheryConnections {
     &self,
     server_id: String,
     args: PeripheryConnectionArgs<'_>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<MessageBytes>) {
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver<EncodedTransportMessage>) {
     let (connection, receiver) = if let Some(existing_connection) =
       self.0.remove(&server_id).await
     {
@@ -250,7 +250,7 @@ impl<'a> From<&'a OwnedPeripheryConnectionArgs>
 /// Sends None as InProgress ping.
 pub type ResponseChannels = CloneCache<
   Uuid,
-  Sender<OptionWrapper<ResultWrapper<JsonMessageBytes>>>,
+  Sender<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
 >;
 
 pub type TerminalChannels = CloneCache<Uuid, Sender<Vec<u8>>>;
@@ -260,7 +260,7 @@ pub struct PeripheryConnection {
   /// The connection args
   pub args: OwnedPeripheryConnectionArgs,
   /// Send and receive bytes over the connection socket.
-  pub sender: Sender<MessageBytes>,
+  pub sender: Sender<EncodedTransportMessage>,
   /// Cancel the connection
   pub cancel: CancellationToken,
   /// Whether Periphery is currently connected.
@@ -278,7 +278,7 @@ pub struct PeripheryConnection {
 impl PeripheryConnection {
   pub fn new(
     args: impl Into<OwnedPeripheryConnectionArgs>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<MessageBytes>) {
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver<EncodedTransportMessage>) {
     let (sender, receiever) = buffered_channel();
     (
       PeripheryConnection {
@@ -298,7 +298,7 @@ impl PeripheryConnection {
   pub fn with_new_args(
     &self,
     args: impl Into<OwnedPeripheryConnectionArgs>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<MessageBytes>) {
+  ) -> (Arc<PeripheryConnection>, BufferedReceiver<EncodedTransportMessage>) {
     // Ensure this connection is cancelled.
     self.cancel();
     let (sender, receiever) = buffered_channel();
@@ -337,7 +337,7 @@ impl PeripheryConnection {
   pub async fn handle_socket<W: Websocket>(
     &self,
     socket: W,
-    receiver: &mut BufferedReceiver<MessageBytes>,
+    receiver: &mut BufferedReceiver<EncodedTransportMessage>,
   ) {
     let cancel = self.cancel.child_token();
 
@@ -392,8 +392,8 @@ impl PeripheryConnection {
     self.set_connected(false);
   }
 
-  pub async fn handle_incoming_message(&self, message: MessageBytes) {
-    let message: Message = match message.decode() {
+  pub async fn handle_incoming_message(&self, message: EncodedTransportMessage) {
+    let message: TransportMessage = match message.decode() {
       Ok(res) => res,
       Err(e) => {
         warn!("Failed to parse Message bytes | {e:#}");
@@ -401,7 +401,7 @@ impl PeripheryConnection {
       }
     };
     match message {
-      Message::Response(data) => match data.decode() {
+      TransportMessage::Response(data) => match data.decode() {
         Ok(WithChannel {
           channel: channel_id,
           data,
@@ -423,7 +423,7 @@ impl PeripheryConnection {
           warn!("Failed to read Response message | {e:#}");
         }
       },
-      Message::Terminal(data) => match data.decode() {
+      TransportMessage::Terminal(data) => match data.decode() {
         Ok(WithChannel {
           channel: channel_id,
           data,
@@ -454,7 +454,7 @@ impl PeripheryConnection {
 
   pub async fn send(
     &self,
-    message: impl Encode<MessageBytes>,
+    message: impl Encode<EncodedTransportMessage>,
   ) -> anyhow::Result<()> {
     self.sender.send_message(message).await
   }

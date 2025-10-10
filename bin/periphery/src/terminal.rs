@@ -15,7 +15,7 @@ use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 use transport::message::{
   Decode,
-  wrappers::{ChannelWrapper, WithChannel},
+  wrappers::{EncodedChannel, WithChannel},
 };
 use uuid::Uuid;
 
@@ -99,7 +99,7 @@ impl TerminalTriggers {
   }
 }
 
-pub async fn handle_message(message: ChannelWrapper<Vec<u8>>) {
+pub async fn handle_message(message: EncodedChannel<Vec<u8>>) {
   let WithChannel {
     channel: channel_id,
     mut data,

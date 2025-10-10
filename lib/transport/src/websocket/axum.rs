@@ -8,7 +8,7 @@ use futures_util::{
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-  message::{CastBytes, MessageBytes},
+  message::{CastBytes, EncodedTransportMessage},
   timeout::MaybeWithTimeout,
 };
 
@@ -87,13 +87,13 @@ where
     match stream.try_next().await? {
       Some(axum::extract::ws::Message::Binary(bytes)) => {
         return Ok(WebsocketMessage::Message(
-          MessageBytes::from_vec(bytes.into()),
+          EncodedTransportMessage::from_vec(bytes.into()),
         ));
       }
       Some(axum::extract::ws::Message::Text(text)) => {
         let bytes: Bytes = text.into();
         return Ok(WebsocketMessage::Message(
-          MessageBytes::from_vec(bytes.into()),
+          EncodedTransportMessage::from_vec(bytes.into()),
         ));
       }
       Some(axum::extract::ws::Message::Close(frame)) => {

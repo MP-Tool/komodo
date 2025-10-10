@@ -20,7 +20,7 @@ use periphery_client::api::terminal::DisconnectTerminal;
 use tokio_util::sync::CancellationToken;
 use transport::{
   channel::{Receiver, Sender},
-  message::MessageBytes,
+  message::EncodedTransportMessage,
 };
 use uuid::Uuid;
 
@@ -185,7 +185,7 @@ async fn forward_ws_channel(
   periphery: PeripheryClient,
   client_socket: axum::extract::ws::WebSocket,
   periphery_connection_id: Uuid,
-  periphery_sender: Sender<MessageBytes>,
+  periphery_sender: Sender<EncodedTransportMessage>,
   mut periphery_receiver: Receiver<Vec<u8>>,
 ) {
   let (mut client_send, mut client_receive) = client_socket.split();

@@ -19,7 +19,7 @@ use tokio_tungstenite::{
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-  message::{CastBytes, MessageBytes},
+  message::{CastBytes, EncodedTransportMessage},
   timeout::MaybeWithTimeout,
 };
 
@@ -105,13 +105,13 @@ where
     match stream.try_next().await? {
       Some(tungstenite::Message::Binary(bytes)) => {
         return Ok(WebsocketMessage::Message(
-          MessageBytes::from_vec(bytes.into()),
+          EncodedTransportMessage::from_vec(bytes.into()),
         ));
       }
       Some(tungstenite::Message::Text(text)) => {
         let bytes: Bytes = text.into();
         return Ok(WebsocketMessage::Message(
-          MessageBytes::from_vec(bytes.into()),
+          EncodedTransportMessage::from_vec(bytes.into()),
         ));
       }
       Some(tungstenite::Message::Close(frame)) => {

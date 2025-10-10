@@ -10,15 +10,15 @@ use crate::message::{CastBytes, Decode, Encode};
 /// | <CONTENTS> | 0: Ok or _: Err |
 /// ```
 #[derive(Clone, Debug)]
-pub struct OptionWrapper<T>(T);
+pub struct EncodedOption<T>(T);
 
-impl<T> From<T> for OptionWrapper<T> {
+impl<T> From<T> for EncodedOption<T> {
   fn from(value: T) -> Self {
     Self(value)
   }
 }
 
-impl<T: CastBytes> CastBytes for OptionWrapper<T> {
+impl<T: CastBytes> CastBytes for EncodedOption<T> {
   fn from_bytes(bytes: Bytes) -> Self {
     Self(T::from_bytes(bytes))
   }
@@ -33,20 +33,20 @@ impl<T: CastBytes> CastBytes for OptionWrapper<T> {
   }
 }
 
-impl<T: CastBytes + Send> Encode<OptionWrapper<T>> for Option<T> {
-  fn encode(self) -> OptionWrapper<T> {
+impl<T: CastBytes + Send> Encode<EncodedOption<T>> for Option<T> {
+  fn encode(self) -> EncodedOption<T> {
     match self {
       Some(data) => {
         let mut bytes = data.into_vec();
         bytes.push(0);
-        OptionWrapper(T::from_vec(bytes))
+        EncodedOption(T::from_vec(bytes))
       }
-      None => OptionWrapper(T::from_vec(vec![1])),
+      None => EncodedOption(T::from_vec(vec![1])),
     }
   }
 }
 
-impl<T: CastBytes> Decode<Option<T>> for OptionWrapper<T> {
+impl<T: CastBytes> Decode<Option<T>> for EncodedOption<T> {
   fn decode(self) -> anyhow::Result<Option<T>> {
     let mut bytes = self.0.into_vec();
     let option_byte =

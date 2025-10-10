@@ -25,10 +25,7 @@ use transport::{
     ConnectionIdentifiers, HeaderConnectionIdentifiers,
     ServerLoginFlow,
   },
-  message::{
-    Encode, Message,
-    login::{LoginMessage, LoginWebsocketExt},
-  },
+  message::login::{LoginMessage, LoginWebsocketExt},
   websocket::{Websocket, WebsocketExt, axum::AxumWebsocket},
 };
 
@@ -210,7 +207,7 @@ async fn handle_passkey_login(
     } else {
       let e = anyhow!("Invalid passkey");
       if let Err(e) = socket
-        .send(Message::Login((&e).encode()))
+        .send_login_error(&e)
         .await
         .context("Failed to send login failed")
       {
@@ -226,7 +223,7 @@ async fn handle_passkey_login(
   .await;
   if let Err(e) = res {
     if let Err(e) = socket
-      .send(Message::Login((&e).encode()))
+      .send_login_error(&e)
       .await
       .context("Failed to send login failed to client")
     {

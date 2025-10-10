@@ -14,7 +14,7 @@ use periphery_client::api::{
 use resolver_api::Resolve;
 use serde::{Deserialize, Serialize};
 use transport::message::{
-  json::JsonMessageBytes, wrappers::ResultWrapper,
+  json::EncodedJsonMessage, wrappers::EncodedResult,
 };
 
 use crate::{
@@ -43,7 +43,7 @@ pub struct Args {
   Serialize, Deserialize, Debug, Clone, Resolve, EnumVariants,
 )]
 #[args(Args)]
-#[response(ResultWrapper<JsonMessageBytes>)]
+#[response(EncodedResult<EncodedJsonMessage>)]
 #[error(anyhow::Error)]
 #[variant_derive(Debug)]
 #[serde(tag = "type", content = "params")]

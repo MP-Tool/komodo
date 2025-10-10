@@ -11,15 +11,15 @@ use crate::message::{CastBytes, Decode, Encode};
 /// | <CONTENTS> | 0: Ok or _: Err |
 /// ```
 #[derive(Clone, Debug)]
-pub struct ResultWrapper<T>(T);
+pub struct EncodedResult<T>(T);
 
-impl<T> From<T> for ResultWrapper<T> {
+impl<T> From<T> for EncodedResult<T> {
   fn from(value: T) -> Self {
     Self(value)
   }
 }
 
-impl<T: CastBytes> CastBytes for ResultWrapper<T> {
+impl<T: CastBytes> CastBytes for EncodedResult<T> {
   fn from_bytes(bytes: Bytes) -> Self {
     Self(T::from_bytes(bytes))
   }
@@ -34,10 +34,10 @@ impl<T: CastBytes> CastBytes for ResultWrapper<T> {
   }
 }
 
-impl<T: CastBytes + Send> Encode<ResultWrapper<T>>
+impl<T: CastBytes + Send> Encode<EncodedResult<T>>
   for anyhow::Result<T>
 {
-  fn encode(self) -> ResultWrapper<T> {
+  fn encode(self) -> EncodedResult<T> {
     let bytes = match self {
       Ok(data) => {
         let mut bytes = data.into_vec();
@@ -50,21 +50,21 @@ impl<T: CastBytes + Send> Encode<ResultWrapper<T>>
         bytes
       }
     };
-    ResultWrapper(T::from_vec(bytes))
+    EncodedResult(T::from_vec(bytes))
   }
 }
 
-impl<T: CastBytes + Send> Encode<ResultWrapper<T>>
+impl<T: CastBytes + Send> Encode<EncodedResult<T>>
   for &anyhow::Error
 {
-  fn encode(self) -> ResultWrapper<T> {
+  fn encode(self) -> EncodedResult<T> {
     let mut bytes = serialize_error_bytes(self);
     bytes.push(1);
-    ResultWrapper::from_vec(bytes)
+    EncodedResult::from_vec(bytes)
   }
 }
 
-impl<T: CastBytes> Decode<T> for ResultWrapper<T> {
+impl<T: CastBytes> Decode<T> for EncodedResult<T> {
   fn decode(self) -> anyhow::Result<T> {
     let mut bytes = self.0.into_vec();
     let result_byte =

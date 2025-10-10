@@ -14,7 +14,7 @@ use periphery_client::api::terminal::{
 };
 use transport::{
   channel::{Receiver, Sender, channel},
-  message::MessageBytes,
+  message::EncodedTransportMessage,
 };
 use uuid::Uuid;
 
@@ -26,8 +26,11 @@ impl PeripheryClient {
   pub async fn connect_terminal(
     &self,
     terminal: String,
-  ) -> anyhow::Result<(Uuid, Sender<MessageBytes>, Receiver<Vec<u8>>)>
-  {
+  ) -> anyhow::Result<(
+    Uuid,
+    Sender<EncodedTransportMessage>,
+    Receiver<Vec<u8>>,
+  )> {
     tracing::trace!(
       "request | type: ConnectTerminal | terminal name: {terminal}",
     );
@@ -60,8 +63,11 @@ impl PeripheryClient {
     &self,
     container: String,
     shell: String,
-  ) -> anyhow::Result<(Uuid, Sender<MessageBytes>, Receiver<Vec<u8>>)>
-  {
+  ) -> anyhow::Result<(
+    Uuid,
+    Sender<EncodedTransportMessage>,
+    Receiver<Vec<u8>>,
+  )> {
     tracing::trace!(
       "request | type: ConnectContainerExec | container name: {container} | shell: {shell}",
     );

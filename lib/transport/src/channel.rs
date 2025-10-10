@@ -7,8 +7,10 @@ use uuid::Uuid;
 
 use crate::{
   message::{
-    Encode, Message, MessageBytes, json::JsonMessage,
-    wrappers::WithChannel,
+    DecodedTransportMessage, Encode, EncodedResponseMessage,
+    EncodedTransportMessage, TransportMessage,
+    json::{EncodedJsonMessage, JsonMessage},
+    wrappers::{EncodedResult, WithChannel},
   },
   timeout::MaybeWithTimeout,
 };
@@ -70,10 +72,10 @@ impl<T> Sender<T> {
   }
 }
 
-impl Sender<MessageBytes> {
+impl Sender<EncodedTransportMessage> {
   pub async fn send_message(
     &self,
-    message: impl Encode<MessageBytes>,
+    message: impl Encode<EncodedTransportMessage>,
   ) -> anyhow::Result<()> {
     self.send(message.encode()).await
   }
@@ -88,7 +90,7 @@ impl Sender<MessageBytes> {
   {
     let data = JsonMessage(request).encode()?;
     let message =
-      Message::Request(WithChannel { channel, data }.encode());
+      DecodedTransportMessage::Request(WithChannel { channel, data });
     self.send_message(message).await
   }
 
@@ -96,34 +98,25 @@ impl Sender<MessageBytes> {
     &self,
     channel: Uuid,
   ) -> anyhow::Result<()> {
-    let message = Message::Response(
-      WithChannel {
-        channel,
-        data: None.encode(),
-      }
-      .encode(),
-    );
+    let message = DecodedTransportMessage::Response(WithChannel {
+      channel,
+      data: None,
+    });
     self.send_message(message).await
   }
 
-  pub async fn send_response<'a, T: Serialize + Send>(
+  pub async fn send_response(
     &self,
     channel: Uuid,
-    response: anyhow::Result<&'a T>,
-  ) -> anyhow::Result<()>
-  where
-    &'a T: Send,
-  {
-    let data = response
-      .and_then(|json| JsonMessage(json).encode())
-      .encode();
-    let message = Message::Response(
+    response: EncodedResult<EncodedJsonMessage>,
+  ) -> anyhow::Result<()> {
+    let message = TransportMessage::Response(EncodedResponseMessage(
       WithChannel {
         channel,
-        data: Some(data).encode(),
+        data: Some(response).encode(),
       }
       .encode(),
-    );
+    ));
     self.send_message(message).await
   }
 
@@ -132,13 +125,10 @@ impl Sender<MessageBytes> {
     channel: Uuid,
     data: impl Into<Vec<u8>>,
   ) -> anyhow::Result<()> {
-    let message = Message::Terminal(
-      WithChannel {
-        channel,
-        data: data.into(),
-      }
-      .encode(),
-    );
+    let message = DecodedTransportMessage::Terminal(WithChannel {
+      channel,
+      data: data.into(),
+    });
     self.send_message(message).await
   }
 }

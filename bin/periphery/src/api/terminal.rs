@@ -9,7 +9,7 @@ use komodo_client::{
 use periphery_client::api::terminal::*;
 use resolver_api::Resolve;
 use tokio_util::{codec::LinesCodecError, sync::CancellationToken};
-use transport::{channel::Sender, message::MessageBytes};
+use transport::{channel::Sender, message::EncodedTransportMessage};
 use uuid::Uuid;
 
 use crate::{
@@ -262,7 +262,7 @@ impl Resolve<super::Args> for ExecuteContainerExec {
 }
 
 async fn handle_terminal_forwarding(
-  sender: &Sender<MessageBytes>,
+  sender: &Sender<EncodedTransportMessage>,
   channel: Uuid,
   terminal: Arc<Terminal>,
 ) {
@@ -414,7 +414,7 @@ async fn setup_execute_command_on_terminal(
 }
 
 async fn forward_execute_command_on_terminal_response(
-  sender: &Sender<MessageBytes>,
+  sender: &Sender<EncodedTransportMessage>,
   channel: Uuid,
   mut stdout: impl Stream<Item = Result<String, LinesCodecError>> + Unpin,
 ) {

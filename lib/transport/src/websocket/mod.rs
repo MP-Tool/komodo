@@ -8,8 +8,11 @@ use uuid::Uuid;
 
 use crate::{
   message::{
-    CastBytes, Decode, Encode, Message, MessageBytes,
-    json::JsonMessage, wrappers::WithChannel,
+    CastBytes, Decode, DecodedTransportMessage, Encode,
+    EncodedResponseMessage, EncodedTransportMessage,
+    TransportMessage,
+    json::{EncodedJsonMessage, JsonMessage},
+    wrappers::{EncodedResult, WithChannel},
   },
   timeout::MaybeWithTimeout,
 };
@@ -21,7 +24,7 @@ pub mod tungstenite;
 /// for easier handling.
 pub enum WebsocketMessage<CloseFrame> {
   /// Standard message
-  Message(MessageBytes),
+  Message(EncodedTransportMessage),
   /// Graceful close message
   Close(Option<CloseFrame>),
   /// Stream closed
@@ -59,7 +62,7 @@ pub trait Websocket: Send {
 pub trait WebsocketExt: Websocket {
   fn send(
     &mut self,
-    message: impl Encode<MessageBytes>,
+    message: impl Encode<EncodedTransportMessage>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
     self.send_inner(message.encode().into_vec().into())
   }
@@ -68,7 +71,7 @@ pub trait WebsocketExt: Websocket {
   fn recv(
     &mut self,
   ) -> MaybeWithTimeout<
-    impl Future<Output = anyhow::Result<Message>> + Send,
+    impl Future<Output = anyhow::Result<TransportMessage>> + Send,
   > {
     MaybeWithTimeout::new(async {
       match self.recv_inner().await? {
@@ -103,7 +106,7 @@ pub trait WebsocketSender {
 pub trait WebsocketSenderExt: WebsocketSender + Send {
   fn send(
     &mut self,
-    message: impl Encode<MessageBytes>,
+    message: impl Encode<EncodedTransportMessage>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
     self.send_inner(message.encode().into_vec().into())
   }
@@ -118,8 +121,10 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
   {
     async move {
       let data = JsonMessage(request).encode()?;
-      let message =
-        Message::Request(WithChannel { channel, data }.encode());
+      let message = DecodedTransportMessage::Request(WithChannel {
+        channel,
+        data,
+      });
       self.send(message).await
     }
   }
@@ -128,34 +133,25 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     &mut self,
     channel: Uuid,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    let message = Message::Response(
-      WithChannel {
-        channel,
-        data: None.encode(),
-      }
-      .encode(),
-    );
+    let message = DecodedTransportMessage::Response(WithChannel {
+      channel,
+      data: None,
+    });
     self.send(message)
   }
 
-  fn send_response<'a, T: Serialize + Send>(
+  fn send_response(
     &mut self,
     channel: Uuid,
-    response: anyhow::Result<&'a T>,
-  ) -> impl Future<Output = anyhow::Result<()>> + Send
-  where
-    &'a T: Send,
-  {
-    let data = response
-      .and_then(|json| JsonMessage(json).encode())
-      .encode();
-    let message = Message::Response(
+    response: EncodedResult<EncodedJsonMessage>,
+  ) -> impl Future<Output = anyhow::Result<()>> + Send {
+    let message = TransportMessage::Response(EncodedResponseMessage(
       WithChannel {
         channel,
-        data: Some(data).encode(),
+        data: Some(response).encode(),
       }
       .encode(),
-    );
+    ));
     self.send(message)
   }
 
@@ -164,13 +160,10 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     channel: Uuid,
     data: impl Into<Vec<u8>>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    let message = Message::Terminal(
-      WithChannel {
-        channel,
-        data: data.into(),
-      }
-      .encode(),
-    );
+    let message = DecodedTransportMessage::Terminal(WithChannel {
+      channel,
+      data: data.into(),
+    });
     self.send(message)
   }
 }
@@ -198,7 +191,7 @@ pub trait WebsocketReceiverExt: WebsocketReceiver {
   fn recv(
     &mut self,
   ) -> MaybeWithTimeout<
-    impl Future<Output = anyhow::Result<Message>> + Send,
+    impl Future<Output = anyhow::Result<TransportMessage>> + Send,
   > {
     MaybeWithTimeout::new(async {
       match self

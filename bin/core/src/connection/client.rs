@@ -9,7 +9,7 @@ use transport::{
   },
   fix_ws_address,
   message::{
-    Encode, Message,
+    Encode, TransportMessage,
     login::{LoginMessage, LoginWebsocketExt},
   },
   websocket::{
@@ -158,7 +158,7 @@ async fn handle_passkey_login(
   .await;
   if let Err(e) = res {
     if let Err(e) = socket
-      .send(Message::Login((&e).encode()))
+      .send(TransportMessage::Login((&e).encode()))
       .await
       .context("Failed to send login failed to client")
     {
