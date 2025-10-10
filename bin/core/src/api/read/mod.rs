@@ -142,7 +142,6 @@ enum ReadRequest {
   GetStacksSummary(GetStacksSummary),
   GetStack(GetStack),
   GetStackActionState(GetStackActionState),
-  GetStackWebhooksEnabled(GetStackWebhooksEnabled),
   GetStackLog(GetStackLog),
   SearchStackLog(SearchStackLog),
   InspectStackContainer(InspectStackContainer),
@@ -171,7 +170,6 @@ enum ReadRequest {
   GetBuildActionState(GetBuildActionState),
   GetBuildMonthlyStats(GetBuildMonthlyStats),
   ListBuildVersions(ListBuildVersions),
-  GetBuildWebhookEnabled(GetBuildWebhookEnabled),
   ListBuilds(ListBuilds),
   ListFullBuilds(ListFullBuilds),
   ListCommonBuildExtraArgs(ListCommonBuildExtraArgs),
@@ -180,7 +178,6 @@ enum ReadRequest {
   GetReposSummary(GetReposSummary),
   GetRepo(GetRepo),
   GetRepoActionState(GetRepoActionState),
-  GetRepoWebhooksEnabled(GetRepoWebhooksEnabled),
   ListRepos(ListRepos),
   ListFullRepos(ListFullRepos),
 
@@ -188,7 +185,6 @@ enum ReadRequest {
   GetResourceSyncsSummary(GetResourceSyncsSummary),
   GetResourceSync(GetResourceSync),
   GetResourceSyncActionState(GetResourceSyncActionState),
-  GetSyncWebhooksEnabled(GetSyncWebhooksEnabled),
   ListResourceSyncs(ListResourceSyncs),
   ListFullResourceSyncs(ListFullResourceSyncs),
 
@@ -301,12 +297,6 @@ impl Resolve<ReadArgs> for GetCoreInfo {
       disable_non_admin_create: config.disable_non_admin_create,
       disable_websocket_reconnect: config.disable_websocket_reconnect,
       enable_fancy_toml: config.enable_fancy_toml,
-      github_webhook_owners: config
-        .github_webhook_app
-        .installations
-        .iter()
-        .map(|i| i.namespace.to_string())
-        .collect(),
       timezone: config.timezone.clone(),
       public_key: core_keys().load().public.to_string(),
     };

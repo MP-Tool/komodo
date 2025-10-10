@@ -214,25 +214,6 @@ pub struct Env {
   /// Override `github_oauth.secret` from file
   pub komodo_github_oauth_secret_file: Option<PathBuf>,
 
-  /// Override `github_webhook_app.app_id`
-  pub komodo_github_webhook_app_app_id: Option<i64>,
-  /// Override `github_webhook_app.app_id` from file
-  pub komodo_github_webhook_app_app_id_file: Option<PathBuf>,
-  /// Override `github_webhook_app.installations[i].id`. Accepts comma seperated list.
-  ///
-  /// Note. Paired by index with values in `komodo_github_webhook_app_installations_namespaces`
-  pub komodo_github_webhook_app_installations_ids: Option<Vec<i64>>,
-  /// Override `github_webhook_app.installations[i].id` from file
-  pub komodo_github_webhook_app_installations_ids_file:
-    Option<PathBuf>,
-  /// Override `github_webhook_app.installations[i].namespace`. Accepts comma seperated list.
-  ///
-  /// Note. Paired by index with values in `komodo_github_webhook_app_installations_ids`
-  pub komodo_github_webhook_app_installations_namespaces:
-    Option<Vec<String>>,
-  /// Override `github_webhook_app.pk_path`
-  pub komodo_github_webhook_app_pk_path: Option<String>,
-
   /// Override `database.uri`
   #[serde(alias = "komodo_mongo_uri")]
   pub komodo_database_uri: Option<String>,
@@ -544,11 +525,6 @@ pub struct CoreConfig {
   #[serde(default)]
   pub webhook_base_url: String,
 
-  /// Configure a Github Webhook app.
-  /// Allows users to manage repo webhooks from within the Komodo UI.
-  #[serde(default)]
-  pub github_webhook_app: GithubWebhookAppConfig,
-
   // ===========
   // = Logging =
   // ===========
@@ -782,7 +758,6 @@ impl Default for CoreConfig {
       github_oauth: Default::default(),
       webhook_secret: Default::default(),
       webhook_base_url: Default::default(),
-      github_webhook_app: Default::default(),
       logging: Default::default(),
       pretty_startup_config: Default::default(),
       unsafe_unsanitized_startup_config: Default::default(),
@@ -879,7 +854,6 @@ impl CoreConfig {
       },
       webhook_secret: empty_or_redacted(&config.webhook_secret),
       webhook_base_url: config.webhook_base_url,
-      github_webhook_app: config.github_webhook_app,
       database: config.database.sanitized(),
       aws: AwsCredentials {
         access_key_id: empty_or_redacted(&config.aws.access_key_id),
@@ -941,39 +915,4 @@ pub struct AwsCredentials {
   pub access_key_id: String,
   /// The aws SECRET_ACCESS_KEY
   pub secret_access_key: String,
-}
-
-/// Provide configuration for a Github Webhook app.
-#[derive(Debug, Clone, Deserialize)]
-pub struct GithubWebhookAppConfig {
-  /// Github app id
-  pub app_id: i64,
-  /// Configure the app installations on multiple accounts / organizations.
-  pub installations: Vec<GithubWebhookAppInstallationConfig>,
-  /// Private key path. Default: /github-private-key.pem.
-  #[serde(default = "default_private_key_path")]
-  pub pk_path: String,
-}
-
-fn default_private_key_path() -> String {
-  String::from("/github/private-key.pem")
-}
-
-impl Default for GithubWebhookAppConfig {
-  fn default() -> Self {
-    GithubWebhookAppConfig {
-      app_id: 0,
-      installations: Default::default(),
-      pk_path: default_private_key_path(),
-    }
-  }
-}
-
-/// Provide configuration for a Github Webhook app installation.
-#[derive(Debug, Clone, Deserialize)]
-pub struct GithubWebhookAppInstallationConfig {
-  /// The installation ID
-  pub id: i64,
-  /// The user or organization name
-  pub namespace: String,
 }

@@ -108,8 +108,6 @@ pub struct GetCoreInfoResponse {
   pub disable_non_admin_create: bool,
   /// Whether confirm dialog should be disabled
   pub disable_confirm_dialog: bool,
-  /// The repo owners for which github webhook management api is available
-  pub github_webhook_owners: Vec<String>,
   /// Whether to disable websocket automatic reconnect.
   pub disable_websocket_reconnect: bool,
   /// Whether to enable fancy toml highlighting.

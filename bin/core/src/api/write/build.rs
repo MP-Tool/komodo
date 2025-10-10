@@ -11,17 +11,13 @@ use komodo_client::{
   entities::{
     FileContents, NoData, Operation, RepoExecutionArgs,
     all_logs_success,
-    build::{Build, BuildInfo, PartialBuildConfig},
+    build::{Build, BuildInfo},
     builder::{Builder, BuilderConfig},
-    config::core::CoreConfig,
     permission::PermissionLevel,
     repo::Repo,
     server::ServerState,
     update::Update,
   },
-};
-use octorust::types::{
-  ReposCreateWebhookRequest, ReposCreateWebhookRequestConfig,
 };
 use periphery_client::api::build::{
   GetDockerfileContentsOnHost, WriteDockerfileContentsToHost,
@@ -40,7 +36,7 @@ use crate::{
   periphery::PeripheryClient,
   permission::get_check_permissions,
   resource,
-  state::{db_client, github_client},
+  state::db_client,
 };
 
 use super::WriteArgs;
@@ -545,202 +541,4 @@ async fn get_git_remote(
     res.commit_hash,
     res.commit_message,
   )))
-}
-
-impl Resolve<WriteArgs> for CreateBuildWebhook {
-  #[instrument(name = "CreateBuildWebhook", skip(args))]
-  async fn resolve(
-    self,
-    args: &WriteArgs,
-  ) -> serror::Result<CreateBuildWebhookResponse> {
-    let Some(github) = github_client() else {
-      return Err(
-        anyhow!(
-          "github_webhook_app is not configured in core config toml"
-        )
-        .into(),
-      );
-    };
-
-    let WriteArgs { user } = args;
-
-    let build = get_check_permissions::<Build>(
-      &self.build,
-      user,
-      PermissionLevel::Write.into(),
-    )
-    .await?;
-
-    if build.config.repo.is_empty() {
-      return Err(
-        anyhow!("No repo configured, can't create webhook").into(),
-      );
-    }
-
-    let mut split = build.config.repo.split('/');
-    let owner = split.next().context("Build repo has no owner")?;
-
-    let Some(github) = github.get(owner) else {
-      return Err(
-        anyhow!("Cannot manage repo webhooks under owner {owner}")
-          .into(),
-      );
-    };
-
-    let repo =
-      split.next().context("Build repo has no repo after the /")?;
-
-    let github_repos = github.repos();
-
-    // First make sure the webhook isn't already created (inactive ones are ignored)
-    let webhooks = github_repos
-      .list_all_webhooks(owner, repo)
-      .await
-      .context("failed to list all webhooks on repo")?
-      .body;
-
-    let CoreConfig {
-      host,
-      webhook_base_url,
-      webhook_secret,
-      ..
-    } = core_config();
-
-    let webhook_secret = if build.config.webhook_secret.is_empty() {
-      webhook_secret
-    } else {
-      &build.config.webhook_secret
-    };
-
-    let host = if webhook_base_url.is_empty() {
-      host
-    } else {
-      webhook_base_url
-    };
-    let url = format!("{host}/listener/github/build/{}", build.id);
-
-    for webhook in webhooks {
-      if webhook.active && webhook.config.url == url {
-        return Ok(NoData {});
-      }
-    }
-
-    // Now good to create the webhook
-    let request = ReposCreateWebhookRequest {
-      active: Some(true),
-      config: Some(ReposCreateWebhookRequestConfig {
-        url,
-        secret: webhook_secret.to_string(),
-        content_type: String::from("json"),
-        insecure_ssl: None,
-        digest: Default::default(),
-        token: Default::default(),
-      }),
-      events: vec![String::from("push")],
-      name: String::from("web"),
-    };
-    github_repos
-      .create_webhook(owner, repo, &request)
-      .await
-      .context("failed to create webhook")?;
-
-    if !build.config.webhook_enabled {
-      UpdateBuild {
-        id: build.id,
-        config: PartialBuildConfig {
-          webhook_enabled: Some(true),
-          ..Default::default()
-        },
-      }
-      .resolve(args)
-      .await
-      .map_err(|e| e.error)
-      .context("failed to update build to enable webhook")?;
-    }
-
-    Ok(NoData {})
-  }
-}
-
-impl Resolve<WriteArgs> for DeleteBuildWebhook {
-  #[instrument(name = "DeleteBuildWebhook", skip(user))]
-  async fn resolve(
-    self,
-    WriteArgs { user }: &WriteArgs,
-  ) -> serror::Result<DeleteBuildWebhookResponse> {
-    let Some(github) = github_client() else {
-      return Err(
-        anyhow!(
-          "github_webhook_app is not configured in core config toml"
-        )
-        .into(),
-      );
-    };
-
-    let build = get_check_permissions::<Build>(
-      &self.build,
-      user,
-      PermissionLevel::Write.into(),
-    )
-    .await?;
-
-    if build.config.git_provider != "github.com" {
-      return Err(
-        anyhow!("Can only manage github.com repo webhooks").into(),
-      );
-    }
-
-    if build.config.repo.is_empty() {
-      return Err(
-        anyhow!("No repo configured, can't delete webhook").into(),
-      );
-    }
-
-    let mut split = build.config.repo.split('/');
-    let owner = split.next().context("Build repo has no owner")?;
-
-    let Some(github) = github.get(owner) else {
-      return Err(
-        anyhow!("Cannot manage repo webhooks under owner {owner}")
-          .into(),
-      );
-    };
-
-    let repo =
-      split.next().context("Build repo has no repo after the /")?;
-
-    let github_repos = github.repos();
-
-    let webhooks = github_repos
-      .list_all_webhooks(owner, repo)
-      .await
-      .context("failed to list all webhooks on repo")?
-      .body;
-
-    let CoreConfig {
-      host,
-      webhook_base_url,
-      ..
-    } = core_config();
-
-    let host = if webhook_base_url.is_empty() {
-      host
-    } else {
-      webhook_base_url
-    };
-    let url = format!("{host}/listener/github/build/{}", build.id);
-
-    for webhook in webhooks {
-      if webhook.active && webhook.config.url == url {
-        github_repos
-          .delete_webhook(owner, repo, webhook.id)
-          .await
-          .context("failed to delete webhook")?;
-        return Ok(NoData {});
-      }
-    }
-
-    // No webhook to delete, all good
-    Ok(NoData {})
-  }
 }

@@ -1,22 +1,12 @@
-use std::{
-  collections::HashMap,
-  sync::{Arc, OnceLock},
-};
+use std::sync::{Arc, OnceLock};
 
 use anyhow::Context;
 use arc_swap::ArcSwap;
 use cache::CloneCache;
 use komodo_client::entities::{
-  action::ActionState,
-  build::BuildState,
-  config::core::{CoreConfig, GithubWebhookAppConfig},
-  deployment::DeploymentState,
-  procedure::ProcedureState,
-  repo::RepoState,
-  stack::StackState,
-};
-use octorust::auth::{
-  Credentials, InstallationTokenGenerator, JWTCredentials,
+  action::ActionState, build::BuildState,
+  deployment::DeploymentState, procedure::ProcedureState,
+  repo::RepoState, stack::StackState,
 };
 
 use crate::{
@@ -148,74 +138,4 @@ pub fn all_resources_cache() -> &'static ArcSwap<AllResourcesById> {
   static ALL_RESOURCES: OnceLock<ArcSwap<AllResourcesById>> =
     OnceLock::new();
   ALL_RESOURCES.get_or_init(Default::default)
-}
-
-pub fn github_client()
--> Option<&'static HashMap<String, octorust::Client>> {
-  static GITHUB_CLIENT: OnceLock<
-    Option<HashMap<String, octorust::Client>>,
-  > = OnceLock::new();
-  GITHUB_CLIENT
-    .get_or_init(|| {
-      let CoreConfig {
-        github_webhook_app:
-          GithubWebhookAppConfig {
-            app_id,
-            installations,
-            pk_path,
-            ..
-          },
-        ..
-      } = core_config();
-      if *app_id == 0 || installations.is_empty() {
-        return None;
-      }
-      let private_key = match std::fs::read(pk_path).with_context(|| format!("github webhook app | failed to load private key at {pk_path}")) {
-        Ok(key) => key,
-        Err(e) => {
-          error!("{e:#}");
-          return None;
-        }
-      };
-
-      let private_key = match nom_pem::decode_block(&private_key) {
-        Ok(key) => key,
-        Err(e) => {
-          error!("github webhook app | failed to decode private key at {pk_path} | {e:?}");
-          return None;
-        }
-      };
-
-      let jwt = match JWTCredentials::new(*app_id, private_key.data).context("failed to initialize github JWTCredentials") {
-        Ok(jwt) => jwt,
-        Err(e) => {
-          error!("github webhook app | failed to make github JWTCredentials | pk path: {pk_path} | {e:#}");
-          return None
-        }
-      };
-
-      let mut clients =
-        HashMap::with_capacity(installations.capacity());
-
-      for installation in installations {
-        let token_generator = InstallationTokenGenerator::new(
-          installation.id,
-          jwt.clone(),
-        );
-        let client = match octorust::Client::new(
-          "github-app",
-          Credentials::InstallationToken(token_generator),
-        ).with_context(|| format!("failed to initialize github webhook client for installation {}", installation.id)) {
-          Ok(client) => client,
-          Err(e) => {
-            error!("{e:#}");
-            continue;
-          }
-        };
-        clients.insert(installation.namespace.to_string(), client);
-      }
-
-      Some(clients)
-    })
-    .as_ref()
 }

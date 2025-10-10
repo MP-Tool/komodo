@@ -12,7 +12,6 @@ use komodo_client::{
   entities::{
     Operation,
     build::{Build, BuildActionState, BuildListItem, BuildState},
-    config::core::CoreConfig,
     permission::PermissionLevel,
     update::UpdateStatus,
   },
@@ -20,13 +19,10 @@ use komodo_client::{
 use resolver_api::Resolve;
 
 use crate::{
-  config::core_config,
   helpers::query::get_all_tags,
   permission::get_check_permissions,
   resource,
-  state::{
-    action_states, build_state_cache, db_client, github_client,
-  },
+  state::{action_states, build_state_cache, db_client},
 };
 
 use super::ReadArgs;
@@ -304,83 +300,5 @@ impl Resolve<ReadArgs> for ListCommonBuildExtraArgs {
     let mut res = res.into_iter().collect::<Vec<_>>();
     res.sort();
     Ok(res)
-  }
-}
-
-impl Resolve<ReadArgs> for GetBuildWebhookEnabled {
-  async fn resolve(
-    self,
-    ReadArgs { user }: &ReadArgs,
-  ) -> serror::Result<GetBuildWebhookEnabledResponse> {
-    let Some(github) = github_client() else {
-      return Ok(GetBuildWebhookEnabledResponse {
-        managed: false,
-        enabled: false,
-      });
-    };
-
-    let build = get_check_permissions::<Build>(
-      &self.build,
-      user,
-      PermissionLevel::Read.into(),
-    )
-    .await?;
-
-    if build.config.git_provider != "github.com"
-      || build.config.repo.is_empty()
-    {
-      return Ok(GetBuildWebhookEnabledResponse {
-        managed: false,
-        enabled: false,
-      });
-    }
-
-    let mut split = build.config.repo.split('/');
-    let owner = split.next().context("Build repo has no owner")?;
-
-    let Some(github) = github.get(owner) else {
-      return Ok(GetBuildWebhookEnabledResponse {
-        managed: false,
-        enabled: false,
-      });
-    };
-
-    let repo =
-      split.next().context("Build repo has no repo after the /")?;
-
-    let github_repos = github.repos();
-
-    let webhooks = github_repos
-      .list_all_webhooks(owner, repo)
-      .await
-      .context("failed to list all webhooks on repo")?
-      .body;
-
-    let CoreConfig {
-      host,
-      webhook_base_url,
-      ..
-    } = core_config();
-
-    let host = if webhook_base_url.is_empty() {
-      host
-    } else {
-      webhook_base_url
-    };
-    let url = format!("{host}/listener/github/build/{}", build.id);
-
-    for webhook in webhooks {
-      if webhook.active && webhook.config.url == url {
-        return Ok(GetBuildWebhookEnabledResponse {
-          managed: true,
-          enabled: true,
-        });
-      }
-    }
-
-    Ok(GetBuildWebhookEnabledResponse {
-      managed: true,
-      enabled: false,
-    })
   }
 }

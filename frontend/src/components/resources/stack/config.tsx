@@ -13,7 +13,6 @@ import {
 import { Types } from "komodo_client";
 import {
   getWebhookIntegration,
-  useInvalidate,
   useLocalStorage,
   usePermissions,
   useRead,
@@ -31,14 +30,10 @@ import {
   SelectValue,
 } from "@ui/select";
 import { SecretsSearch } from "@components/config/env_vars";
-import { ConfirmButton, ShowHideButton } from "@components/util";
+import { ShowHideButton } from "@components/util";
 import { MonacoEditor } from "@components/monaco";
-import { useToast } from "@ui/use-toast";
-import { text_color_class_by_intention } from "@lib/color";
 import {
-  Ban,
   ChevronsUpDown,
-  CirclePlus,
   MinusCircle,
   PlusCircle,
   SearchX,
@@ -94,7 +89,6 @@ export const StackConfig = ({
   const stack = useRead("GetStack", { stack: id }).data;
   const config = stack?.config;
   const name = stack?.name;
-  const webhooks = useRead("GetStackWebhooksEnabled", { stack: id }).data;
   const global_disabled =
     useRead("GetCoreInfo", {}).data?.ui_write_disabled ?? false;
   const [update, set] = useLocalStorage<Partial<Types.StackConfig>>(
@@ -713,139 +707,11 @@ export const StackConfig = ({
               description:
                 "Usually the Stack won't deploy unless there are changes to the files. Use this to force deploy.",
             },
-            webhook_enabled:
-              !!(update.branch ?? config.branch) &&
-              webhooks !== undefined &&
-              !webhooks.managed,
+            webhook_enabled: true,
             webhook_secret: {
               description:
                 "Provide a custom webhook secret for this resource, or use the global default.",
               placeholder: "Input custom secret",
-            },
-            ["managed" as any]: () => {
-              const inv = useInvalidate();
-              const { toast } = useToast();
-              const { mutate: createWebhook, isPending: createPending } =
-                useWrite("CreateStackWebhook", {
-                  onSuccess: () => {
-                    toast({ title: "Webhook Created" });
-                    inv(["GetStackWebhooksEnabled", { stack: id }]);
-                  },
-                });
-              const { mutate: deleteWebhook, isPending: deletePending } =
-                useWrite("DeleteStackWebhook", {
-                  onSuccess: () => {
-                    toast({ title: "Webhook Deleted" });
-                    inv(["GetStackWebhooksEnabled", { stack: id }]);
-                  },
-                });
-
-              if (
-                !(update.branch ?? config.branch) ||
-                !webhooks ||
-                !webhooks.managed
-              ) {
-                return null;
-              }
-
-              return (
-                <ConfigItem label="Manage Webhook">
-                  {webhooks.deploy_enabled && (
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        Incoming webhook is{" "}
-                        <div className={text_color_class_by_intention("Good")}>
-                          ENABLED
-                        </div>
-                        and will trigger
-                        <div
-                          className={text_color_class_by_intention("Neutral")}
-                        >
-                          DEPLOY
-                        </div>
-                      </div>
-                      <ConfirmButton
-                        title="Disable"
-                        icon={<Ban className="w-4 h-4" />}
-                        variant="destructive"
-                        onClick={() =>
-                          deleteWebhook({
-                            stack: id,
-                            action: Types.StackWebhookAction.Deploy,
-                          })
-                        }
-                        loading={deletePending}
-                        disabled={disabled || deletePending}
-                      />
-                    </div>
-                  )}
-                  {!webhooks.deploy_enabled && webhooks.refresh_enabled && (
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        Incoming webhook is{" "}
-                        <div className={text_color_class_by_intention("Good")}>
-                          ENABLED
-                        </div>
-                        and will trigger
-                        <div
-                          className={text_color_class_by_intention("Neutral")}
-                        >
-                          REFRESH
-                        </div>
-                      </div>
-                      <ConfirmButton
-                        title="Disable"
-                        icon={<Ban className="w-4 h-4" />}
-                        variant="destructive"
-                        onClick={() =>
-                          deleteWebhook({
-                            stack: id,
-                            action: Types.StackWebhookAction.Refresh,
-                          })
-                        }
-                        loading={deletePending}
-                        disabled={disabled || deletePending}
-                      />
-                    </div>
-                  )}
-                  {!webhooks.deploy_enabled && !webhooks.refresh_enabled && (
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        Incoming webhook is{" "}
-                        <div
-                          className={text_color_class_by_intention("Critical")}
-                        >
-                          DISABLED
-                        </div>
-                      </div>
-                      <ConfirmButton
-                        title="Enable Deploy"
-                        icon={<CirclePlus className="w-4 h-4" />}
-                        onClick={() =>
-                          createWebhook({
-                            stack: id,
-                            action: Types.StackWebhookAction.Deploy,
-                          })
-                        }
-                        loading={createPending}
-                        disabled={disabled || createPending}
-                      />
-                      <ConfirmButton
-                        title="Enable Refresh"
-                        icon={<CirclePlus className="w-4 h-4" />}
-                        onClick={() =>
-                          createWebhook({
-                            stack: id,
-                            action: Types.StackWebhookAction.Refresh,
-                          })
-                        }
-                        loading={createPending}
-                        disabled={disabled || createPending}
-                      />
-                    </div>
-                  )}
-                </ConfigItem>
-              );
             },
           },
         },

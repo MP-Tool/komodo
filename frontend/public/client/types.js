@@ -568,22 +568,6 @@ export var StackState;
     /** Server not reachable for status */
     StackState["Unknown"] = "unknown";
 })(StackState || (StackState = {}));
-export var RepoWebhookAction;
-(function (RepoWebhookAction) {
-    RepoWebhookAction["Clone"] = "Clone";
-    RepoWebhookAction["Pull"] = "Pull";
-    RepoWebhookAction["Build"] = "Build";
-})(RepoWebhookAction || (RepoWebhookAction = {}));
-export var StackWebhookAction;
-(function (StackWebhookAction) {
-    StackWebhookAction["Refresh"] = "Refresh";
-    StackWebhookAction["Deploy"] = "Deploy";
-})(StackWebhookAction || (StackWebhookAction = {}));
-export var SyncWebhookAction;
-(function (SyncWebhookAction) {
-    SyncWebhookAction["Refresh"] = "Refresh";
-    SyncWebhookAction["Sync"] = "Sync";
-})(SyncWebhookAction || (SyncWebhookAction = {}));
 /**
  * Configures the behavior of [CreateTerminal] if the
  * specified terminal name already exists.
@@ -717,6 +701,12 @@ export var IanaTimezone;
     /** UTC+14:00 */
     IanaTimezone["PacificKiritimati"] = "Pacific/Kiritimati";
 })(IanaTimezone || (IanaTimezone = {}));
+export var RepoWebhookAction;
+(function (RepoWebhookAction) {
+    RepoWebhookAction["Clone"] = "Clone";
+    RepoWebhookAction["Pull"] = "Pull";
+    RepoWebhookAction["Build"] = "Build";
+})(RepoWebhookAction || (RepoWebhookAction = {}));
 /** The specific types of permission that a User or UserGroup can have on a resource. */
 export var SpecificPermission;
 (function (SpecificPermission) {
@@ -756,3 +746,13 @@ export var SpecificPermission;
      */
     SpecificPermission["Processes"] = "Processes";
 })(SpecificPermission || (SpecificPermission = {}));
+export var StackWebhookAction;
+(function (StackWebhookAction) {
+    StackWebhookAction["Refresh"] = "Refresh";
+    StackWebhookAction["Deploy"] = "Deploy";
+})(StackWebhookAction || (StackWebhookAction = {}));
+export var SyncWebhookAction;
+(function (SyncWebhookAction) {
+    SyncWebhookAction["Refresh"] = "Refresh";
+    SyncWebhookAction["Sync"] = "Sync";
+})(SyncWebhookAction || (SyncWebhookAction = {}));

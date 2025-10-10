@@ -9,7 +9,6 @@ import {
 } from "@components/config/util";
 import {
   getWebhookIntegration,
-  useInvalidate,
   useLocalStorage,
   usePermissions,
   useRead,
@@ -20,10 +19,7 @@ import {
 import { Types } from "komodo_client";
 import { ReactNode } from "react";
 import { CopyWebhook, TagSelector } from "../common";
-import { useToast } from "@ui/use-toast";
-import { text_color_class_by_intention } from "@lib/color";
-import { ConfirmButton, ShowHideButton } from "@components/util";
-import { Ban, CirclePlus } from "lucide-react";
+import { ShowHideButton } from "@components/util";
 import { MonacoEditor } from "@components/monaco";
 import {
   Select,
@@ -67,7 +63,6 @@ export const ResourceSyncConfig = ({
   const sync = useRead("GetResourceSync", { sync: id }).data;
   const config = sync?.config;
   const name = sync?.name;
-  const webhooks = useRead("GetSyncWebhooksEnabled", { sync: id }).data;
   const global_disabled =
     useRead("GetCoreInfo", {}).data?.ui_write_disabled ?? false;
   const [update, set] = useLocalStorage<Partial<Types.ResourceSyncConfig>>(
@@ -373,126 +368,11 @@ export const ResourceSyncConfig = ({
             />
           </ConfigItem>
         ),
-        webhook_enabled: webhooks !== undefined && !webhooks.managed,
+        webhook_enabled: true,
         webhook_secret: {
           description:
             "Provide a custom webhook secret for this resource, or use the global default.",
           placeholder: "Input custom secret",
-        },
-        ["managed" as any]: () => {
-          const inv = useInvalidate();
-          const { toast } = useToast();
-          const { mutate: createWebhook, isPending: createPending } = useWrite(
-            "CreateSyncWebhook",
-            {
-              onSuccess: () => {
-                toast({ title: "Webhook Created" });
-                inv(["GetSyncWebhooksEnabled", { sync: id }]);
-              },
-            }
-          );
-          const { mutate: deleteWebhook, isPending: deletePending } = useWrite(
-            "DeleteSyncWebhook",
-            {
-              onSuccess: () => {
-                toast({ title: "Webhook Deleted" });
-                inv(["GetSyncWebhooksEnabled", { sync: id }]);
-              },
-            }
-          );
-          if (!webhooks || !webhooks.managed) return;
-          return (
-            <ConfigItem label="Manage Webhook">
-              {webhooks.sync_enabled && (
-                <div className="flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    Incoming webhook is{" "}
-                    <div className={text_color_class_by_intention("Good")}>
-                      ENABLED
-                    </div>
-                    and will trigger
-                    <div className={text_color_class_by_intention("Neutral")}>
-                      SYNC EXECUTION
-                    </div>
-                  </div>
-                  <ConfirmButton
-                    title="Disable"
-                    icon={<Ban className="w-4 h-4" />}
-                    variant="destructive"
-                    onClick={() =>
-                      deleteWebhook({
-                        sync: id,
-                        action: Types.SyncWebhookAction.Sync,
-                      })
-                    }
-                    loading={deletePending}
-                    disabled={disabled || deletePending}
-                  />
-                </div>
-              )}
-              {!webhooks.sync_enabled && webhooks.refresh_enabled && (
-                <div className="flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    Incoming webhook is{" "}
-                    <div className={text_color_class_by_intention("Good")}>
-                      ENABLED
-                    </div>
-                    and will trigger
-                    <div className={text_color_class_by_intention("Neutral")}>
-                      PENDING REFRESH
-                    </div>
-                  </div>
-                  <ConfirmButton
-                    title="Disable"
-                    icon={<Ban className="w-4 h-4" />}
-                    variant="destructive"
-                    onClick={() =>
-                      deleteWebhook({
-                        sync: id,
-                        action: Types.SyncWebhookAction.Refresh,
-                      })
-                    }
-                    loading={deletePending}
-                    disabled={disabled || deletePending}
-                  />
-                </div>
-              )}
-              {!webhooks.sync_enabled && !webhooks.refresh_enabled && (
-                <div className="flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    Incoming webhook is{" "}
-                    <div className={text_color_class_by_intention("Critical")}>
-                      DISABLED
-                    </div>
-                  </div>
-                  <ConfirmButton
-                    title="Enable Refresh"
-                    icon={<CirclePlus className="w-4 h-4" />}
-                    onClick={() =>
-                      createWebhook({
-                        sync: id,
-                        action: Types.SyncWebhookAction.Refresh,
-                      })
-                    }
-                    loading={createPending}
-                    disabled={disabled || createPending}
-                  />
-                  <ConfirmButton
-                    title="Enable Sync"
-                    icon={<CirclePlus className="w-4 h-4" />}
-                    onClick={() =>
-                      createWebhook({
-                        sync: id,
-                        action: Types.SyncWebhookAction.Sync,
-                      })
-                    }
-                    loading={createPending}
-                    disabled={disabled || createPending}
-                  />
-                </div>
-              )}
-            </ConfigItem>
-          );
         },
       },
     };

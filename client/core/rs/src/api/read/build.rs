@@ -237,29 +237,3 @@ pub struct ListCommonBuildExtraArgs {
 #[typeshare]
 pub type ListCommonBuildExtraArgsResponse = Vec<String>;
 
-//
-
-/// Get whether a Build's target repo has a webhook for the build configured. Response: [GetBuildWebhookEnabledResponse].
-#[typeshare]
-#[derive(
-  Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
-)]
-#[empty_traits(KomodoReadRequest)]
-#[response(GetBuildWebhookEnabledResponse)]
-#[error(serror::Error)]
-pub struct GetBuildWebhookEnabled {
-  /// Id or name
-  #[serde(alias = "id", alias = "name")]
-  pub build: String,
-}
-
-/// Response for [GetBuildWebhookEnabled]
-#[typeshare]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetBuildWebhookEnabledResponse {
-  /// Whether the repo webhooks can even be managed.
-  /// The repo owner must be in `github_webhook_app.owners` list to be managed.
-  pub managed: bool,
-  /// Whether pushes to branch trigger build. Will always be false if managed is false.
-  pub enabled: bool,
-}

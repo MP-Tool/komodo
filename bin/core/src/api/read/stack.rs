@@ -4,7 +4,6 @@ use anyhow::{Context, anyhow};
 use komodo_client::{
   api::read::*,
   entities::{
-    config::core::CoreConfig,
     docker::container::Container,
     permission::PermissionLevel,
     server::{Server, ServerState},
@@ -18,15 +17,11 @@ use periphery_client::api::{
 use resolver_api::Resolve;
 
 use crate::{
-  config::core_config,
   helpers::{periphery_client, query::get_all_tags},
   permission::get_check_permissions,
   resource,
   stack::get_stack_and_server,
-  state::{
-    action_states, github_client, server_status_cache,
-    stack_status_cache,
-  },
+  state::{action_states, server_status_cache, stack_status_cache},
 };
 
 use super::ReadArgs;
@@ -376,93 +371,5 @@ impl Resolve<ReadArgs> for GetStacksSummary {
     }
 
     Ok(res)
-  }
-}
-
-impl Resolve<ReadArgs> for GetStackWebhooksEnabled {
-  async fn resolve(
-    self,
-    ReadArgs { user }: &ReadArgs,
-  ) -> serror::Result<GetStackWebhooksEnabledResponse> {
-    let Some(github) = github_client() else {
-      return Ok(GetStackWebhooksEnabledResponse {
-        managed: false,
-        refresh_enabled: false,
-        deploy_enabled: false,
-      });
-    };
-
-    let stack = get_check_permissions::<Stack>(
-      &self.stack,
-      user,
-      PermissionLevel::Read.into(),
-    )
-    .await?;
-
-    if stack.config.git_provider != "github.com"
-      || stack.config.repo.is_empty()
-    {
-      return Ok(GetStackWebhooksEnabledResponse {
-        managed: false,
-        refresh_enabled: false,
-        deploy_enabled: false,
-      });
-    }
-
-    let mut split = stack.config.repo.split('/');
-    let owner = split.next().context("Sync repo has no owner")?;
-
-    let Some(github) = github.get(owner) else {
-      return Ok(GetStackWebhooksEnabledResponse {
-        managed: false,
-        refresh_enabled: false,
-        deploy_enabled: false,
-      });
-    };
-
-    let repo_name =
-      split.next().context("Repo repo has no repo after the /")?;
-
-    let github_repos = github.repos();
-
-    let webhooks = github_repos
-      .list_all_webhooks(owner, repo_name)
-      .await
-      .context("failed to list all webhooks on repo")?
-      .body;
-
-    let CoreConfig {
-      host,
-      webhook_base_url,
-      ..
-    } = core_config();
-
-    let host = if webhook_base_url.is_empty() {
-      host
-    } else {
-      webhook_base_url
-    };
-    let refresh_url =
-      format!("{host}/listener/github/stack/{}/refresh", stack.id);
-    let deploy_url =
-      format!("{host}/listener/github/stack/{}/deploy", stack.id);
-
-    let mut refresh_enabled = false;
-    let mut deploy_enabled = false;
-
-    for webhook in webhooks {
-      if webhook.active && webhook.config.url == refresh_url {
-        refresh_enabled = true
-      }
-      if webhook.active && webhook.config.url == deploy_url {
-        deploy_enabled = true
-      }
-    }
-
-    Ok(GetStackWebhooksEnabledResponse {
-      managed: true,
-      refresh_enabled,
-      deploy_enabled,
-    })
   }
 }

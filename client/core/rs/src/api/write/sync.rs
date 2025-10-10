@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
 use crate::entities::{
-  NoData,
   sync::{_PartialResourceSyncConfig, ResourceSync},
   update::Update,
 };
@@ -178,45 +177,3 @@ pub enum SyncWebhookAction {
   Refresh,
   Sync,
 }
-
-/// Create a webhook on the github repo attached to the sync
-/// passed in request. Response: [CreateSyncWebhookResponse]
-#[typeshare]
-#[derive(
-  Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
-)]
-#[empty_traits(KomodoWriteRequest)]
-#[response(CreateSyncWebhookResponse)]
-#[error(serror::Error)]
-pub struct CreateSyncWebhook {
-  /// Id or name
-  #[serde(alias = "id", alias = "name")]
-  pub sync: String,
-  /// "Refresh" or "Sync"
-  pub action: SyncWebhookAction,
-}
-
-#[typeshare]
-pub type CreateSyncWebhookResponse = NoData;
-
-//
-
-/// Delete the webhook on the github repo attached to the sync
-/// passed in request. Response: [DeleteSyncWebhookResponse]
-#[typeshare]
-#[derive(
-  Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
-)]
-#[empty_traits(KomodoWriteRequest)]
-#[response(DeleteSyncWebhookResponse)]
-#[error(serror::Error)]
-pub struct DeleteSyncWebhook {
-  /// Id or name
-  #[serde(alias = "id", alias = "name")]
-  pub sync: String,
-  /// "Refresh" or "Sync"
-  pub action: SyncWebhookAction,
-}
-
-#[typeshare]
-pub type DeleteSyncWebhookResponse = NoData;

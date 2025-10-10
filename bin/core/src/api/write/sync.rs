@@ -12,14 +12,13 @@ use formatting::format_serror;
 use komodo_client::{
   api::{read::ExportAllResourcesToToml, write::*},
   entities::{
-    self, NoData, Operation, RepoExecutionArgs, ResourceTarget,
+    self, Operation, RepoExecutionArgs, ResourceTarget,
     action::Action,
     alert::{Alert, AlertData, SeverityLevel},
     alerter::Alerter,
     all_logs_success,
     build::Build,
     builder::Builder,
-    config::core::CoreConfig,
     deployment::Deployment,
     komodo_timestamp,
     permission::PermissionLevel,
@@ -27,17 +26,11 @@ use komodo_client::{
     repo::Repo,
     server::Server,
     stack::Stack,
-    sync::{
-      PartialResourceSyncConfig, ResourceSync, ResourceSyncInfo,
-      SyncDeployUpdate,
-    },
+    sync::{ResourceSync, ResourceSyncInfo, SyncDeployUpdate},
     to_path_compatible_name,
     update::{Log, Update},
     user::sync_user,
   },
-};
-use octorust::types::{
-  ReposCreateWebhookRequest, ReposCreateWebhookRequestConfig,
 };
 use resolver_api::Resolve;
 
@@ -53,7 +46,7 @@ use crate::{
   },
   permission::get_check_permissions,
   resource,
-  state::{db_client, github_client},
+  state::db_client,
   sync::{
     deploy::SyncDeployParams, remote::RemoteResources,
     view::push_updates_for_view,
@@ -967,217 +960,5 @@ impl Resolve<WriteArgs> for RefreshResourceSyncPending {
     });
 
     Ok(crate::resource::get::<ResourceSync>(&sync.id).await?)
-  }
-}
-
-impl Resolve<WriteArgs> for CreateSyncWebhook {
-  #[instrument(name = "CreateSyncWebhook", skip(args))]
-  async fn resolve(
-    self,
-    args: &WriteArgs,
-  ) -> serror::Result<CreateSyncWebhookResponse> {
-    let WriteArgs { user } = args;
-    let Some(github) = github_client() else {
-      return Err(
-        anyhow!(
-          "github_webhook_app is not configured in core config toml"
-        )
-        .into(),
-      );
-    };
-
-    let sync = get_check_permissions::<ResourceSync>(
-      &self.sync,
-      user,
-      PermissionLevel::Write.into(),
-    )
-    .await?;
-
-    if sync.config.repo.is_empty() {
-      return Err(
-        anyhow!("No repo configured, can't create webhook").into(),
-      );
-    }
-
-    let mut split = sync.config.repo.split('/');
-    let owner = split.next().context("Sync repo has no owner")?;
-
-    let Some(github) = github.get(owner) else {
-      return Err(
-        anyhow!("Cannot manage repo webhooks under owner {owner}")
-          .into(),
-      );
-    };
-
-    let repo =
-      split.next().context("Repo repo has no repo after the /")?;
-
-    let github_repos = github.repos();
-
-    // First make sure the webhook isn't already created (inactive ones are ignored)
-    let webhooks = github_repos
-      .list_all_webhooks(owner, repo)
-      .await
-      .context("failed to list all webhooks on repo")?
-      .body;
-
-    let CoreConfig {
-      host,
-      webhook_base_url,
-      webhook_secret,
-      ..
-    } = core_config();
-
-    let webhook_secret = if sync.config.webhook_secret.is_empty() {
-      webhook_secret
-    } else {
-      &sync.config.webhook_secret
-    };
-
-    let host = if webhook_base_url.is_empty() {
-      host
-    } else {
-      webhook_base_url
-    };
-    let url = match self.action {
-      SyncWebhookAction::Refresh => {
-        format!("{host}/listener/github/sync/{}/refresh", sync.id)
-      }
-      SyncWebhookAction::Sync => {
-        format!("{host}/listener/github/sync/{}/sync", sync.id)
-      }
-    };
-
-    for webhook in webhooks {
-      if webhook.active && webhook.config.url == url {
-        return Ok(NoData {});
-      }
-    }
-
-    // Now good to create the webhook
-    let request = ReposCreateWebhookRequest {
-      active: Some(true),
-      config: Some(ReposCreateWebhookRequestConfig {
-        url,
-        secret: webhook_secret.to_string(),
-        content_type: String::from("json"),
-        insecure_ssl: None,
-        digest: Default::default(),
-        token: Default::default(),
-      }),
-      events: vec![String::from("push")],
-      name: String::from("web"),
-    };
-    github_repos
-      .create_webhook(owner, repo, &request)
-      .await
-      .context("failed to create webhook")?;
-
-    if !sync.config.webhook_enabled {
-      UpdateResourceSync {
-        id: sync.id,
-        config: PartialResourceSyncConfig {
-          webhook_enabled: Some(true),
-          ..Default::default()
-        },
-      }
-      .resolve(args)
-      .await
-      .map_err(|e| e.error)
-      .context("failed to update sync to enable webhook")?;
-    }
-
-    Ok(NoData {})
-  }
-}
-
-impl Resolve<WriteArgs> for DeleteSyncWebhook {
-  #[instrument(name = "DeleteSyncWebhook", skip(user))]
-  async fn resolve(
-    self,
-    WriteArgs { user }: &WriteArgs,
-  ) -> serror::Result<DeleteSyncWebhookResponse> {
-    let Some(github) = github_client() else {
-      return Err(
-        anyhow!(
-          "github_webhook_app is not configured in core config toml"
-        )
-        .into(),
-      );
-    };
-
-    let sync = get_check_permissions::<ResourceSync>(
-      &self.sync,
-      user,
-      PermissionLevel::Write.into(),
-    )
-    .await?;
-
-    if sync.config.git_provider != "github.com" {
-      return Err(
-        anyhow!("Can only manage github.com repo webhooks").into(),
-      );
-    }
-
-    if sync.config.repo.is_empty() {
-      return Err(
-        anyhow!("No repo configured, can't create webhook").into(),
-      );
-    }
-
-    let mut split = sync.config.repo.split('/');
-    let owner = split.next().context("Sync repo has no owner")?;
-
-    let Some(github) = github.get(owner) else {
-      return Err(
-        anyhow!("Cannot manage repo webhooks under owner {owner}")
-          .into(),
-      );
-    };
-
-    let repo =
-      split.next().context("Sync repo has no repo after the /")?;
-
-    let github_repos = github.repos();
-
-    // First make sure the webhook isn't already created (inactive ones are ignored)
-    let webhooks = github_repos
-      .list_all_webhooks(owner, repo)
-      .await
-      .context("failed to list all webhooks on repo")?
-      .body;
-
-    let CoreConfig {
-      host,
-      webhook_base_url,
-      ..
-    } = core_config();
-
-    let host = if webhook_base_url.is_empty() {
-      host
-    } else {
-      webhook_base_url
-    };
-    let url = match self.action {
-      SyncWebhookAction::Refresh => {
-        format!("{host}/listener/github/sync/{}/refresh", sync.id)
-      }
-      SyncWebhookAction::Sync => {
-        format!("{host}/listener/github/sync/{}/sync", sync.id)
-      }
-    };
-
-    for webhook in webhooks {
-      if webhook.active && webhook.config.url == url {
-        github_repos
-          .delete_webhook(owner, repo, webhook.id)
-          .await
-          .context("failed to delete webhook")?;
-        return Ok(NoData {});
-      }
-    }
-
-    // No webhook to delete, all good
-    Ok(NoData {})
   }
 }

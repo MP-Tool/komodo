@@ -13,7 +13,6 @@ import {
 } from "@components/config/util";
 import {
   getWebhookIntegration,
-  useInvalidate,
   useLocalStorage,
   usePermissions,
   useRead,
@@ -22,12 +21,10 @@ import {
   useWrite,
 } from "@lib/hooks";
 import { Types } from "komodo_client";
-import { Ban, CirclePlus, PlusCircle } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { ReactNode } from "react";
 import { CopyWebhook, ResourceLink, ResourceSelector } from "../common";
-import { useToast } from "@ui/use-toast";
-import { text_color_class_by_intention } from "@lib/color";
-import { ConfirmButton, ShowHideButton } from "@components/util";
+import { ShowHideButton } from "@components/util";
 import { Link } from "react-router-dom";
 import { SecretsSearch } from "@components/config/env_vars";
 import { MonacoEditor } from "@components/monaco";
@@ -74,7 +71,6 @@ export const BuildConfig = ({
   const build = useRead("GetBuild", { build: id }).data;
   const config = build?.config;
   const name = build?.name;
-  const webhook = useRead("GetBuildWebhookEnabled", { build: id }).data;
   const global_disabled =
     useRead("GetCoreInfo", {}).data?.ui_write_disabled ?? false;
   const [update, set] = useLocalStorage<Partial<Types.BuildConfig>>(
@@ -607,71 +603,11 @@ export const BuildConfig = ({
                 />
               </ConfigItem>
             ),
-            webhook_enabled: webhook !== undefined && !webhook.managed,
+            webhook_enabled: true,
             webhook_secret: {
               description:
                 "Provide a custom webhook secret for this resource, or use the global default.",
               placeholder: "Input custom secret",
-            },
-            ["managed" as any]: () => {
-              const inv = useInvalidate();
-              const { toast } = useToast();
-              const { mutate: createWebhook, isPending: createPending } =
-                useWrite("CreateBuildWebhook", {
-                  onSuccess: () => {
-                    toast({ title: "Webhook Created" });
-                    inv(["GetBuildWebhookEnabled", { build: id }]);
-                  },
-                });
-              const { mutate: deleteWebhook, isPending: deletePending } =
-                useWrite("DeleteBuildWebhook", {
-                  onSuccess: () => {
-                    toast({ title: "Webhook Deleted" });
-                    inv(["GetBuildWebhookEnabled", { build: id }]);
-                  },
-                });
-              if (!webhook || !webhook.managed) return;
-              return (
-                <ConfigItem label="Manage Webhook">
-                  {webhook.enabled && (
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        Incoming webhook is{" "}
-                        <div className={text_color_class_by_intention("Good")}>
-                          ENABLED
-                        </div>
-                      </div>
-                      <ConfirmButton
-                        title="Disable"
-                        icon={<Ban className="w-4 h-4" />}
-                        variant="destructive"
-                        onClick={() => deleteWebhook({ build: id })}
-                        loading={deletePending}
-                        disabled={disabled || deletePending}
-                      />
-                    </div>
-                  )}
-                  {!webhook.enabled && (
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        Incoming webhook is{" "}
-                        <div
-                          className={text_color_class_by_intention("Critical")}
-                        >
-                          DISABLED
-                        </div>
-                      </div>
-                      <ConfirmButton
-                        title="Enable Build"
-                        icon={<CirclePlus className="w-4 h-4" />}
-                        onClick={() => createWebhook({ build: id })}
-                        loading={createPending}
-                        disabled={disabled || createPending}
-                      />
-                    </div>
-                  )}
-                </ConfigItem>
-              );
             },
           },
         },

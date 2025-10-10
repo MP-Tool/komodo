@@ -104,8 +104,6 @@ pub enum WriteRequest {
   RenameStack(RenameStack),
   WriteStackFileContents(WriteStackFileContents),
   RefreshStackCache(RefreshStackCache),
-  CreateStackWebhook(CreateStackWebhook),
-  DeleteStackWebhook(DeleteStackWebhook),
 
   // ==== DEPLOYMENT ====
   CreateDeployment(CreateDeployment),
@@ -123,8 +121,6 @@ pub enum WriteRequest {
   RenameBuild(RenameBuild),
   WriteBuildFileContents(WriteBuildFileContents),
   RefreshBuildCache(RefreshBuildCache),
-  CreateBuildWebhook(CreateBuildWebhook),
-  DeleteBuildWebhook(DeleteBuildWebhook),
 
   // ==== BUILDER ====
   CreateBuilder(CreateBuilder),
@@ -140,8 +136,6 @@ pub enum WriteRequest {
   UpdateRepo(UpdateRepo),
   RenameRepo(RenameRepo),
   RefreshRepoCache(RefreshRepoCache),
-  CreateRepoWebhook(CreateRepoWebhook),
-  DeleteRepoWebhook(DeleteRepoWebhook),
 
   // ==== ALERTER ====
   CreateAlerter(CreateAlerter),
@@ -173,8 +167,6 @@ pub enum WriteRequest {
   WriteSyncFileContents(WriteSyncFileContents),
   CommitSync(CommitSync),
   RefreshResourceSyncPending(RefreshResourceSyncPending),
-  CreateSyncWebhook(CreateSyncWebhook),
-  DeleteSyncWebhook(DeleteSyncWebhook),
 
   // ==== TAG ====
   CreateTag(CreateTag),

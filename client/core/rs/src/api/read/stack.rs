@@ -276,32 +276,3 @@ pub struct GetStacksSummaryResponse {
   /// The number of stacks with Unknown state.
   pub unknown: u32,
 }
-
-//
-
-/// Get a target stack's configured webhooks. Response: [GetStackWebhooksEnabledResponse].
-#[typeshare]
-#[derive(
-  Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
-)]
-#[empty_traits(KomodoReadRequest)]
-#[response(GetStackWebhooksEnabledResponse)]
-#[error(serror::Error)]
-pub struct GetStackWebhooksEnabled {
-  /// Id or name
-  #[serde(alias = "id", alias = "name")]
-  pub stack: String,
-}
-
-/// Response for [GetStackWebhooksEnabled]
-#[typeshare]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetStackWebhooksEnabledResponse {
-  /// Whether the repo webhooks can even be managed.
-  /// The repo owner must be in `github_webhook_app.owners` list to be managed.
-  pub managed: bool,
-  /// Whether pushes to branch trigger refresh. Will always be false if managed is false.
-  pub refresh_enabled: bool,
-  /// Whether pushes to branch trigger stack execution. Will always be false if managed is false.
-  pub deploy_enabled: bool,
-}

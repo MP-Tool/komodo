@@ -66,7 +66,6 @@ export type ReadResponses = {
     GetStacksSummary: Types.GetStacksSummaryResponse;
     GetStack: Types.GetStackResponse;
     GetStackActionState: Types.GetStackActionStateResponse;
-    GetStackWebhooksEnabled: Types.GetStackWebhooksEnabledResponse;
     GetStackLog: Types.GetStackLogResponse;
     SearchStackLog: Types.SearchStackLogResponse;
     InspectStackContainer: Types.InspectStackContainerResponse;
@@ -90,7 +89,6 @@ export type ReadResponses = {
     GetBuild: Types.GetBuildResponse;
     GetBuildActionState: Types.GetBuildActionStateResponse;
     GetBuildMonthlyStats: Types.GetBuildMonthlyStatsResponse;
-    GetBuildWebhookEnabled: Types.GetBuildWebhookEnabledResponse;
     ListBuilds: Types.ListBuildsResponse;
     ListFullBuilds: Types.ListFullBuildsResponse;
     ListBuildVersions: Types.ListBuildVersionsResponse;
@@ -98,13 +96,11 @@ export type ReadResponses = {
     GetReposSummary: Types.GetReposSummaryResponse;
     GetRepo: Types.GetRepoResponse;
     GetRepoActionState: Types.GetRepoActionStateResponse;
-    GetRepoWebhooksEnabled: Types.GetRepoWebhooksEnabledResponse;
     ListRepos: Types.ListReposResponse;
     ListFullRepos: Types.ListFullReposResponse;
     GetResourceSyncsSummary: Types.GetResourceSyncsSummaryResponse;
     GetResourceSync: Types.GetResourceSyncResponse;
     GetResourceSyncActionState: Types.GetResourceSyncActionStateResponse;
-    GetSyncWebhooksEnabled: Types.GetSyncWebhooksEnabledResponse;
     ListResourceSyncs: Types.ListResourceSyncsResponse;
     ListFullResourceSyncs: Types.ListFullResourceSyncsResponse;
     GetBuildersSummary: Types.GetBuildersSummaryResponse;
@@ -173,8 +169,6 @@ export type WriteResponses = {
     RenameStack: Types.Update;
     WriteStackFileContents: Types.Update;
     RefreshStackCache: Types.NoData;
-    CreateStackWebhook: Types.CreateStackWebhookResponse;
-    DeleteStackWebhook: Types.DeleteStackWebhookResponse;
     CreateDeployment: Types.Deployment;
     CopyDeployment: Types.Deployment;
     CreateDeploymentFromContainer: Types.Deployment;
@@ -188,8 +182,6 @@ export type WriteResponses = {
     RenameBuild: Types.Update;
     WriteBuildFileContents: Types.Update;
     RefreshBuildCache: Types.NoData;
-    CreateBuildWebhook: Types.CreateBuildWebhookResponse;
-    DeleteBuildWebhook: Types.DeleteBuildWebhookResponse;
     CreateBuilder: Types.Builder;
     CopyBuilder: Types.Builder;
     DeleteBuilder: Types.Builder;
@@ -201,8 +193,6 @@ export type WriteResponses = {
     UpdateRepo: Types.Repo;
     RenameRepo: Types.Update;
     RefreshRepoCache: Types.NoData;
-    CreateRepoWebhook: Types.CreateRepoWebhookResponse;
-    DeleteRepoWebhook: Types.DeleteRepoWebhookResponse;
     CreateAlerter: Types.Alerter;
     CopyAlerter: Types.Alerter;
     DeleteAlerter: Types.Alerter;
@@ -226,8 +216,6 @@ export type WriteResponses = {
     CommitSync: Types.Update;
     WriteSyncFileContents: Types.Update;
     RefreshResourceSyncPending: Types.ResourceSync;
-    CreateSyncWebhook: Types.CreateSyncWebhookResponse;
-    DeleteSyncWebhook: Types.DeleteSyncWebhookResponse;
     CreateTag: Types.Tag;
     DeleteTag: Types.Tag;
     RenameTag: Types.Tag;

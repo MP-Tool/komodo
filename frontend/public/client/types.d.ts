@@ -1100,7 +1100,6 @@ export interface ProcedureConfig {
  */
 export type Procedure = Resource<ProcedureConfig, undefined>;
 export type CopyProcedureResponse = Procedure;
-export type CreateActionWebhookResponse = NoData;
 /** Response for [CreateApiKey]. */
 export interface CreateApiKeyResponse {
     /** X-API-KEY */
@@ -1114,7 +1113,6 @@ export interface CreateApiKeyResponse {
     secret: string;
 }
 export type CreateApiKeyForServiceUserResponse = CreateApiKeyResponse;
-export type CreateBuildWebhookResponse = NoData;
 /** Configuration to access private image repositories on various registries. */
 export interface DockerRegistryAccount {
     /**
@@ -1239,10 +1237,7 @@ export interface User {
 }
 export type CreateLocalUserResponse = User;
 export type CreateProcedureResponse = Procedure;
-export type CreateRepoWebhookResponse = NoData;
 export type CreateServiceUserResponse = User;
-export type CreateStackWebhookResponse = NoData;
-export type CreateSyncWebhookResponse = NoData;
 /**
  * A non-secret global variable which can be interpolated into deployment
  * environment variable values and build argument values.
@@ -1268,10 +1263,8 @@ export interface Variable {
     is_secret?: boolean;
 }
 export type CreateVariableResponse = Variable;
-export type DeleteActionWebhookResponse = NoData;
 export type DeleteApiKeyForServiceUserResponse = NoData;
 export type DeleteApiKeyResponse = NoData;
-export type DeleteBuildWebhookResponse = NoData;
 export type DeleteDockerRegistryAccountResponse = DockerRegistryAccount;
 export type DeleteGitProviderAccountResponse = GitProviderAccount;
 /**
@@ -1307,9 +1300,6 @@ export interface OnboardingKey {
 }
 export type DeleteOnboardingKeyResponse = OnboardingKey;
 export type DeleteProcedureResponse = Procedure;
-export type DeleteRepoWebhookResponse = NoData;
-export type DeleteStackWebhookResponse = NoData;
-export type DeleteSyncWebhookResponse = NoData;
 export type DeleteUserResponse = User;
 export type DeleteVariableResponse = Variable;
 export type DeploymentImage = 
@@ -4876,14 +4866,6 @@ export interface CreateAction {
     /** Optional partial config to initialize the action with. */
     config?: _PartialActionConfig;
 }
-/**
- * Create a webhook on the github action attached to the Action resource.
- * passed in request. Response: [CreateActionWebhookResponse]
- */
-export interface CreateActionWebhook {
-    /** Id or name */
-    action: string;
-}
 /** Create an alerter. Response: [Alerter]. */
 export interface CreateAlerter {
     /** The name given to newly created alerter. */
@@ -4928,14 +4910,6 @@ export interface CreateBuild {
     name: string;
     /** Optional partial config to initialize the build with. */
     config?: _PartialBuildConfig;
-}
-/**
- * Create a webhook on the github repo attached to the build
- * passed in request. Response: [CreateBuildWebhookResponse]
- */
-export interface CreateBuildWebhook {
-    /** Id or name */
-    build: string;
 }
 /** Partial representation of [BuilderConfig] */
 export type PartialBuilderConfig = {
@@ -5062,21 +5036,6 @@ export interface CreateRepo {
     /** Optional partial config to initialize the repo with. */
     config?: _PartialRepoConfig;
 }
-export declare enum RepoWebhookAction {
-    Clone = "Clone",
-    Pull = "Pull",
-    Build = "Build"
-}
-/**
- * Create a webhook on the github repo attached to the (Komodo) Repo resource.
- * passed in request. Response: [CreateRepoWebhookResponse]
- */
-export interface CreateRepoWebhook {
-    /** Id or name */
-    repo: string;
-    /** "Clone" or "Pull" or "Build" */
-    action: RepoWebhookAction;
-}
 /** Create a sync. Response: [ResourceSync]. */
 export interface CreateResourceSync {
     /** The name given to newly created sync. */
@@ -5109,34 +5068,6 @@ export interface CreateStack {
     name: string;
     /** Optional partial config to initialize the stack with. */
     config?: _PartialStackConfig;
-}
-export declare enum StackWebhookAction {
-    Refresh = "Refresh",
-    Deploy = "Deploy"
-}
-/**
- * Create a webhook on the github repo attached to the stack
- * passed in request. Response: [CreateStackWebhookResponse]
- */
-export interface CreateStackWebhook {
-    /** Id or name */
-    stack: string;
-    /** "Refresh" or "Deploy" */
-    action: StackWebhookAction;
-}
-export declare enum SyncWebhookAction {
-    Refresh = "Refresh",
-    Sync = "Sync"
-}
-/**
- * Create a webhook on the github repo attached to the sync
- * passed in request. Response: [CreateSyncWebhookResponse]
- */
-export interface CreateSyncWebhook {
-    /** Id or name */
-    sync: string;
-    /** "Refresh" or "Sync" */
-    action: SyncWebhookAction;
 }
 /** Create a tag. Response: [Tag]. */
 export interface CreateTag {
@@ -5211,14 +5142,6 @@ export interface DeleteAction {
     id: string;
 }
 /**
- * Delete the webhook on the github action attached to the Action resource.
- * passed in request. Response: [DeleteActionWebhookResponse]
- */
-export interface DeleteActionWebhook {
-    /** Id or name */
-    action: string;
-}
-/**
  * Deletes the alerter at the given id, and returns the deleted alerter.
  * Response: [Alerter]
  */
@@ -5256,14 +5179,6 @@ export interface DeleteApiKeyForServiceUser {
 export interface DeleteBuild {
     /** The id or name of the build to delete. */
     id: string;
-}
-/**
- * Delete a webhook on the github repo attached to the build
- * passed in request. Response: [CreateBuildWebhookResponse]
- */
-export interface DeleteBuildWebhook {
-    /** Id or name */
-    build: string;
 }
 /**
  * Deletes the builder at the given id, and returns the deleted builder.
@@ -5344,16 +5259,6 @@ export interface DeleteRepo {
     id: string;
 }
 /**
- * Delete the webhook on the github repo attached to the (Komodo) Repo resource.
- * passed in request. Response: [DeleteRepoWebhookResponse]
- */
-export interface DeleteRepoWebhook {
-    /** Id or name */
-    repo: string;
-    /** "Clone" or "Pull" or "Build" */
-    action: RepoWebhookAction;
-}
-/**
  * Deletes the sync at the given id, and returns the deleted sync.
  * Response: [ResourceSync]
  */
@@ -5376,26 +5281,6 @@ export interface DeleteServer {
 export interface DeleteStack {
     /** The id or name of the stack to delete. */
     id: string;
-}
-/**
- * Delete the webhook on the github repo attached to the stack
- * passed in request. Response: [DeleteStackWebhookResponse]
- */
-export interface DeleteStackWebhook {
-    /** Id or name */
-    stack: string;
-    /** "Refresh" or "Deploy" */
-    action: StackWebhookAction;
-}
-/**
- * Delete the webhook on the github repo attached to the sync
- * passed in request. Response: [DeleteSyncWebhookResponse]
- */
-export interface DeleteSyncWebhook {
-    /** Id or name */
-    sync: string;
-    /** "Refresh" or "Sync" */
-    action: SyncWebhookAction;
 }
 /**
  * Delete a tag, and return the deleted tag. Response: [Tag].
@@ -5788,21 +5673,6 @@ export interface GetBuildMonthlyStatsResponse {
     total_count: number;
     days: BuildStatsDay[];
 }
-/** Get whether a Build's target repo has a webhook for the build configured. Response: [GetBuildWebhookEnabledResponse]. */
-export interface GetBuildWebhookEnabled {
-    /** Id or name */
-    build: string;
-}
-/** Response for [GetBuildWebhookEnabled] */
-export interface GetBuildWebhookEnabledResponse {
-    /**
-     * Whether the repo webhooks can even be managed.
-     * The repo owner must be in `github_webhook_app.owners` list to be managed.
-     */
-    managed: boolean;
-    /** Whether pushes to branch trigger build. Will always be false if managed is false. */
-    enabled: boolean;
-}
 /** Get a specific builder by id or name. Response: [Builder]. */
 export interface GetBuilder {
     /** Id or name */
@@ -5880,8 +5750,6 @@ export interface GetCoreInfoResponse {
     disable_non_admin_create: boolean;
     /** Whether confirm dialog should be disabled */
     disable_confirm_dialog: boolean;
-    /** The repo owners for which github webhook management api is available */
-    github_webhook_owners: string[];
     /** Whether to disable websocket automatic reconnect. */
     disable_websocket_reconnect: boolean;
     /** Whether to enable fancy toml highlighting. */
@@ -6127,25 +5995,6 @@ export interface GetRepoActionState {
     /** Id or name */
     repo: string;
 }
-/** Get a target Repo's configured webhooks. Response: [GetRepoWebhooksEnabledResponse]. */
-export interface GetRepoWebhooksEnabled {
-    /** Id or name */
-    repo: string;
-}
-/** Response for [GetRepoWebhooksEnabled] */
-export interface GetRepoWebhooksEnabledResponse {
-    /**
-     * Whether the repo webhooks can even be managed.
-     * The repo owner must be in `github_webhook_app.owners` list to be managed.
-     */
-    managed: boolean;
-    /** Whether pushes to branch trigger clone. Will always be false if managed is false. */
-    clone_enabled: boolean;
-    /** Whether pushes to branch trigger pull. Will always be false if managed is false. */
-    pull_enabled: boolean;
-    /** Whether pushes to branch trigger build. Will always be false if managed is false. */
-    build_enabled: boolean;
-}
 /**
  * Gets a summary of data relating to all repos.
  * Response: [GetReposSummaryResponse].
@@ -6282,23 +6131,6 @@ export interface GetStackLog {
     /** Enable `--timestamps` */
     timestamps?: boolean;
 }
-/** Get a target stack's configured webhooks. Response: [GetStackWebhooksEnabledResponse]. */
-export interface GetStackWebhooksEnabled {
-    /** Id or name */
-    stack: string;
-}
-/** Response for [GetStackWebhooksEnabled] */
-export interface GetStackWebhooksEnabledResponse {
-    /**
-     * Whether the repo webhooks can even be managed.
-     * The repo owner must be in `github_webhook_app.owners` list to be managed.
-     */
-    managed: boolean;
-    /** Whether pushes to branch trigger refresh. Will always be false if managed is false. */
-    refresh_enabled: boolean;
-    /** Whether pushes to branch trigger stack execution. Will always be false if managed is false. */
-    deploy_enabled: boolean;
-}
 /**
  * Gets a summary of data relating to all syncs.
  * Response: [GetStacksSummaryResponse].
@@ -6319,23 +6151,6 @@ export interface GetStacksSummaryResponse {
     unhealthy: number;
     /** The number of stacks with Unknown state. */
     unknown: number;
-}
-/** Get a target Sync's configured webhooks. Response: [GetSyncWebhooksEnabledResponse]. */
-export interface GetSyncWebhooksEnabled {
-    /** Id or name */
-    sync: string;
-}
-/** Response for [GetSyncWebhooksEnabled] */
-export interface GetSyncWebhooksEnabledResponse {
-    /**
-     * Whether the repo webhooks can even be managed.
-     * The repo owner must be in `github_webhook_app.owners` list to be managed.
-     */
-    managed: boolean;
-    /** Whether pushes to branch trigger refresh. Will always be false if managed is false. */
-    refresh_enabled: boolean;
-    /** Whether pushes to branch trigger sync execution. Will always be false if managed is false. */
-    sync_enabled: boolean;
 }
 /**
  * Get the system information of the target server.
@@ -8726,9 +8541,6 @@ export type ReadRequest = {
     type: "GetStackActionState";
     params: GetStackActionState;
 } | {
-    type: "GetStackWebhooksEnabled";
-    params: GetStackWebhooksEnabled;
-} | {
     type: "GetStackLog";
     params: GetStackLog;
 } | {
@@ -8801,9 +8613,6 @@ export type ReadRequest = {
     type: "ListBuildVersions";
     params: ListBuildVersions;
 } | {
-    type: "GetBuildWebhookEnabled";
-    params: GetBuildWebhookEnabled;
-} | {
     type: "ListBuilds";
     params: ListBuilds;
 } | {
@@ -8822,9 +8631,6 @@ export type ReadRequest = {
     type: "GetRepoActionState";
     params: GetRepoActionState;
 } | {
-    type: "GetRepoWebhooksEnabled";
-    params: GetRepoWebhooksEnabled;
-} | {
     type: "ListRepos";
     params: ListRepos;
 } | {
@@ -8839,9 +8645,6 @@ export type ReadRequest = {
 } | {
     type: "GetResourceSyncActionState";
     params: GetResourceSyncActionState;
-} | {
-    type: "GetSyncWebhooksEnabled";
-    params: GetSyncWebhooksEnabled;
 } | {
     type: "ListResourceSyncs";
     params: ListResourceSyncs;
@@ -8918,6 +8721,11 @@ export type ReadRequest = {
     type: "ListOnboardingKeys";
     params: ListOnboardingKeys;
 };
+export declare enum RepoWebhookAction {
+    Clone = "Clone",
+    Pull = "Pull",
+    Build = "Build"
+}
 /** The specific types of permission that a User or UserGroup can have on a resource. */
 export declare enum SpecificPermission {
     /**
@@ -8955,6 +8763,14 @@ export declare enum SpecificPermission {
      * - Read all the processes on the host
      */
     Processes = "Processes"
+}
+export declare enum StackWebhookAction {
+    Refresh = "Refresh",
+    Deploy = "Deploy"
+}
+export declare enum SyncWebhookAction {
+    Refresh = "Refresh",
+    Sync = "Sync"
 }
 export type UserRequest = {
     type: "PushRecentlyViewed";
@@ -9084,12 +8900,6 @@ export type WriteRequest = {
     type: "RefreshStackCache";
     params: RefreshStackCache;
 } | {
-    type: "CreateStackWebhook";
-    params: CreateStackWebhook;
-} | {
-    type: "DeleteStackWebhook";
-    params: DeleteStackWebhook;
-} | {
     type: "CreateDeployment";
     params: CreateDeployment;
 } | {
@@ -9129,12 +8939,6 @@ export type WriteRequest = {
     type: "RefreshBuildCache";
     params: RefreshBuildCache;
 } | {
-    type: "CreateBuildWebhook";
-    params: CreateBuildWebhook;
-} | {
-    type: "DeleteBuildWebhook";
-    params: DeleteBuildWebhook;
-} | {
     type: "CreateBuilder";
     params: CreateBuilder;
 } | {
@@ -9167,12 +8971,6 @@ export type WriteRequest = {
 } | {
     type: "RefreshRepoCache";
     params: RefreshRepoCache;
-} | {
-    type: "CreateRepoWebhook";
-    params: CreateRepoWebhook;
-} | {
-    type: "DeleteRepoWebhook";
-    params: DeleteRepoWebhook;
 } | {
     type: "CreateAlerter";
     params: CreateAlerter;
@@ -9242,12 +9040,6 @@ export type WriteRequest = {
 } | {
     type: "RefreshResourceSyncPending";
     params: RefreshResourceSyncPending;
-} | {
-    type: "CreateSyncWebhook";
-    params: CreateSyncWebhook;
-} | {
-    type: "DeleteSyncWebhook";
-    params: DeleteSyncWebhook;
 } | {
     type: "CreateTag";
     params: CreateTag;

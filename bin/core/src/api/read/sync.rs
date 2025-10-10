@@ -2,7 +2,6 @@ use anyhow::Context;
 use komodo_client::{
   api::read::*,
   entities::{
-    config::core::CoreConfig,
     permission::PermissionLevel,
     sync::{
       ResourceSync, ResourceSyncActionState, ResourceSyncListItem,
@@ -12,11 +11,8 @@ use komodo_client::{
 use resolver_api::Resolve;
 
 use crate::{
-  config::core_config,
-  helpers::query::get_all_tags,
-  permission::get_check_permissions,
-  resource,
-  state::{action_states, github_client},
+  helpers::query::get_all_tags, permission::get_check_permissions,
+  resource, state::action_states,
 };
 
 use super::ReadArgs;
@@ -152,93 +148,5 @@ impl Resolve<ReadArgs> for GetResourceSyncsSummary {
     }
 
     Ok(res)
-  }
-}
-
-impl Resolve<ReadArgs> for GetSyncWebhooksEnabled {
-  async fn resolve(
-    self,
-    ReadArgs { user }: &ReadArgs,
-  ) -> serror::Result<GetSyncWebhooksEnabledResponse> {
-    let Some(github) = github_client() else {
-      return Ok(GetSyncWebhooksEnabledResponse {
-        managed: false,
-        refresh_enabled: false,
-        sync_enabled: false,
-      });
-    };
-
-    let sync = get_check_permissions::<ResourceSync>(
-      &self.sync,
-      user,
-      PermissionLevel::Read.into(),
-    )
-    .await?;
-
-    if sync.config.git_provider != "github.com"
-      || sync.config.repo.is_empty()
-    {
-      return Ok(GetSyncWebhooksEnabledResponse {
-        managed: false,
-        refresh_enabled: false,
-        sync_enabled: false,
-      });
-    }
-
-    let mut split = sync.config.repo.split('/');
-    let owner = split.next().context("Sync repo has no owner")?;
-
-    let Some(github) = github.get(owner) else {
-      return Ok(GetSyncWebhooksEnabledResponse {
-        managed: false,
-        refresh_enabled: false,
-        sync_enabled: false,
-      });
-    };
-
-    let repo_name =
-      split.next().context("Repo repo has no repo after the /")?;
-
-    let github_repos = github.repos();
-
-    let webhooks = github_repos
-      .list_all_webhooks(owner, repo_name)
-      .await
-      .context("failed to list all webhooks on repo")?
-      .body;
-
-    let CoreConfig {
-      host,
-      webhook_base_url,
-      ..
-    } = core_config();
-
-    let host = if webhook_base_url.is_empty() {
-      host
-    } else {
-      webhook_base_url
-    };
-    let refresh_url =
-      format!("{host}/listener/github/sync/{}/refresh", sync.id);
-    let sync_url =
-      format!("{host}/listener/github/sync/{}/sync", sync.id);
-
-    let mut refresh_enabled = false;
-    let mut sync_enabled = false;
-
-    for webhook in webhooks {
-      if webhook.active && webhook.config.url == refresh_url {
-        refresh_enabled = true
-      }
-      if webhook.active && webhook.config.url == sync_url {
-        sync_enabled = true
-      }
-    }
-
-    Ok(GetSyncWebhooksEnabledResponse {
-      managed: true,
-      refresh_enabled,
-      sync_enabled,
-    })
   }
 }

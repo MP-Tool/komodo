@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
 use crate::entities::{
-  NoData,
   action::{_PartialActionConfig, Action},
   update::Update,
 };
@@ -104,41 +103,3 @@ pub struct RenameAction {
   /// The new name.
   pub name: String,
 }
-
-/// Create a webhook on the github action attached to the Action resource.
-/// passed in request. Response: [CreateActionWebhookResponse]
-#[typeshare]
-#[derive(
-  Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
-)]
-#[empty_traits(KomodoWriteRequest)]
-#[response(CreateActionWebhookResponse)]
-#[error(serror::Error)]
-pub struct CreateActionWebhook {
-  /// Id or name
-  #[serde(alias = "id", alias = "name")]
-  pub action: String,
-}
-
-#[typeshare]
-pub type CreateActionWebhookResponse = NoData;
-
-//
-
-/// Delete the webhook on the github action attached to the Action resource.
-/// passed in request. Response: [DeleteActionWebhookResponse]
-#[typeshare]
-#[derive(
-  Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
-)]
-#[empty_traits(KomodoWriteRequest)]
-#[response(DeleteActionWebhookResponse)]
-#[error(serror::Error)]
-pub struct DeleteActionWebhook {
-  /// Id or name
-  #[serde(alias = "id", alias = "name")]
-  pub action: String,
-}
-
-#[typeshare]
-pub type DeleteActionWebhookResponse = NoData;

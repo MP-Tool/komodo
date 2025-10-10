@@ -117,34 +117,3 @@ pub struct GetReposSummaryResponse {
   /// The number of repos with unknown state.
   pub unknown: u32,
 }
-
-//
-
-/// Get a target Repo's configured webhooks. Response: [GetRepoWebhooksEnabledResponse].
-#[typeshare]
-#[derive(
-  Serialize, Deserialize, Debug, Clone, Resolve, EmptyTraits,
-)]
-#[empty_traits(KomodoReadRequest)]
-#[response(GetRepoWebhooksEnabledResponse)]
-#[error(serror::Error)]
-pub struct GetRepoWebhooksEnabled {
-  /// Id or name
-  #[serde(alias = "id", alias = "name")]
-  pub repo: String,
-}
-
-/// Response for [GetRepoWebhooksEnabled]
-#[typeshare]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetRepoWebhooksEnabledResponse {
-  /// Whether the repo webhooks can even be managed.
-  /// The repo owner must be in `github_webhook_app.owners` list to be managed.
-  pub managed: bool,
-  /// Whether pushes to branch trigger clone. Will always be false if managed is false.
-  pub clone_enabled: bool,
-  /// Whether pushes to branch trigger pull. Will always be false if managed is false.
-  pub pull_enabled: bool,
-  /// Whether pushes to branch trigger build. Will always be false if managed is false.
-  pub build_enabled: bool,
-}
