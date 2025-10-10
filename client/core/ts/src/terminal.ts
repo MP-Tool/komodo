@@ -1,7 +1,10 @@
-import { ClientState, InitOptions } from "./lib";
+import { ClientState } from "./lib";
 import {
+  ConnectContainerAttachQuery,
   ConnectContainerExecQuery,
+  ConnectDeploymentAttachQuery,
   ConnectDeploymentExecQuery,
+  ConnectStackAttachQuery,
   ConnectStackExecQuery,
   ConnectTerminalQuery,
   ExecuteContainerExecBody,
@@ -30,6 +33,20 @@ export type ConnectExecQuery =
   | {
       type: "stack";
       query: ConnectStackExecQuery;
+    };
+
+export type ConnectAttachQuery =
+  | {
+      type: "container";
+      query: ConnectContainerAttachQuery;
+    }
+  | {
+      type: "deployment";
+      query: ConnectDeploymentAttachQuery;
+    }
+  | {
+      type: "stack";
+      query: ConnectStackAttachQuery;
     };
 
 export type ExecuteExecBody =
@@ -198,6 +215,81 @@ export const terminal_methods = (url: string, state: ClientState) => {
     return ws;
   };
 
+  const connect_container_attach = ({
+    query,
+    ...callbacks
+  }: {
+    query: ConnectContainerAttachQuery;
+  } & TerminalCallbacks) =>
+    connect_attach({ query: { type: "container", query }, ...callbacks });
+
+  const connect_deployment_attach = ({
+    query,
+    ...callbacks
+  }: {
+    query: ConnectDeploymentAttachQuery;
+  } & TerminalCallbacks) =>
+    connect_attach({ query: { type: "deployment", query }, ...callbacks });
+
+  const connect_stack_attach = ({
+    query,
+    ...callbacks
+  }: {
+    query: ConnectStackAttachQuery;
+  } & TerminalCallbacks) =>
+    connect_attach({ query: { type: "stack", query }, ...callbacks });
+
+  const connect_attach = ({
+    query: { type, query },
+    on_message,
+    on_login,
+    on_open,
+    on_close,
+  }: {
+    query: ConnectAttachQuery;
+  } & TerminalCallbacks) => {
+    const url_query = new URLSearchParams(
+      query as any as Record<string, string>
+    ).toString();
+    const ws = new WebSocket(
+      url.replace("http", "ws") + `/ws/${type}/terminal/attach?` + url_query
+    );
+    // Handle login on websocket open
+    ws.onopen = () => {
+      const login_msg: WsLoginMessage = state.jwt
+        ? {
+            type: "Jwt",
+            params: {
+              jwt: state.jwt,
+            },
+          }
+        : {
+            type: "ApiKeys",
+            params: {
+              key: state.key!,
+              secret: state.secret!,
+            },
+          };
+      ws.send(JSON.stringify(login_msg));
+      on_open?.();
+    };
+
+    ws.onmessage = (e) => {
+      if (e.data == "LOGGED_IN") {
+        ws.binaryType = "arraybuffer";
+        ws.onmessage = (e) => on_message?.(e);
+        on_login?.();
+        return;
+      } else {
+        on_message?.(e);
+      }
+    };
+
+    ws.onclose = () => on_close?.();
+
+    return ws;
+  };
+
   const execute_container_exec = (
     body: ExecuteContainerExecBody,
     callbacks?: ExecuteCallbacks
@@ -321,13 +413,17 @@ export const terminal_methods = (url: string, state: ClientState) => {
     execute_terminal,
     execute_terminal_stream,
     connect_exec,
+    connect_attach,
     connect_container_exec,
+    connect_container_attach,
     execute_container_exec,
     execute_container_exec_stream,
     connect_deployment_exec,
+    connect_deployment_attach,
     execute_deployment_exec,
     execute_deployment_exec_stream,
     connect_stack_exec,
+    connect_stack_attach,
     execute_stack_exec,
     execute_stack_exec_stream,
   };

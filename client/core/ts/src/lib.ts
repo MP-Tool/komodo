@@ -332,13 +332,17 @@ export function KomodoClient(url: string, options: InitOptions) {
     execute_terminal,
     execute_terminal_stream,
     connect_exec,
+    connect_attach,
     connect_container_exec,
+    connect_container_attach,
     execute_container_exec,
     execute_container_exec_stream,
     connect_deployment_exec,
+    connect_deployment_attach,
     execute_deployment_exec,
     execute_deployment_exec_stream,
     connect_stack_exec,
+    connect_stack_attach,
     execute_stack_exec,
     execute_stack_exec_stream,
   } = terminal_methods(url, state);
@@ -494,11 +498,24 @@ export function KomodoClient(url: string, options: InitOptions) {
      */
     connect_exec,
     /**
+     * Subscribes to container attach io over websocket message,
+     * for use with xtermjs. Can attach to container on a Server,
+     * or associated with a Deployment or Stack.
+     * Terminal permission on connecting resource required.
+     */
+    connect_attach,
+    /**
      * Subscribes to container exec io over websocket message,
      * for use with xtermjs. Can connect to Container on a Server.
      * Server Terminal permission required.
      */
     connect_container_exec,
+    /**
+     * Subscribes to container attach io over websocket message,
+     * for use with xtermjs. Can attach to Container on a Server.
+     * Server Terminal permission required.
+     */
+    connect_container_attach,
     /**
      * Executes a command on a given container,
      * and gives a callback to handle the output as it comes in.
@@ -551,6 +568,12 @@ export function KomodoClient(url: string, options: InitOptions) {
      */
     connect_deployment_exec,
     /**
+     * Subscribes to deployment container attach io over websocket message,
+     * for use with xtermjs. Can attach to Deployment container.
+     * Deployment Terminal permission required.
+     */
+    connect_deployment_attach,
+    /**
      * Executes a command on a given deployment container,
      * and gives a callback to handle the output as it comes in.
      *
@@ -599,6 +622,12 @@ export function KomodoClient(url: string, options: InitOptions) {
      * Stack Terminal permission required.
      */
     connect_stack_exec,
+    /**
+     * Subscribes to container attach io over websocket message,
+     * for use with xtermjs. Can attach to Stack service container.
+     * Stack Terminal permission required.
+     */
+    connect_stack_attach,
     /**
      * Executes a command on a given stack service container,
      * and gives a callback to handle the output as it comes in.

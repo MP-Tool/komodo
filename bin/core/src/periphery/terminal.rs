@@ -10,8 +10,8 @@ use cache::CloneCache;
 use futures::Stream;
 use periphery_client::{
   api::terminal::{
-    ConnectContainerExec, ConnectTerminal, END_OF_OUTPUT,
-    ExecuteContainerExec, ExecuteTerminal,
+    ConnectContainerAttach, ConnectContainerExec, ConnectTerminal,
+    END_OF_OUTPUT, ExecuteContainerExec, ExecuteTerminal,
   },
   transport::EncodedTransportMessage,
 };
@@ -94,6 +94,42 @@ impl PeripheryClient {
       )?;
 
     Ok((channel_id, connection.sender.clone(), receiever))
+  }
+
+  pub async fn connect_container_attach(
+    &self,
+    container: String,
+  ) -> anyhow::Result<(
+    Uuid,
+    Sender<EncodedTransportMessage>,
+    Receiver<Vec<u8>>,
+  )> {
+    tracing::trace!(
+      "request | type: ConnectContainerAttach | container name: {container}",
+    );
+
+    let connection =
+      periphery_connections().get(&self.id).await.with_context(
+        || format!("No connection found for server {}", self.id),
+      )?;
+
+    let channel = self
+      .request(ConnectContainerAttach { container })
+      .await
+      .context("Failed to create container attach connection")?;
+
+    let (sender, receiever) = transport::channel::channel();
+    connection.terminals.insert(channel, sender).await;
+
+    connection
+      .sender
+      .send_terminal(channel, Bytes::new())
+      .await
+      .context(
+        "Failed to send TerminalTrigger to begin forwarding.",
+      )?;
+
+    Ok((channel, connection.sender.clone(), receiever))
   }
 
   /// Executes command on specified terminal,

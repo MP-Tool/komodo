@@ -89,6 +89,45 @@ export const terminal_methods = (url, state) => {
         ws.onclose = () => on_close?.();
         return ws;
     };
+    const connect_container_attach = ({ query, ...callbacks }) => connect_attach({ query: { type: "container", query }, ...callbacks });
+    const connect_deployment_attach = ({ query, ...callbacks }) => connect_attach({ query: { type: "deployment", query }, ...callbacks });
+    const connect_stack_attach = ({ query, ...callbacks }) => connect_attach({ query: { type: "stack", query }, ...callbacks });
+    const connect_attach = ({ query: { type, query }, on_message, on_login, on_open, on_close, }) => {
+        const url_query = new URLSearchParams(query).toString();
+        const ws = new WebSocket(url.replace("http", "ws") + `/ws/${type}/terminal/attach?` + url_query);
+        // Handle login on websocket open
+        ws.onopen = () => {
+            const login_msg = state.jwt
+                ? {
+                    type: "Jwt",
+                    params: {
+                        jwt: state.jwt,
+                    },
+                }
+                : {
+                    type: "ApiKeys",
+                    params: {
+                        key: state.key,
+                        secret: state.secret,
+                    },
+                };
+            ws.send(JSON.stringify(login_msg));
+            on_open?.();
+        };
+        ws.onmessage = (e) => {
+            if (e.data == "LOGGED_IN") {
+                ws.binaryType = "arraybuffer";
+                ws.onmessage = (e) => on_message?.(e);
+                on_login?.();
+                return;
+            }
+            else {
+                on_message?.(e);
+            }
+        };
+        ws.onclose = () => on_close?.();
+        return ws;
+    };
     const execute_container_exec = (body, callbacks) => execute_exec({ type: "container", body }, callbacks);
     const execute_deployment_exec = (body, callbacks) => execute_exec({ type: "deployment", body }, callbacks);
     const execute_stack_exec = (body, callbacks) => execute_exec({ type: "stack", body }, callbacks);
@@ -191,13 +230,17 @@ export const terminal_methods = (url, state) => {
         execute_terminal,
         execute_terminal_stream,
         connect_exec,
+        connect_attach,
         connect_container_exec,
+        connect_container_attach,
         execute_container_exec,
         execute_container_exec_stream,
         connect_deployment_exec,
+        connect_deployment_attach,
         execute_deployment_exec,
         execute_deployment_exec_stream,
         connect_stack_exec,
+        connect_stack_attach,
         execute_stack_exec,
         execute_stack_exec_stream,
     };

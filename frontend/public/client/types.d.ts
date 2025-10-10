@@ -1926,7 +1926,7 @@ export interface PeripheryInformation {
     /** Whether terminals are disabled on this Periphery server */
     terminals_disabled: boolean;
     /** Whether container exec is disabled on this Periphery server */
-    container_exec_disabled: boolean;
+    container_terminals_disabled: boolean;
     /** The rate the system stats are being polled from the system */
     stats_polling_rate: Timelength;
 }
@@ -3936,8 +3936,8 @@ export interface ServerListItemInfo {
      * Whether terminals are disabled for this Server.
      */
     terminals_disabled: boolean;
-    /** Whether container exec is disabled for this Server. */
-    container_exec_disabled: boolean;
+    /** Whether container terminals are disabled for this Server. */
+    container_terminals_disabled: boolean;
 }
 export type ServerListItem = ResourceListItem<ServerListItemInfo>;
 export type ListServersResponse = ServerListItem[];
@@ -4501,10 +4501,14 @@ export interface CommitSync {
     /** Id or name */
     sync: string;
 }
-/**
- * Query to connect to a container exec session (interactive shell over websocket) on the given server.
- * TODO: Document calling.
- */
+/** Query to connect to a container attach session (interactive shell over websocket) on the given server. */
+export interface ConnectContainerAttachQuery {
+    /** Server Id or name */
+    server: string;
+    /** The container name */
+    container: string;
+}
+/** Query to connect to a container exec session (interactive shell over websocket) on the given server. */
 export interface ConnectContainerExecQuery {
     /** Server Id or name */
     server: string;
@@ -4514,9 +4518,16 @@ export interface ConnectContainerExecQuery {
     shell: string;
 }
 /**
+ * Query to connect to a container attach session (interactive shell over websocket) on the given Deployment.
+ * This call will use access to the Deployment Terminal to permission the call.
+ */
+export interface ConnectDeploymentAttachQuery {
+    /** Deployment Id or name */
+    deployment: string;
+}
+/**
  * Query to connect to a container exec session (interactive shell over websocket) on the given Deployment.
  * This call will use access to the Deployment Terminal to permission the call.
- * TODO: Document calling.
  */
 export interface ConnectDeploymentExecQuery {
     /** Deployment Id or name */
@@ -4525,9 +4536,18 @@ export interface ConnectDeploymentExecQuery {
     shell: string;
 }
 /**
+ * Query to connect to a container attach session (interactive shell over websocket) on the given Stack / service.
+ * This call will use access to the Stack Terminal to permission the call.
+ */
+export interface ConnectStackAttachQuery {
+    /** Stack Id or name */
+    stack: string;
+    /** The service name to attach to */
+    service: string;
+}
+/**
  * Query to connect to a container exec session (interactive shell over websocket) on the given Stack / service.
  * This call will use access to the Stack Terminal to permission the call.
- * TODO: Document calling.
  */
 export interface ConnectStackExecQuery {
     /** Stack Id or name */
@@ -4537,10 +4557,7 @@ export interface ConnectStackExecQuery {
     /** The shell to use (eg. `sh` or `bash`) */
     shell: string;
 }
-/**
- * Query to connect to a terminal (interactive shell over websocket) on the given server.
- * TODO: Document calling.
- */
+/** Query to connect to a terminal (interactive shell over websocket) on the given server. */
 export interface ConnectTerminalQuery {
     /** Server Id or name */
     server: string;
@@ -5446,10 +5463,7 @@ export interface ExchangeForJwt {
     /** The 'exchange token' */
     token: string;
 }
-/**
- * Execute a command in the given containers shell.
- * TODO: Document calling.
- */
+/** Execute a command in the given containers shell. */
 export interface ExecuteContainerExecBody {
     /** Server Id or name */
     server: string;
@@ -5460,10 +5474,7 @@ export interface ExecuteContainerExecBody {
     /** The command to execute. */
     command: string;
 }
-/**
- * Execute a command in the given containers shell.
- * TODO: Document calling.
- */
+/** Execute a command in the given containers shell. */
 export interface ExecuteDeploymentExecBody {
     /** Deployment Id or name */
     deployment: string;
@@ -5472,10 +5483,7 @@ export interface ExecuteDeploymentExecBody {
     /** The command to execute. */
     command: string;
 }
-/**
- * Execute a command in the given containers shell.
- * TODO: Document calling.
- */
+/** Execute a command in the given containers shell. */
 export interface ExecuteStackExecBody {
     /** Stack Id or name */
     stack: string;
@@ -5486,10 +5494,7 @@ export interface ExecuteStackExecBody {
     /** The command to execute. */
     command: string;
 }
-/**
- * Execute a terminal command on the given server.
- * TODO: Document calling.
- */
+/** Execute a terminal command on the given server. */
 export interface ExecuteTerminalBody {
     /** Server Id or name */
     server: string;

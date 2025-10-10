@@ -210,12 +210,29 @@ export declare function KomodoClient(url: string, options: InitOptions): {
         query: ConnectExecQuery;
     } & TerminalCallbacks) => WebSocket;
     /**
+     * Subscribes to container attach io over websocket message,
+     * for use with xtermjs. Can attach to container on a Server,
+     * or associated with a Deployment or Stack.
+     * Terminal permission on connecting resource required.
+     */
+    connect_attach: ({ query: { type, query }, on_message, on_login, on_open, on_close, }: {
+        query: import("./terminal.js").ConnectAttachQuery;
+    } & TerminalCallbacks) => WebSocket;
+    /**
      * Subscribes to container exec io over websocket message,
      * for use with xtermjs. Can connect to Container on a Server.
      * Server Terminal permission required.
      */
     connect_container_exec: ({ query, ...callbacks }: {
         query: import("./types.js").ConnectContainerExecQuery;
+    } & TerminalCallbacks) => WebSocket;
+    /**
+     * Subscribes to container attach io over websocket message,
+     * for use with xtermjs. Can attach to Container on a Server.
+     * Server Terminal permission required.
+     */
+    connect_container_attach: ({ query, ...callbacks }: {
+        query: import("./types.js").ConnectContainerAttachQuery;
     } & TerminalCallbacks) => WebSocket;
     /**
      * Executes a command on a given container,
@@ -271,6 +288,14 @@ export declare function KomodoClient(url: string, options: InitOptions): {
         query: import("./types.js").ConnectDeploymentExecQuery;
     } & TerminalCallbacks) => WebSocket;
     /**
+     * Subscribes to deployment container attach io over websocket message,
+     * for use with xtermjs. Can attach to Deployment container.
+     * Deployment Terminal permission required.
+     */
+    connect_deployment_attach: ({ query, ...callbacks }: {
+        query: import("./types.js").ConnectDeploymentAttachQuery;
+    } & TerminalCallbacks) => WebSocket;
+    /**
      * Executes a command on a given deployment container,
      * and gives a callback to handle the output as it comes in.
      *
@@ -320,6 +345,14 @@ export declare function KomodoClient(url: string, options: InitOptions): {
      */
     connect_stack_exec: ({ query, ...callbacks }: {
         query: import("./types.js").ConnectStackExecQuery;
+    } & TerminalCallbacks) => WebSocket;
+    /**
+     * Subscribes to container attach io over websocket message,
+     * for use with xtermjs. Can attach to Stack service container.
+     * Stack Terminal permission required.
+     */
+    connect_stack_attach: ({ query, ...callbacks }: {
+        query: import("./types.js").ConnectStackAttachQuery;
     } & TerminalCallbacks) => WebSocket;
     /**
      * Executes a command on a given stack service container,

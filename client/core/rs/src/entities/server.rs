@@ -56,8 +56,8 @@ pub struct ServerListItemInfo {
   /// Whether server is configured to send unreachable alerts.
   /// Whether terminals are disabled for this Server.
   pub terminals_disabled: bool,
-  /// Whether container exec is disabled for this Server.
-  pub container_exec_disabled: bool,
+  /// Whether container terminals are disabled for this Server.
+  pub container_terminals_disabled: bool,
 }
 
 #[typeshare]
@@ -353,7 +353,7 @@ pub struct PeripheryInformation {
   /// Whether terminals are disabled on this Periphery server
   pub terminals_disabled: bool,
   /// Whether container exec is disabled on this Periphery server
-  pub container_exec_disabled: bool,
+  pub container_terminals_disabled: bool,
   /// The rate the system stats are being polled from the system
   pub stats_polling_rate: Timelength,
 }

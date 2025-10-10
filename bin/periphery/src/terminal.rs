@@ -70,14 +70,13 @@ pub fn terminal_triggers() -> &'static TerminalTriggers {
 }
 
 impl TerminalTriggers {
-  pub async fn insert(&self, channel: Uuid) -> Arc<TerminalTrigger> {
+  pub async fn insert(&self, channel: Uuid) {
     let (sender, receiver) = oneshot::channel();
     let trigger = Arc::new(TerminalTrigger {
       sender: Some(sender).into(),
       receiver: Some(receiver).into(),
     });
-    self.0.insert(channel, trigger.clone()).await;
-    trigger
+    self.0.insert(channel, trigger).await;
   }
 
   pub async fn send(&self, channel: &Uuid) -> anyhow::Result<()> {

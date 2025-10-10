@@ -72,14 +72,14 @@ impl super::KomodoResource for Server {
       version,
       public_key,
       terminals_disabled,
-      container_exec_disabled,
+      container_terminals_disabled,
     ) = match status.as_ref().and_then(|s| s.periphery_info.as_ref())
     {
       Some(info) => (
         Some(info.version.clone()),
         Some(info.public_key.clone()),
         info.terminals_disabled,
-        info.container_exec_disabled,
+        info.container_terminals_disabled,
       ),
       None => (None, None, true, true),
     };
@@ -111,7 +111,7 @@ impl super::KomodoResource for Server {
           server.info.attempted_public_key,
         ),
         terminals_disabled,
-        container_exec_disabled,
+        container_terminals_disabled,
       },
     }
   }

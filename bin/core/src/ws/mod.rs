@@ -37,9 +37,12 @@ pub fn router() -> Router {
     // User facing
     .route("/update", get(update::handler))
     .route("/terminal", get(terminal::handler))
-    .route("/container/terminal", get(container::terminal))
-    .route("/deployment/terminal", get(deployment::terminal))
-    .route("/stack/terminal", get(stack::terminal))
+    .route("/container/terminal", get(container::exec))
+    .route("/container/terminal/attach", get(container::attach))
+    .route("/deployment/terminal", get(deployment::exec))
+    .route("/deployment/terminal/attach", get(deployment::attach))
+    .route("/stack/terminal", get(stack::exec))
+    .route("/stack/terminal/attach", get(stack::attach))
 }
 
 #[instrument(level = "debug")]
@@ -133,7 +136,7 @@ async fn check_user_valid(user_id: &str) -> anyhow::Result<User> {
   Ok(user)
 }
 
-async fn handle_container_terminal(
+async fn handle_container_exec_terminal(
   mut client_socket: WebSocket,
   server: &Server,
   container: String,
@@ -170,6 +173,53 @@ async fn handle_container_terminal(
     };
 
   trace!("connected to periphery container exec websocket");
+
+  forward_ws_channel(
+    periphery,
+    client_socket,
+    periphery_connection_id,
+    periphery_sender,
+    periphery_receiver,
+  )
+  .await
+}
+
+async fn handle_container_attach_terminal(
+  mut client_socket: WebSocket,
+  server: &Server,
+  container: String,
+) {
+  let periphery = match crate::helpers::periphery_client(server).await
+  {
+    Ok(periphery) => periphery,
+    Err(e) => {
+      debug!("couldn't get periphery | {e:#}");
+      let _ = client_socket
+        .send(ws::Message::text(format!("ERROR: {e:#}")))
+        .await;
+      let _ = client_socket.close().await;
+      return;
+    }
+  };
+
+  trace!("connecting to periphery container exec websocket");
+
+  let (periphery_connection_id, periphery_sender, periphery_receiver) =
+    match periphery.connect_container_attach(container).await {
+      Ok(ws) => ws,
+      Err(e) => {
+        debug!(
+          "Failed connect to periphery container attach websocket | {e:#}"
+        );
+        let _ = client_socket
+          .send(ws::Message::text(format!("ERROR: {e:#}")))
+          .await;
+        let _ = client_socket.close().await;
+        return;
+      }
+    };
+
+  trace!("connected to periphery container attach websocket");
 
   forward_ws_channel(
     periphery,

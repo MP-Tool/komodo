@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
 /// Query to connect to a terminal (interactive shell over websocket) on the given server.
-/// TODO: Document calling.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConnectTerminalQuery {
@@ -16,7 +15,6 @@ pub struct ConnectTerminalQuery {
 }
 
 /// Execute a terminal command on the given server.
-/// TODO: Document calling.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExecuteTerminalBody {
@@ -32,7 +30,6 @@ pub struct ExecuteTerminalBody {
 }
 
 /// Query to connect to a container exec session (interactive shell over websocket) on the given server.
-/// TODO: Document calling.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConnectContainerExecQuery {
@@ -44,8 +41,17 @@ pub struct ConnectContainerExecQuery {
   pub shell: String,
 }
 
+/// Query to connect to a container attach session (interactive shell over websocket) on the given server.
+#[typeshare]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ConnectContainerAttachQuery {
+  /// Server Id or name
+  pub server: String,
+  /// The container name
+  pub container: String,
+}
+
 /// Execute a command in the given containers shell.
-/// TODO: Document calling.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExecuteContainerExecBody {
@@ -61,7 +67,6 @@ pub struct ExecuteContainerExecBody {
 
 /// Query to connect to a container exec session (interactive shell over websocket) on the given Deployment.
 /// This call will use access to the Deployment Terminal to permission the call.
-/// TODO: Document calling.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConnectDeploymentExecQuery {
@@ -71,8 +76,16 @@ pub struct ConnectDeploymentExecQuery {
   pub shell: String,
 }
 
+/// Query to connect to a container attach session (interactive shell over websocket) on the given Deployment.
+/// This call will use access to the Deployment Terminal to permission the call.
+#[typeshare]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ConnectDeploymentAttachQuery {
+  /// Deployment Id or name
+  pub deployment: String,
+}
+
 /// Execute a command in the given containers shell.
-/// TODO: Document calling.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExecuteDeploymentExecBody {
@@ -86,7 +99,6 @@ pub struct ExecuteDeploymentExecBody {
 
 /// Query to connect to a container exec session (interactive shell over websocket) on the given Stack / service.
 /// This call will use access to the Stack Terminal to permission the call.
-/// TODO: Document calling.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConnectStackExecQuery {
@@ -98,8 +110,18 @@ pub struct ConnectStackExecQuery {
   pub shell: String,
 }
 
+/// Query to connect to a container attach session (interactive shell over websocket) on the given Stack / service.
+/// This call will use access to the Stack Terminal to permission the call.
+#[typeshare]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ConnectStackAttachQuery {
+  /// Stack Id or name
+  pub stack: String,
+  /// The service name to attach to
+  pub service: String,
+}
+
 /// Execute a command in the given containers shell.
-/// TODO: Document calling.
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExecuteStackExecBody {

@@ -175,8 +175,9 @@ pub struct Env {
   pub periphery_build_dir: Option<PathBuf>,
   /// Override `disable_terminals`
   pub periphery_disable_terminals: Option<bool>,
-  /// Override `disable_container_exec`
-  pub periphery_disable_container_exec: Option<bool>,
+  /// Override `disable_container_terminals`
+  #[serde(alias = "periphery_disable_container_exec")]
+  pub periphery_disable_container_terminals: Option<bool>,
   /// Override `stats_polling_rate`
   pub periphery_stats_polling_rate: Option<Timelength>,
   /// Override `container_stats_polling_rate`
@@ -353,11 +354,11 @@ pub struct PeripheryConfig {
   #[serde(default)]
   pub disable_terminals: bool,
 
-  /// Whether to disable the container exec api
+  /// Whether to disable the container exec / attach api
   /// and disallow remote container shell access.
   /// Default: false
-  #[serde(default)]
-  pub disable_container_exec: bool,
+  #[serde(default, alias = "disable_container_exec")]
+  pub disable_container_terminals: bool,
 
   /// The rate at which the system stats will be polled to update the cache.
   /// Options: https://docs.rs/komodo_client/latest/komodo_client/entities/enum.Timelength.html
@@ -456,7 +457,7 @@ impl Default for PeripheryConfig {
       stack_dir: None,
       build_dir: None,
       disable_terminals: Default::default(),
-      disable_container_exec: Default::default(),
+      disable_container_terminals: Default::default(),
       stats_polling_rate: default_stats_polling_rate(),
       container_stats_polling_rate:
         default_container_stats_polling_rate(),
@@ -506,7 +507,7 @@ impl PeripheryConfig {
       stack_dir: self.stack_dir.clone(),
       build_dir: self.build_dir.clone(),
       disable_terminals: self.disable_terminals,
-      disable_container_exec: self.disable_container_exec,
+      disable_container_terminals: self.disable_container_terminals,
       stats_polling_rate: self.stats_polling_rate,
       container_stats_polling_rate: self.container_stats_polling_rate,
       legacy_compose_cli: self.legacy_compose_cli,

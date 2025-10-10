@@ -144,6 +144,7 @@ pub enum PeripheryRequest {
   DeleteAllTerminals(DeleteAllTerminals),
   ConnectTerminal(ConnectTerminal),
   ConnectContainerExec(ConnectContainerExec),
+  ConnectContainerAttach(ConnectContainerAttach),
   DisconnectTerminal(DisconnectTerminal),
   ExecuteTerminal(ExecuteTerminal),
   ExecuteContainerExec(ExecuteContainerExec),
@@ -231,7 +232,8 @@ impl Resolve<Args> for PollStatus {
         version: env!("CARGO_PKG_VERSION").to_string(),
         public_key: periphery_keys().load().public.to_string(),
         terminals_disabled: config.disable_terminals,
-        container_exec_disabled: config.disable_container_exec,
+        container_terminals_disabled: config
+          .disable_container_terminals,
         stats_polling_rate: config.stats_polling_rate,
       },
       system_info: stats_client.info.clone(),

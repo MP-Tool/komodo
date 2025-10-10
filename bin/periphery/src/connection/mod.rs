@@ -34,12 +34,13 @@ pub mod client;
 pub mod server;
 
 // Core Address / Host -> Channel
-pub type CoreChannels =
-  CloneCache<String, Arc<BufferedChannel<EncodedTransportMessage>>>;
+pub type CoreConnection = BufferedChannel<EncodedTransportMessage>;
+pub type CoreConnections = CloneCache<String, Arc<CoreConnection>>;
 
-pub fn core_channels() -> &'static CoreChannels {
-  static CORE_CHANNELS: OnceLock<CoreChannels> = OnceLock::new();
-  CORE_CHANNELS.get_or_init(Default::default)
+pub fn core_connections() -> &'static CoreConnections {
+  static CORE_CONNECTIONS: OnceLock<CoreConnections> =
+    OnceLock::new();
+  CORE_CONNECTIONS.get_or_init(Default::default)
 }
 
 pub fn core_public_keys() -> &'static CorePublicKeys {

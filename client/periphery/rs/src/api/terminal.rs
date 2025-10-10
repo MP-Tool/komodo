@@ -62,6 +62,16 @@ pub struct ConnectContainerExec {
 
 //
 
+#[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
+#[response(Uuid)]
+#[error(anyhow::Error)]
+pub struct ConnectContainerAttach {
+  /// The name of the container to attach to.
+  pub container: String,
+}
+
+//
+
 /// Used to disconnect both Terminals and Container Exec sessions.
 #[derive(Serialize, Deserialize, Debug, Clone, Resolve)]
 #[response(NoData)]

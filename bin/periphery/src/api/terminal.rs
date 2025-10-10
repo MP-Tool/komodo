@@ -11,11 +11,11 @@ use periphery_client::{
 };
 use resolver_api::Resolve;
 use tokio_util::{codec::LinesCodecError, sync::CancellationToken};
-use transport::channel::Sender;
+use transport::channel::{BufferedChannel, Sender};
 use uuid::Uuid;
 
 use crate::{
-  config::periphery_config, connection::core_channels, terminal::*,
+  config::periphery_config, connection::core_connections, terminal::*,
 };
 
 //
@@ -78,27 +78,19 @@ impl Resolve<super::Args> for ConnectTerminal {
       ));
     }
 
-    let channel =
-      core_channels().get(&args.core).await.with_context(|| {
-        format!("Failed to find channel for {}", args.core)
-      })?;
+    let connection =
+      core_connections().get(&args.core).await.with_context(
+        || format!("Failed to find channel for {}", args.core),
+      )?;
 
     clean_up_terminals().await;
 
     let terminal = get_terminal(&self.terminal).await?;
 
-    let channel_id = Uuid::new_v4();
+    let channel =
+      spawn_terminal_forwarding(connection, terminal).await;
 
-    tokio::spawn(async move {
-      handle_terminal_forwarding(
-        &channel.sender,
-        channel_id,
-        terminal,
-      )
-      .await
-    });
-
-    Ok(channel_id)
+    Ok(channel)
   }
 }
 
@@ -107,16 +99,16 @@ impl Resolve<super::Args> for ConnectTerminal {
 impl Resolve<super::Args> for ConnectContainerExec {
   #[instrument(name = "ConnectContainerExec", level = "debug")]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
-    if periphery_config().disable_container_exec {
+    if periphery_config().disable_container_terminals {
       return Err(anyhow!(
-        "Container exec is disabled in the periphery config"
+        "Container Terminals are disabled in the periphery config"
       ));
     }
 
-    let channel =
-      core_channels().get(&args.core).await.with_context(|| {
-        format!("Failed to find channel for {}", args.core)
-      })?;
+    let connection =
+      core_connections().get(&args.core).await.with_context(
+        || format!("Failed to find channel for {}", args.core),
+      )?;
 
     let ConnectContainerExec { container, shell } = self;
 
@@ -135,18 +127,50 @@ impl Resolve<super::Args> for ConnectContainerExec {
     .await
     .context("Failed to create terminal for container exec")?;
 
-    let channel_id = Uuid::new_v4();
+    let channel =
+      spawn_terminal_forwarding(connection, terminal).await;
 
-    tokio::spawn(async move {
-      handle_terminal_forwarding(
-        &channel.sender,
-        channel_id,
-        terminal,
-      )
-      .await
-    });
+    Ok(channel)
+  }
+}
 
-    Ok(channel_id)
+//
+
+impl Resolve<super::Args> for ConnectContainerAttach {
+  #[instrument(name = "ConnectContainerAttach", level = "debug")]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
+    if periphery_config().disable_container_terminals {
+      return Err(anyhow!(
+        "Container Terminals are disabled in the periphery config"
+      ));
+    }
+
+    let connection =
+      core_connections().get(&args.core).await.with_context(
+        || format!("Failed to find channel for {}", args.core),
+      )?;
+
+    let ConnectContainerAttach { container } = self;
+
+    if container.contains("&&") {
+      return Err(anyhow!(
+        "The use of '&&' is forbidden in the container name"
+      ));
+    }
+
+    // Create (recreate if shell changed)
+    let terminal = create_terminal(
+      container.clone(),
+      format!("docker attach {container}"),
+      TerminalRecreateMode::DifferentCommand,
+    )
+    .await
+    .context("Failed to create terminal for container attach")?;
+
+    let channel =
+      spawn_terminal_forwarding(connection, terminal).await;
+
+    Ok(channel)
   }
 }
 
@@ -175,9 +199,9 @@ impl Resolve<super::Args> for ExecuteTerminal {
     }
 
     let channel =
-      core_channels().get(&args.core).await.with_context(|| {
-        format!("Failed to find channel for {}", args.core)
-      })?;
+      core_connections().get(&args.core).await.with_context(
+        || format!("Failed to find channel for {}", args.core),
+      )?;
 
     let terminal = get_terminal(&self.terminal).await?;
 
@@ -208,9 +232,9 @@ impl Resolve<super::Args> for ExecuteTerminal {
 impl Resolve<super::Args> for ExecuteContainerExec {
   #[instrument(name = "ExecuteContainerExec", level = "debug")]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
-    if periphery_config().disable_container_exec {
+    if periphery_config().disable_container_terminals {
       return Err(anyhow!(
-        "Container exec is disabled in the Periphery config"
+        "Container Terminals are disabled in the Periphery config"
       ));
     }
 
@@ -227,9 +251,9 @@ impl Resolve<super::Args> for ExecuteContainerExec {
     }
 
     let channel =
-      core_channels().get(&args.core).await.with_context(|| {
-        format!("Failed to find channel for {}", args.core)
-      })?;
+      core_connections().get(&args.core).await.with_context(
+        || format!("Failed to find channel for {}", args.core),
+      )?;
 
     // Create terminal (recreate if shell changed)
     let terminal = create_terminal(
@@ -263,14 +287,14 @@ impl Resolve<super::Args> for ExecuteContainerExec {
   }
 }
 
-async fn handle_terminal_forwarding(
-  sender: &Sender<EncodedTransportMessage>,
-  channel: Uuid,
+async fn spawn_terminal_forwarding(
+  connection: Arc<BufferedChannel<EncodedTransportMessage>>,
   terminal: Arc<Terminal>,
-) {
+) -> Uuid {
+  let channel = Uuid::new_v4();
   let cancel = CancellationToken::new();
 
-  let (_, trigger) = tokio::join!(
+  tokio::join!(
     terminal_channels().insert(
       channel,
       Arc::new(TerminalChannel {
@@ -281,7 +305,28 @@ async fn handle_terminal_forwarding(
     terminal_triggers().insert(channel),
   );
 
-  if let Err(e) = trigger.wait().await {
+  tokio::spawn(async move {
+    handle_terminal_forwarding(
+      &connection.sender,
+      channel,
+      terminal,
+      cancel,
+    )
+    .await
+  });
+
+  channel
+}
+
+async fn handle_terminal_forwarding(
+  sender: &Sender<EncodedTransportMessage>,
+  channel: Uuid,
+  terminal: Arc<Terminal>,
+  cancel: CancellationToken,
+) {
+  // This waits to begin forwarding until Core sends the None byte start trigger.
+  // This ensures no messages are lost before channels on both sides are set up.
+  if let Err(e) = terminal_triggers().wait(&channel).await {
     warn!(
       "Failed to init terminal | Failed to receive begin trigger | {e:#}"
     );
@@ -420,6 +465,8 @@ async fn forward_execute_command_on_terminal_response(
   channel: Uuid,
   mut stdout: impl Stream<Item = Result<String, LinesCodecError>> + Unpin,
 ) {
+  // This waits to begin forwarding until Core sends the None byte start trigger.
+  // This ensures no messages are lost before channels on both sides are set up.
   if let Err(e) = terminal_triggers().wait(&channel).await {
     warn!("{e:#}");
     return;
