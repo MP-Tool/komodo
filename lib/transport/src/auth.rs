@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use tracing::warn;
 
 use crate::{
-  message::login::{LoginMessage, LoginWebsocketExt as _},
+  message::{LoginMessage, LoginWebsocketExt as _},
   websocket::{Websocket, WebsocketExt},
 };
 

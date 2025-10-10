@@ -9,6 +9,10 @@ use std::{
 use anyhow::anyhow;
 use cache::CloneCache;
 use database::mungos::{by_id::update_one_by_id, mongodb::bson::doc};
+use encoding::{
+  CastBytes as _, Decode as _, EncodedJsonMessage, EncodedOption,
+  EncodedResult, WithChannel,
+};
 use komodo_client::entities::{
   builder::{AwsBuilderConfig, UrlBuilderConfig},
   optional_str,
@@ -23,11 +27,7 @@ use transport::{
     PublicKeyValidator,
   },
   channel::{BufferedReceiver, Sender, buffered_channel},
-  message::{
-    CastBytes, Decode, Encode, TransportMessage, EncodedTransportMessage,
-    json::EncodedJsonMessage,
-    wrappers::{EncodedOption, EncodedResult, WithChannel},
-  },
+  message::{EncodedTransportMessage, TransportMessage},
   websocket::{
     Websocket, WebsocketMessage, WebsocketReceiver as _,
     WebsocketSender as _,
@@ -56,7 +56,10 @@ impl PeripheryConnections {
     &self,
     server_id: String,
     args: PeripheryConnectionArgs<'_>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<EncodedTransportMessage>) {
+  ) -> (
+    Arc<PeripheryConnection>,
+    BufferedReceiver<EncodedTransportMessage>,
+  ) {
     let (connection, receiver) = if let Some(existing_connection) =
       self.0.remove(&server_id).await
     {
@@ -278,7 +281,10 @@ pub struct PeripheryConnection {
 impl PeripheryConnection {
   pub fn new(
     args: impl Into<OwnedPeripheryConnectionArgs>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<EncodedTransportMessage>) {
+  ) -> (
+    Arc<PeripheryConnection>,
+    BufferedReceiver<EncodedTransportMessage>,
+  ) {
     let (sender, receiever) = buffered_channel();
     (
       PeripheryConnection {
@@ -298,7 +304,10 @@ impl PeripheryConnection {
   pub fn with_new_args(
     &self,
     args: impl Into<OwnedPeripheryConnectionArgs>,
-  ) -> (Arc<PeripheryConnection>, BufferedReceiver<EncodedTransportMessage>) {
+  ) -> (
+    Arc<PeripheryConnection>,
+    BufferedReceiver<EncodedTransportMessage>,
+  ) {
     // Ensure this connection is cancelled.
     self.cancel();
     let (sender, receiever) = buffered_channel();
@@ -392,7 +401,10 @@ impl PeripheryConnection {
     self.set_connected(false);
   }
 
-  pub async fn handle_incoming_message(&self, message: EncodedTransportMessage) {
+  pub async fn handle_incoming_message(
+    &self,
+    message: EncodedTransportMessage,
+  ) {
     let message: TransportMessage = match message.decode() {
       Ok(res) => res,
       Err(e) => {
@@ -401,7 +413,7 @@ impl PeripheryConnection {
       }
     };
     match message {
-      TransportMessage::Response(data) => match data.decode() {
+      TransportMessage::Response(data) => match data.0.decode() {
         Ok(WithChannel {
           channel: channel_id,
           data,
@@ -423,7 +435,7 @@ impl PeripheryConnection {
           warn!("Failed to read Response message | {e:#}");
         }
       },
-      TransportMessage::Terminal(data) => match data.decode() {
+      TransportMessage::Terminal(data) => match data.0.decode() {
         Ok(WithChannel {
           channel: channel_id,
           data,
@@ -450,13 +462,6 @@ impl PeripheryConnection {
         warn!("Received unexpected transport message | {other:?}");
       }
     }
-  }
-
-  pub async fn send(
-    &self,
-    message: impl Encode<EncodedTransportMessage>,
-  ) -> anyhow::Result<()> {
-    self.sender.send_message(message).await
   }
 
   pub fn set_connected(&self, connected: bool) {

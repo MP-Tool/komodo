@@ -25,7 +25,7 @@ use transport::{
     ConnectionIdentifiers, HeaderConnectionIdentifiers,
     ServerLoginFlow,
   },
-  message::login::{LoginMessage, LoginWebsocketExt},
+  message::{LoginMessage, LoginWebsocketExt},
   websocket::{Websocket, WebsocketExt, axum::AxumWebsocket},
 };
 

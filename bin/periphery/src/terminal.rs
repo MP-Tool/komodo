@@ -7,16 +7,13 @@ use std::{
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
 use cache::CloneCache;
+use encoding::{Decode as _, EncodedChannel, WithChannel};
 use komodo_client::{
   api::write::TerminalRecreateMode, entities::server::TerminalInfo,
 };
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
-use transport::message::{
-  Decode,
-  wrappers::{EncodedChannel, WithChannel},
-};
 use uuid::Uuid;
 
 #[derive(Debug)]

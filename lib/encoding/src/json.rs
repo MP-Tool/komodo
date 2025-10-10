@@ -1,9 +1,7 @@
 use anyhow::Context;
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::message::{
-  CastBytes, Decode, Encode, wrappers::EncodedResult,
-};
+use crate::{CastBytes, Decode, Encode, EncodedResult};
 
 /// ```markdown
 /// | --- u8[] --- |

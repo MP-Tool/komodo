@@ -6,6 +6,10 @@ use std::{
 use anyhow::anyhow;
 use arc_swap::ArcSwap;
 use cache::CloneCache;
+use encoding::{
+  CastBytes as _, Decode as _, Encode as _, EncodedChannel,
+  EncodedJsonMessage,
+};
 use noise::key::SpkiPublicKey;
 use resolver_api::Resolve;
 use transport::{
@@ -14,11 +18,7 @@ use transport::{
     PublicKeyValidator,
   },
   channel::{BufferedChannel, BufferedReceiver, Sender},
-  message::{
-    CastBytes, Decode, Encode, EncodedTransportMessage,
-    TransportMessage, json::EncodedJsonMessage,
-    wrappers::EncodedChannel,
-  },
+  message::{EncodedTransportMessage, TransportMessage},
   websocket::{
     Websocket, WebsocketReceiverExt as _, WebsocketSender as _,
   },

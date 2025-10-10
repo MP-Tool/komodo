@@ -9,7 +9,7 @@ use transport::{
     ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
   },
   fix_ws_address,
-  message::login::{LoginMessage, LoginWebsocketExt},
+  message::{LoginMessage, LoginWebsocketExt},
   websocket::{WebsocketExt, tungstenite::TungsteniteWebsocket},
 };
 

@@ -1,4 +1,7 @@
 use anyhow::{Context, anyhow};
+use encoding::{
+  Encode, EncodedJsonMessage, EncodedResult, JsonMessage, WithChannel,
+};
 use futures_util::FutureExt;
 use serde::Serialize;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
@@ -7,10 +10,8 @@ use uuid::Uuid;
 
 use crate::{
   message::{
-    DecodedTransportMessage, Encode, EncodedResponseMessage,
+    DecodedTransportMessage, EncodedResponseMessage,
     EncodedTransportMessage, TransportMessage,
-    json::{EncodedJsonMessage, JsonMessage},
-    wrappers::{EncodedResult, WithChannel},
   },
   timeout::MaybeWithTimeout,
 };

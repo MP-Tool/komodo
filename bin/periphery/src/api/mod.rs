@@ -1,5 +1,6 @@
 use command::run_komodo_command;
 use derive_variants::EnumVariants;
+use encoding::{EncodedJsonMessage, EncodedResult};
 use futures::FutureExt;
 use komodo_client::entities::{
   config::{DockerRegistry, GitProvider},
@@ -13,9 +14,6 @@ use periphery_client::api::{
 };
 use resolver_api::Resolve;
 use serde::{Deserialize, Serialize};
-use transport::message::{
-  json::EncodedJsonMessage, wrappers::EncodedResult,
-};
 
 use crate::{
   api::compose::list_compose_projects,

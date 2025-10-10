@@ -25,10 +25,7 @@ use transport::{
     HeaderConnectionIdentifiers, LoginFlow, LoginFlowArgs,
     PublicKeyValidator, ServerLoginFlow,
   },
-  message::{
-    Encode, TransportMessage,
-    login::{LoginMessage, LoginWebsocketExt},
-  },
+  message::{LoginMessage, LoginWebsocketExt as _},
   websocket::{Websocket, WebsocketExt as _, axum::AxumWebsocket},
 };
 
@@ -202,7 +199,7 @@ async fn onboard_server_handler(
       Err(e) => {
         warn!("{e:#}");
         if let Err(e) = socket
-          .send(TransportMessage::Login((&e).encode()))
+          .send_login_error(&e)
           .await
           .context("Failed to send Server creation failed to client")
         {

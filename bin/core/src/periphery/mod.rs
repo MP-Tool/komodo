@@ -1,16 +1,12 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
+use encoding::Decode as _;
 use periphery_client::api;
 use resolver_api::HasResponse;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::json;
-use transport::{
-  channel::channel,
-  message::{
-    Decode, Encode, TransportMessage, json::JsonMessage, wrappers::WithChannel,
-  },
-};
+use transport::channel::channel;
 use uuid::Uuid;
 
 use crate::{
@@ -114,21 +110,15 @@ impl PeripheryClient {
     let (response_sender, mut response_receiever) = channel();
     self.responses.insert(channel_id, response_sender).await;
 
-    let req_type = T::req_type();
-    let data = JsonMessage(&json!({
-      "type": req_type,
-      "params": request
-    }))
-    .encode()?;
-
     if let Err(e) = connection
-      .send(TransportMessage::Request(
-        WithChannel {
-          channel: channel_id,
-          data,
-        }
-        .encode(),
-      ))
+      .sender
+      .send_request(
+        channel_id,
+        &json!({
+          "type": T::req_type(),
+          "params": request
+        }),
+      )
       .await
       .context("Failed to send request over channel")
     {

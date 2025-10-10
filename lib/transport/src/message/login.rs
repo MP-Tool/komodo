@@ -1,12 +1,13 @@
 use anyhow::{Context, anyhow};
 use derive_variants::{EnumVariants, ExtractVariant};
+use encoding::{CastBytes, Decode, Encode, EncodedResult};
 use noise::key::SpkiPublicKey;
 
 use crate::{
   auth::AUTH_TIMEOUT,
   message::{
-    CastBytes, Decode, DecodedTransportMessage, Encode,
-    EncodedLoginMessage, TransportMessage,
+    DecodedTransportMessage, EncodedTransportMessage,
+    TransportMessage,
   },
   websocket::{Websocket, WebsocketExt},
 };
@@ -143,11 +144,16 @@ pub trait LoginWebsocketExt: WebsocketExt {
 
 impl<W: Websocket> LoginWebsocketExt for W {}
 
-impl From<LoginMessage> for TransportMessage {
-  fn from(value: LoginMessage) -> Self {
-    DecodedTransportMessage::Login(Ok(value)).encode()
+impl Encode<EncodedTransportMessage> for LoginMessage {
+  fn encode(self) -> EncodedTransportMessage {
+    DecodedTransportMessage::Login(Ok(self)).encode()
   }
 }
+
+#[derive(Debug)]
+pub struct EncodedLoginMessage(
+  pub EncodedResult<InnerEncodedLoginMessage>,
+);
 
 /// ```markdown
 /// | -- u8[] -- | --------- u8 ------------ |

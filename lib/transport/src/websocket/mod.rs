@@ -2,17 +2,18 @@
 
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
+use encoding::{
+  CastBytes as _, Decode as _, Encode, EncodedJsonMessage,
+  EncodedResult, JsonMessage, WithChannel,
+};
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::{
   message::{
-    CastBytes, Decode, DecodedTransportMessage, Encode,
-    EncodedResponseMessage, EncodedTransportMessage,
-    TransportMessage,
-    json::{EncodedJsonMessage, JsonMessage},
-    wrappers::{EncodedResult, WithChannel},
+    DecodedTransportMessage, EncodedResponseMessage,
+    EncodedTransportMessage, TransportMessage,
   },
   timeout::MaybeWithTimeout,
 };
@@ -64,7 +65,7 @@ pub trait WebsocketExt: Websocket {
     &mut self,
     message: impl Encode<EncodedTransportMessage>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    self.send_inner(message.encode().into_vec().into())
+    self.send_inner(message.encode().into_bytes())
   }
 
   /// Looping receiver for websocket messages which only returns on messages.

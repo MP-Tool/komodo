@@ -29,6 +29,7 @@ secret_file = { path = "lib/secret_file" }
 formatting = { path = "lib/formatting" }
 transport = { path = "lib/transport" }
 database = { path = "lib/database" }
+encoding = { path = "lib/encoding" }
 response = { path = "lib/response" }
 command = { path = "lib/command" }
 config = { path = "lib/config" }

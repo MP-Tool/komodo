@@ -23,6 +23,7 @@ interpolate.workspace = true
 secret_file.workspace = true
 formatting.workspace = true
 transport.workspace = true
+encoding.workspace = true
 command.workspace = true
 config.workspace = true
 logger.workspace = true

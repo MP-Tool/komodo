@@ -1,7 +1,7 @@
 use anyhow::Context;
 use bytes::Bytes;
 
-use crate::message::{CastBytes, Decode, Encode};
+use crate::{CastBytes, Decode, Encode};
 
 /// Message wrapper to handle Error unwrapping
 /// anywhere in the en/decoding chain.

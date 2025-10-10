@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, anyhow};
 use axum::http::HeaderValue;
 use bytes::Bytes;
+use encoding::CastBytes as _;
 use futures_util::{
   SinkExt, Stream, StreamExt, TryStreamExt,
   stream::{SplitSink, SplitStream},
@@ -19,8 +20,7 @@ use tokio_tungstenite::{
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-  message::{CastBytes, EncodedTransportMessage},
-  timeout::MaybeWithTimeout,
+  message::EncodedTransportMessage, timeout::MaybeWithTimeout,
 };
 
 use super::{

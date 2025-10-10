@@ -2,7 +2,7 @@ use anyhow::Context;
 use bytes::Bytes;
 use serror::{deserialize_error_bytes, serialize_error_bytes};
 
-use crate::message::{CastBytes, Decode, Encode};
+use crate::{CastBytes, Decode, Encode};
 
 /// Message wrapper to handle Error unwrapping
 /// anywhere in the en/decoding chain.
