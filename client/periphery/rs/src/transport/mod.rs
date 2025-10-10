@@ -7,6 +7,7 @@ use encoding::{
 
 mod login;
 pub use login::*;
+use serde::de::DeserializeOwned;
 
 #[derive(Debug, Clone)]
 pub struct EncodedTransportMessage(Vec<u8>);
@@ -20,18 +21,140 @@ impl CastBytes for EncodedTransportMessage {
   }
 }
 
+// =================
+//  REQUEST MESSAGE
+// =================
+
 #[derive(Debug)]
-pub struct EncodedRequestMessage(
-  pub EncodedChannel<EncodedJsonMessage>,
-);
+pub struct EncodedRequestMessage(EncodedChannel<EncodedJsonMessage>);
+
+impl CastBytes for EncodedRequestMessage {
+  fn from_vec(bytes: Vec<u8>) -> Self {
+    Self(EncodedChannel::from_vec(bytes))
+  }
+  fn into_vec(self) -> Vec<u8> {
+    self.0.into_vec()
+  }
+}
+
+impl Encode<EncodedRequestMessage>
+  for WithChannel<EncodedJsonMessage>
+{
+  fn encode(self) -> EncodedRequestMessage {
+    EncodedRequestMessage(self.encode())
+  }
+}
+
+impl<T: DeserializeOwned> Decode<WithChannel<T>>
+  for EncodedRequestMessage
+{
+  fn decode(self) -> anyhow::Result<WithChannel<T>> {
+    let WithChannel { channel, data } = self.0.decode()?;
+    let data = data.decode()?;
+    Ok(WithChannel { channel, data })
+  }
+}
+
+// ==================
+//  RESPONSE MESSAGE
+// ==================
 
 #[derive(Debug)]
 pub struct EncodedResponseMessage(
-  pub EncodedChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
+  EncodedChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
 );
 
+impl CastBytes for EncodedResponseMessage {
+  fn from_vec(bytes: Vec<u8>) -> Self {
+    Self(EncodedChannel::from_vec(bytes))
+  }
+  fn into_vec(self) -> Vec<u8> {
+    self.0.into_vec()
+  }
+}
+
+impl Encode<EncodedResponseMessage>
+  for WithChannel<Option<anyhow::Result<EncodedJsonMessage>>>
+{
+  fn encode(self) -> EncodedResponseMessage {
+    let data = self
+      .map(|data| data.map(|data| data.encode()).encode())
+      .encode();
+    EncodedResponseMessage(data)
+  }
+}
+
+impl Encode<EncodedResponseMessage>
+  for WithChannel<EncodedResult<EncodedJsonMessage>>
+{
+  fn encode(self) -> EncodedResponseMessage {
+    let data = self.map(|data| Some(data).encode()).encode();
+    EncodedResponseMessage(data)
+  }
+}
+
+impl<T: DeserializeOwned>
+  Decode<WithChannel<Option<anyhow::Result<T>>>>
+  for EncodedResponseMessage
+{
+  fn decode(
+    self,
+  ) -> anyhow::Result<WithChannel<Option<anyhow::Result<T>>>> {
+    let WithChannel { channel, data } = self.0.decode()?;
+    let data = data
+      .decode()?
+      .map(|data| data.decode().and_then(|data| data.decode()));
+    Ok(WithChannel { channel, data })
+  }
+}
+
+impl
+  Decode<
+    WithChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
+  > for EncodedResponseMessage
+{
+  fn decode(
+    self,
+  ) -> anyhow::Result<
+    WithChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
+  > {
+    self.0.decode()
+  }
+}
+
+// ==================
+//  TERMINAL MESSAGE
+// ==================
+
 #[derive(Debug)]
-pub struct EncodedTerminalMessage(pub EncodedChannel<Vec<u8>>);
+pub struct EncodedTerminalMessage(EncodedChannel<Vec<u8>>);
+
+impl CastBytes for EncodedTerminalMessage {
+  fn from_vec(bytes: Vec<u8>) -> Self {
+    Self(EncodedChannel::from_vec(bytes))
+  }
+  fn into_vec(self) -> Vec<u8> {
+    self.0.into_vec()
+  }
+}
+
+impl Encode<EncodedTerminalMessage> for WithChannel<Vec<u8>> {
+  fn encode(self) -> EncodedTerminalMessage {
+    EncodedTerminalMessage(self.encode())
+  }
+}
+
+impl Decode<WithChannel<Vec<u8>>> for EncodedTerminalMessage {
+  fn decode(self) -> anyhow::Result<WithChannel<Vec<u8>>> {
+    let WithChannel { channel, data } = self.0.decode()?;
+    let data = data.decode()?;
+    Ok(WithChannel { channel, data })
+  }
+}
+
+// ===================
+//  TRANSPORT MESSAGE
+// ===================
 
 #[derive(Debug, EnumVariants)]
 #[variant_derive(Debug, Clone, Copy)]
@@ -46,7 +169,7 @@ impl Encode<EncodedTransportMessage> for TransportMessage {
   fn encode(self) -> EncodedTransportMessage {
     let variant_byte = self.extract_variant().as_byte();
     let mut bytes = match self {
-      TransportMessage::Login(data) => data.0.into_vec(),
+      TransportMessage::Login(data) => data.into_vec(),
       TransportMessage::Request(data) => data.0.into_vec(),
       TransportMessage::Response(data) => data.0.into_vec(),
       TransportMessage::Terminal(data) => data.0.into_vec(),
@@ -67,9 +190,9 @@ impl<T: From<TransportMessage>> Decode<T>
     use TransportMessageVariant::*;
     let message =
       match TransportMessageVariant::from_byte(variant_byte)? {
-        Login => TransportMessage::Login(EncodedLoginMessage(
-          EncodedResult::from_vec(bytes),
-        )),
+        Login => TransportMessage::Login(
+          EncodedLoginMessage::from_vec(bytes),
+        ),
         Request => TransportMessage::Request(EncodedRequestMessage(
           EncodedChannel::from_vec(bytes),
         )),
@@ -84,6 +207,10 @@ impl<T: From<TransportMessage>> Decode<T>
   }
 }
 
+// ===================
+//  DECODED TRANSPORT
+// ===================
+
 pub enum DecodedTransportMessage {
   Login(anyhow::Result<LoginMessage>),
   Request(WithChannel<EncodedJsonMessage>),
@@ -97,9 +224,7 @@ impl Encode<TransportMessage> for DecodedTransportMessage {
   fn encode(self) -> TransportMessage {
     use DecodedTransportMessage::*;
     match self {
-      Login(res) => TransportMessage::Login(EncodedLoginMessage(
-        res.map(LoginMessage::encode).encode(),
-      )),
+      Login(res) => TransportMessage::Login(res.encode()),
       Request(data) => TransportMessage::Request(
         EncodedRequestMessage(data.encode()),
       ),
@@ -130,9 +255,7 @@ impl<T: From<DecodedTransportMessage>> Decode<T>
   fn decode(self) -> anyhow::Result<T> {
     let message = match self {
       TransportMessage::Login(encoded_result) => {
-        let res =
-          encoded_result.0.decode().and_then(|msg| msg.decode());
-        DecodedTransportMessage::Login(res)
+        DecodedTransportMessage::Login(encoded_result.decode())
       }
       TransportMessage::Request(encoded_channel) => {
         DecodedTransportMessage::Request(encoded_channel.0.decode()?)

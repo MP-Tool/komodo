@@ -4,8 +4,7 @@ use encoding::{
 };
 use futures_util::FutureExt;
 use periphery_client::transport::{
-  DecodedTransportMessage, EncodedResponseMessage,
-  EncodedTransportMessage, TransportMessage,
+  DecodedTransportMessage, EncodedTransportMessage, TransportMessage,
 };
 use serde::Serialize;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
@@ -109,13 +108,13 @@ impl Sender<EncodedTransportMessage> {
     channel: Uuid,
     response: EncodedResult<EncodedJsonMessage>,
   ) -> anyhow::Result<()> {
-    let message = TransportMessage::Response(EncodedResponseMessage(
+    let message = TransportMessage::Response(
       WithChannel {
         channel,
-        data: Some(response).encode(),
+        data: response,
       }
       .encode(),
-    ));
+    );
     self.send_message(message).await
   }
 

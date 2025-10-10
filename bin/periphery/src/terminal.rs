@@ -7,10 +7,11 @@ use std::{
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
 use cache::CloneCache;
-use encoding::{Decode as _, EncodedChannel, WithChannel};
+use encoding::{Decode as _, WithChannel};
 use komodo_client::{
   api::write::TerminalRecreateMode, entities::server::TerminalInfo,
 };
+use periphery_client::transport::EncodedTerminalMessage;
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
@@ -96,7 +97,7 @@ impl TerminalTriggers {
   }
 }
 
-pub async fn handle_message(message: EncodedChannel<Vec<u8>>) {
+pub async fn handle_message(message: EncodedTerminalMessage) {
   let WithChannel {
     channel: channel_id,
     mut data,

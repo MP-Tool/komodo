@@ -15,8 +15,37 @@ impl Encode<EncodedTransportMessage> for LoginMessage {
 
 #[derive(Debug)]
 pub struct EncodedLoginMessage(
-  pub EncodedResult<InnerEncodedLoginMessage>,
+  EncodedResult<InnerEncodedLoginMessage>,
 );
+
+impl CastBytes for EncodedLoginMessage {
+  fn from_vec(bytes: Vec<u8>) -> Self {
+    Self(EncodedResult::from_vec(bytes))
+  }
+  fn into_vec(self) -> Vec<u8> {
+    self.0.into_vec()
+  }
+}
+
+impl Encode<EncodedLoginMessage> for anyhow::Result<LoginMessage> {
+  fn encode(self) -> EncodedLoginMessage {
+    EncodedLoginMessage(self.map(LoginMessage::encode).encode())
+  }
+}
+
+impl Encode<EncodedLoginMessage>
+  for EncodedResult<InnerEncodedLoginMessage>
+{
+  fn encode(self) -> EncodedLoginMessage {
+    EncodedLoginMessage(self)
+  }
+}
+
+impl Decode<LoginMessage> for EncodedLoginMessage {
+  fn decode(self) -> anyhow::Result<LoginMessage> {
+    self.0.decode_into()
+  }
+}
 
 /// ```markdown
 /// | -- u8[] -- | --------- u8 ------------ |

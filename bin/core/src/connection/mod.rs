@@ -415,7 +415,7 @@ impl PeripheryConnection {
       }
     };
     match message {
-      TransportMessage::Response(data) => match data.0.decode() {
+      TransportMessage::Response(data) => match data.decode() {
         Ok(WithChannel {
           channel: channel_id,
           data,
@@ -437,7 +437,7 @@ impl PeripheryConnection {
           warn!("Failed to read Response message | {e:#}");
         }
       },
-      TransportMessage::Terminal(data) => match data.0.decode() {
+      TransportMessage::Terminal(data) => match data.decode() {
         Ok(WithChannel {
           channel: channel_id,
           data,

@@ -7,12 +7,11 @@ use anyhow::anyhow;
 use arc_swap::ArcSwap;
 use cache::CloneCache;
 use encoding::{
-  CastBytes as _, Decode as _, Encode as _, EncodedChannel,
-  EncodedJsonMessage,
+  CastBytes as _, Decode as _, Encode as _, WithChannel,
 };
 use noise::key::SpkiPublicKey;
 use periphery_client::transport::{
-  EncodedTransportMessage, TransportMessage,
+  EncodedRequestMessage, EncodedTransportMessage, TransportMessage,
 };
 use resolver_api::Resolve;
 use transport::{
@@ -182,10 +181,10 @@ async fn handle_socket<W: Websocket>(
       };
       match message {
         TransportMessage::Request(message) => {
-          handle_request(args.clone(), sender.clone(), message.0)
+          handle_request(args.clone(), sender.clone(), message)
         }
         TransportMessage::Terminal(message) => {
-          crate::terminal::handle_message(message.0).await
+          crate::terminal::handle_message(message).await
         }
         // Rest shouldn't be received by Periphery
         _ => {}
@@ -202,13 +201,13 @@ async fn handle_socket<W: Websocket>(
 fn handle_request(
   args: Arc<Args>,
   sender: Sender<EncodedTransportMessage>,
-  message: EncodedChannel<EncodedJsonMessage>,
+  message: EncodedRequestMessage,
 ) {
   tokio::spawn(async move {
-    let (channel, request): (_, PeripheryRequest) = match message
-      .decode()
-      .and_then(|res| Ok((res.channel, res.data.decode()?)))
-    {
+    let WithChannel {
+      channel,
+      data: request,
+    }: WithChannel<PeripheryRequest> = match message.decode() {
       Ok(res) => res,
       Err(e) => {
         // TODO: handle:

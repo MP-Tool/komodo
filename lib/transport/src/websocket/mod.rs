@@ -7,8 +7,7 @@ use encoding::{
   EncodedResult, JsonMessage, WithChannel,
 };
 use periphery_client::transport::{
-  DecodedTransportMessage, EncodedResponseMessage,
-  EncodedTransportMessage, TransportMessage,
+  DecodedTransportMessage, EncodedTransportMessage, TransportMessage,
 };
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
@@ -145,13 +144,13 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     channel: Uuid,
     response: EncodedResult<EncodedJsonMessage>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    let message = TransportMessage::Response(EncodedResponseMessage(
+    let message = TransportMessage::Response(
       WithChannel {
         channel,
-        data: Some(response).encode(),
+        data: response,
       }
       .encode(),
-    ));
+    );
     self.send(message)
   }
 
