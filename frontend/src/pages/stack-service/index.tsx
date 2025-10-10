@@ -239,8 +239,8 @@ const StackServiceTabs = ({
     type: "Stack",
     id: stack.id,
   });
-  const container_exec_disabled =
-    useServer(stack.info.server_id)?.info.container_exec_disabled ?? true;
+  const container_terminals_disabled =
+    useServer(stack.info.server_id)?.info.container_terminals_disabled ?? true;
   const logDisabled =
     !specificLogs || container_state === Types.ContainerStateStatusEnum.Empty;
   const inspectDisabled =
@@ -248,7 +248,7 @@ const StackServiceTabs = ({
     container_state === Types.ContainerStateStatusEnum.Empty;
   const terminalDisabled =
     !specificTerminal ||
-    container_exec_disabled ||
+    container_terminals_disabled ||
     container_state !== Types.ContainerStateStatusEnum.Running;
   const view =
     (inspectDisabled && _view === "Inspect") ||

@@ -228,15 +228,15 @@ const ContainerTabs = ({
     type: "Server",
     id: server,
   });
-  const container_exec_disabled =
-    useServer(server)?.info.container_exec_disabled ?? true;
+  const container_terminals_disabled =
+    useServer(server)?.info.container_terminals_disabled ?? true;
   const logDisabled =
     !specificLogs || state === Types.ContainerStateStatusEnum.Empty;
   const inspectDisabled =
     !specificInspect || state === Types.ContainerStateStatusEnum.Empty;
   const terminalDisabled =
     !specificTerminal ||
-    container_exec_disabled ||
+    container_terminals_disabled ||
     state !== Types.ContainerStateStatusEnum.Running;
   const view =
     (inspectDisabled && _view === "Inspect") ||

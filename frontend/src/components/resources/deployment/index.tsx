@@ -70,8 +70,9 @@ const ConfigTabsInner = ({
     type: "Deployment",
     id: deployment.id,
   });
-  const container_exec_disabled =
-    useServer(deployment.info.server_id)?.info.container_exec_disabled ?? true;
+  const container_terminals_disabled =
+    useServer(deployment.info.server_id)?.info.container_terminals_disabled ??
+    true;
   const state = deployment.info.state;
   const logsDisabled =
     !specificLogs ||
@@ -85,7 +86,7 @@ const ConfigTabsInner = ({
     state === Types.DeploymentState.NotDeployed;
   const terminalDisabled =
     !specificTerminal ||
-    container_exec_disabled ||
+    container_terminals_disabled ||
     state !== Types.DeploymentState.Running;
   const view =
     (logsDisabled && _view === "Log") ||

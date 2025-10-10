@@ -116,7 +116,8 @@ const ConfigTabs = ({ id }: { id: string }) => {
   const { canWrite } = usePermissions({ type: "Server", id });
   const server_info = useServer(id)?.info;
   const terminals_disabled = server_info?.terminals_disabled ?? true;
-  const container_exec_disabled = server_info?.container_exec_disabled ?? true;
+  const container_terminals_disabled =
+    server_info?.container_terminals_disabled ?? true;
   const disable_non_admin_create =
     useRead("GetCoreInfo", {}).data?.disable_non_admin_create ?? true;
 
@@ -162,7 +163,7 @@ const ConfigTabs = ({ id }: { id: string }) => {
         Resources
       </TabsTrigger>
 
-      {(!terminals_disabled || !container_exec_disabled) && canWrite && (
+      {(!terminals_disabled || !container_terminals_disabled) && canWrite && (
         <TabsTrigger value="Terminals" className="w-[110px]">
           Terminals
         </TabsTrigger>
@@ -219,10 +220,10 @@ const ConfigTabs = ({ id }: { id: string }) => {
       </TabsContent>
 
       <TabsContent value="Terminals">
-        {(!terminals_disabled || !container_exec_disabled) && canWrite && (
+        {(!terminals_disabled || !container_terminals_disabled) && canWrite && (
           <ServerTerminals id={id} titleOther={tabsList} />
         )}
-        {terminals_disabled && container_exec_disabled && canWrite && (
+        {terminals_disabled && container_terminals_disabled && canWrite && (
           <Section titleOther={tabsList}>
             <Card>
               <CardHeader>
