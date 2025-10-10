@@ -102,7 +102,7 @@ envy = "0.4.2"
 
 # CRYPTO / AUTH
 uuid = { version = "1.18.1", features = ["v4", "fast-rng", "serde"] }
-jsonwebtoken = { version = "9.3.1", default-features = false } # locked back with octorust
+jsonwebtoken = { version = "10.0.0", features = ["aws_lc_rs"] } # locked back with octorust
 rustls = { version = "0.23.32", features = ["aws-lc-rs"] }
 pem-rfc7468 = { version = "0.7.0", features = ["alloc"] }
 openidconnect = "4.0.1"

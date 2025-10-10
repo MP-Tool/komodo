@@ -18,7 +18,7 @@ use crate::helpers::random_string;
 
 type ExchangeTokenMap = Mutex<HashMap<String, (JwtResponse, u128)>>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct JwtClaims {
   pub id: String,
   pub iat: u128,
