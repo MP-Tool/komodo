@@ -3,11 +3,11 @@ use bytes::Bytes;
 
 use crate::{CastBytes, Decode, Encode};
 
-/// Message wrapper to handle Error unwrapping
+/// Message wrapper to handle Option unwrapping
 /// anywhere in the en/decoding chain.
 /// ```markdown
-/// | -- u8[] -- | ----- u8 ------ |
-/// | <CONTENTS> | 0: Ok or _: Err |
+/// | -- u8[] -- | ------- u8 ------- |
+/// | <CONTENTS> | 0: Some or _: None |
 /// ```
 #[derive(Clone, Debug)]
 pub struct EncodedOption<T>(T);
