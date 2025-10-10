@@ -12,7 +12,10 @@ repository.workspace = true
 [dependencies]
 # local
 komodo_client.workspace = true
+encoding.workspace = true
+noise.workspace = true
 # mogh
+derive_variants.workspace = true
 resolver_api.workspace = true
 # external
 anyhow.workspace = true

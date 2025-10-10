@@ -17,6 +17,7 @@ use komodo_client::{
     user::system_user,
   },
 };
+use periphery_client::transport::LoginMessage;
 use resolver_api::Resolve;
 use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
@@ -25,8 +26,10 @@ use transport::{
     HeaderConnectionIdentifiers, LoginFlow, LoginFlowArgs,
     PublicKeyValidator, ServerLoginFlow,
   },
-  message::{LoginMessage, LoginWebsocketExt as _},
-  websocket::{Websocket, WebsocketExt as _, axum::AxumWebsocket},
+  websocket::{
+    Websocket, WebsocketExt as _, axum::AxumWebsocket,
+    login::LoginWebsocketExt,
+  },
 };
 
 use crate::{

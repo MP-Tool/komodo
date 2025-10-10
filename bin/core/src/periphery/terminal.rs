@@ -8,14 +8,14 @@ use anyhow::Context;
 use bytes::Bytes;
 use cache::CloneCache;
 use futures::Stream;
-use periphery_client::api::terminal::{
-  ConnectContainerExec, ConnectTerminal, END_OF_OUTPUT,
-  ExecuteContainerExec, ExecuteTerminal,
+use periphery_client::{
+  api::terminal::{
+    ConnectContainerExec, ConnectTerminal, END_OF_OUTPUT,
+    ExecuteContainerExec, ExecuteTerminal,
+  },
+  transport::EncodedTransportMessage,
 };
-use transport::{
-  channel::{Receiver, Sender, channel},
-  message::EncodedTransportMessage,
-};
+use transport::channel::{Receiver, Sender, channel};
 use uuid::Uuid;
 
 use crate::{

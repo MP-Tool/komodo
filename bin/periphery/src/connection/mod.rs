@@ -11,6 +11,7 @@ use encoding::{
   EncodedJsonMessage,
 };
 use noise::key::SpkiPublicKey;
+use periphery_client::transport::{EncodedTransportMessage, TransportMessage};
 use resolver_api::Resolve;
 use transport::{
   auth::{
@@ -18,7 +19,6 @@ use transport::{
     PublicKeyValidator,
   },
   channel::{BufferedChannel, BufferedReceiver, Sender},
-  message::{EncodedTransportMessage, TransportMessage},
   websocket::{
     Websocket, WebsocketReceiverExt as _, WebsocketSender as _,
   },

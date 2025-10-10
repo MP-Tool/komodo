@@ -2,15 +2,19 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
 use axum::http::{HeaderValue, StatusCode};
-use periphery_client::CONNECTION_RETRY_SECONDS;
+use periphery_client::{
+  CONNECTION_RETRY_SECONDS, transport::LoginMessage,
+};
 use transport::{
   auth::{
     AddressConnectionIdentifiers, ClientLoginFlow,
     ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
   },
   fix_ws_address,
-  message::{LoginMessage, LoginWebsocketExt},
-  websocket::{WebsocketExt, tungstenite::TungsteniteWebsocket},
+  websocket::{
+    WebsocketExt, login::LoginWebsocketExt,
+    tungstenite::TungsteniteWebsocket,
+  },
 };
 
 use crate::{

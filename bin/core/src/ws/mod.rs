@@ -16,12 +16,12 @@ use komodo_client::{
   entities::{server::Server, user::User},
   ws::WsLoginMessage,
 };
-use periphery_client::api::terminal::DisconnectTerminal;
-use tokio_util::sync::CancellationToken;
-use transport::{
-  channel::{Receiver, Sender},
-  message::EncodedTransportMessage,
+use periphery_client::{
+  api::terminal::DisconnectTerminal,
+  transport::EncodedTransportMessage,
 };
+use tokio_util::sync::CancellationToken;
+use transport::channel::{Receiver, Sender};
 use uuid::Uuid;
 
 mod container;

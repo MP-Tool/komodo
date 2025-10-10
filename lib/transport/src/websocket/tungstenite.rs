@@ -8,6 +8,7 @@ use futures_util::{
   SinkExt, Stream, StreamExt, TryStreamExt,
   stream::{SplitSink, SplitStream},
 };
+use periphery_client::transport::EncodedTransportMessage;
 use rustls::{ClientConfig, client::danger::ServerCertVerifier};
 use serror::AddStatusCodeError;
 use tokio::net::TcpStream;
@@ -19,9 +20,7 @@ use tokio_tungstenite::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{
-  message::EncodedTransportMessage, timeout::MaybeWithTimeout,
-};
+use crate::timeout::MaybeWithTimeout;
 
 use super::{
   Websocket, WebsocketMessage, WebsocketReceiver, WebsocketSender,

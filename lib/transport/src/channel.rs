@@ -3,18 +3,16 @@ use encoding::{
   Encode, EncodedJsonMessage, EncodedResult, JsonMessage, WithChannel,
 };
 use futures_util::FutureExt;
+use periphery_client::transport::{
+  DecodedTransportMessage, EncodedResponseMessage,
+  EncodedTransportMessage, TransportMessage,
+};
 use serde::Serialize;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::{
-  message::{
-    DecodedTransportMessage, EncodedResponseMessage,
-    EncodedTransportMessage, TransportMessage,
-  },
-  timeout::MaybeWithTimeout,
-};
+use crate::timeout::MaybeWithTimeout;
 
 const RESPONSE_BUFFER_MAX_LEN: usize = 1_024;
 

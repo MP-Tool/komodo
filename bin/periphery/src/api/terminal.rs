@@ -6,10 +6,12 @@ use komodo_client::{
   api::write::TerminalRecreateMode,
   entities::{KOMODO_EXIT_CODE, NoData, server::TerminalInfo},
 };
-use periphery_client::api::terminal::*;
+use periphery_client::{
+  api::terminal::*, transport::EncodedTransportMessage,
+};
 use resolver_api::Resolve;
 use tokio_util::{codec::LinesCodecError, sync::CancellationToken};
-use transport::{channel::Sender, message::EncodedTransportMessage};
+use transport::channel::Sender;
 use uuid::Uuid;
 
 use crate::{

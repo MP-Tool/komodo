@@ -1,16 +1,18 @@
 use std::time::Duration;
 
 use anyhow::{Context, anyhow};
-use periphery_client::CONNECTION_RETRY_SECONDS;
+use periphery_client::{
+  CONNECTION_RETRY_SECONDS, transport::LoginMessage,
+};
 use transport::{
   auth::{
     AddressConnectionIdentifiers, ClientLoginFlow,
     ConnectionIdentifiers,
   },
   fix_ws_address,
-  message::{LoginMessage, LoginWebsocketExt as _},
   websocket::{
-    Websocket, WebsocketExt as _, tungstenite::TungsteniteWebsocket,
+    Websocket, WebsocketExt as _, login::LoginWebsocketExt,
+    tungstenite::TungsteniteWebsocket,
   },
 };
 

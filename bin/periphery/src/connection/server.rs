@@ -18,6 +18,7 @@ use axum::{
   routing::get,
 };
 use axum_server::tls_rustls::RustlsConfig;
+use periphery_client::transport::LoginMessage;
 use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
   CoreConnectionQuery,
@@ -25,8 +26,10 @@ use transport::{
     ConnectionIdentifiers, HeaderConnectionIdentifiers,
     ServerLoginFlow,
   },
-  message::{LoginMessage, LoginWebsocketExt},
-  websocket::{Websocket, WebsocketExt, axum::AxumWebsocket},
+  websocket::{
+    Websocket, WebsocketExt, axum::AxumWebsocket,
+    login::LoginWebsocketExt,
+  },
 };
 
 use crate::{

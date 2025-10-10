@@ -18,6 +18,9 @@ use komodo_client::entities::{
   optional_str,
   server::Server,
 };
+use periphery_client::transport::{
+  EncodedTransportMessage, TransportMessage,
+};
 use serror::serror_into_anyhow_error;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
@@ -27,7 +30,6 @@ use transport::{
     PublicKeyValidator,
   },
   channel::{BufferedReceiver, Sender, buffered_channel},
-  message::{EncodedTransportMessage, TransportMessage},
   websocket::{
     Websocket, WebsocketMessage, WebsocketReceiver as _,
     WebsocketSender as _,

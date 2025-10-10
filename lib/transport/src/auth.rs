@@ -7,13 +7,13 @@ use anyhow::Context;
 use axum::http::{HeaderMap, HeaderValue};
 use base64::{Engine, prelude::BASE64_STANDARD};
 use noise::{NoiseHandshake, key::SpkiPublicKey};
+use periphery_client::transport::LoginMessage;
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 use tracing::warn;
 
-use crate::{
-  message::{LoginMessage, LoginWebsocketExt as _},
-  websocket::{Websocket, WebsocketExt},
+use crate::websocket::{
+  Websocket, WebsocketExt, login::LoginWebsocketExt,
 };
 
 pub trait PublicKeyValidator {

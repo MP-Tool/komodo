@@ -6,11 +6,10 @@ use futures_util::{
   SinkExt, Stream, StreamExt, TryStreamExt,
   stream::{SplitSink, SplitStream},
 };
+use periphery_client::transport::EncodedTransportMessage;
 use tokio_util::sync::CancellationToken;
 
-use crate::{
-  message::EncodedTransportMessage, timeout::MaybeWithTimeout,
-};
+use crate::timeout::MaybeWithTimeout;
 
 use super::{
   Websocket, WebsocketMessage, WebsocketReceiver, WebsocketSender,

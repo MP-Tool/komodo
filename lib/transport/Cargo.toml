@@ -8,10 +8,10 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
+periphery_client.workspace = true
 encoding.workspace = true
 noise.workspace = true
 #
-derive_variants.workspace = true
 serror.workspace = true
 #
 tokio-tungstenite.workspace = true
