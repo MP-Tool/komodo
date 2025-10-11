@@ -1,7 +1,9 @@
 use anyhow::Context;
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::{CastBytes, Decode, Encode, EncodedResult};
+use crate::{
+  CastBytes, Decode, Encode, EncodedResult, impl_identity,
+};
 
 /// ```markdown
 /// | --- u8[] --- |
@@ -9,6 +11,8 @@ use crate::{CastBytes, Decode, Encode, EncodedResult};
 /// ```
 #[derive(Clone, Debug)]
 pub struct EncodedJsonMessage(Vec<u8>);
+
+impl_identity!(EncodedJsonMessage);
 
 impl CastBytes for EncodedJsonMessage {
   fn from_vec(vec: Vec<u8>) -> Self {
@@ -22,14 +26,15 @@ impl CastBytes for EncodedJsonMessage {
 pub struct JsonMessage<'a, T>(pub &'a T);
 
 impl<'a, T: Serialize + Send>
-  Encode<anyhow::Result<EncodedJsonMessage>> for JsonMessage<'a, T>
+  Encode<crate::Result<EncodedJsonMessage>> for JsonMessage<'a, T>
 where
   &'a T: Send,
 {
-  fn encode(self) -> anyhow::Result<EncodedJsonMessage> {
-    let bytes = serde_json::to_vec(self.0)
-      .context("Failed to serialize data to bytes")?;
-    Ok(EncodedJsonMessage(bytes))
+  fn encode(self) -> crate::Result<EncodedJsonMessage> {
+    serde_json::to_vec(self.0)
+      .context("Failed to serialize data to bytes")
+      .map(EncodedJsonMessage)
+      .into()
   }
 }
 

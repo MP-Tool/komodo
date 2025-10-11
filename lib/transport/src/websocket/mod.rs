@@ -119,7 +119,7 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     &'a T: Send,
   {
     async move {
-      let data = JsonMessage(request).encode()?;
+      let data = JsonMessage(request).encode().into_anyhow()?;
       let message = DecodedTransportMessage::Request(WithChannel {
         channel,
         data,

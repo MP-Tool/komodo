@@ -22,30 +22,6 @@ pub trait Encode<Target>: Sized + Send {
   }
 }
 
-impl Encode<Bytes> for Bytes {
-  fn encode(self) -> Bytes {
-    self
-  }
-}
-
-impl Encode<Vec<u8>> for Vec<u8> {
-  fn encode(self) -> Vec<u8> {
-    self
-  }
-}
-
-impl Encode<Vec<u8>> for Bytes {
-  fn encode(self) -> Vec<u8> {
-    self.into()
-  }
-}
-
-impl Encode<Bytes> for Vec<u8> {
-  fn encode(self) -> Bytes {
-    self.into()
-  }
-}
-
 pub trait Decode<Target>: Sized {
   fn decode(self) -> anyhow::Result<Target>;
   fn decode_into<T>(self) -> anyhow::Result<T>
@@ -56,29 +32,11 @@ pub trait Decode<Target>: Sized {
   }
 }
 
-impl Decode<Bytes> for Bytes {
-  fn decode(self) -> anyhow::Result<Bytes> {
-    Ok(self)
-  }
-}
+impl_identity!(Bytes);
+impl_identity!(Vec<u8>);
 
-impl Decode<Vec<u8>> for Vec<u8> {
-  fn decode(self) -> anyhow::Result<Vec<u8>> {
-    Ok(self)
-  }
-}
-
-impl Decode<Vec<u8>> for Bytes {
-  fn decode(self) -> anyhow::Result<Vec<u8>> {
-    Ok(self.into())
-  }
-}
-
-impl Decode<Bytes> for Vec<u8> {
-  fn decode(self) -> anyhow::Result<Bytes> {
-    Ok(self.into())
-  }
-}
+impl_identity_into!(Bytes, Vec<u8>);
+impl_identity_into!(Vec<u8>, Bytes);
 
 /// Helps cast between the top level message types.
 /// Implement whichever ones are most convenient for the source type.
@@ -113,4 +71,65 @@ impl CastBytes for Vec<u8> {
   fn into_vec(self) -> Vec<u8> {
     self
   }
+}
+
+// Encode is basically 'Into',
+// while decode is 'TryInto'.
+#[macro_export]
+macro_rules! impl_identity {
+  ($typ:ty) => {
+    impl Encode<$typ> for $typ {
+      fn encode(self) -> $typ {
+        self
+      }
+    }
+    impl Decode<$typ> for $typ {
+      fn decode(self) -> anyhow::Result<$typ> {
+        Ok(self)
+      }
+    }
+  };
+}
+
+/// impl where a: Into<b>
+#[macro_export]
+macro_rules! impl_identity_into {
+  ($a:ty, $b:ty) => {
+    impl Encode<$b> for $a {
+      fn encode(self) -> $b {
+        self.into()
+      }
+    }
+    impl Decode<$b> for $a {
+      fn decode(self) -> anyhow::Result<$b> {
+        Ok(self.into())
+      }
+    }
+  };
+}
+
+#[macro_export]
+macro_rules! impl_wrapper {
+  ($struct:ident) => {
+    impl<T> From<T> for $struct<T> {
+      fn from(value: T) -> Self {
+        Self(value)
+      }
+    }
+
+    impl<T: CastBytes> CastBytes for $struct<T> {
+      fn from_bytes(bytes: Bytes) -> Self {
+        Self(T::from_bytes(bytes))
+      }
+      fn into_bytes(self) -> Bytes {
+        self.0.into_bytes()
+      }
+      fn from_vec(vec: Vec<u8>) -> Self {
+        Self(T::from_vec(vec))
+      }
+      fn into_vec(self) -> Vec<u8> {
+        self.0.into_vec()
+      }
+    }
+  };
 }

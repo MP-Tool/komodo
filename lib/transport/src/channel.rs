@@ -86,7 +86,7 @@ impl Sender<EncodedTransportMessage> {
   where
     &'a T: Send,
   {
-    let data = JsonMessage(request).encode()?;
+    let data = JsonMessage(request).encode().into_anyhow()?;
     let message =
       DecodedTransportMessage::Request(WithChannel { channel, data });
     self.send_message(message).await

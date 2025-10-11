@@ -1,8 +1,8 @@
-use anyhow::Context;
+use anyhow::{Context, Result as AnyhowResult};
 use bytes::Bytes;
 use serror::{deserialize_error_bytes, serialize_error_bytes};
 
-use crate::{CastBytes, Decode, Encode};
+use crate::{CastBytes, Decode, Encode, impl_wrapper};
 
 /// Message wrapper to handle Error unwrapping
 /// anywhere in the en/decoding chain.
@@ -13,31 +13,49 @@ use crate::{CastBytes, Decode, Encode};
 #[derive(Clone, Debug)]
 pub struct EncodedResult<T>(T);
 
-impl<T> From<T> for EncodedResult<T> {
-  fn from(value: T) -> Self {
-    Self(value)
+impl_wrapper!(EncodedResult);
+
+/// Just anyhow's Result,
+/// but can implement on it.
+pub enum Result<T> {
+  Ok(T),
+  Err(anyhow::Error),
+}
+
+impl<T> Result<T> {
+  pub fn into_anyhow(self) -> AnyhowResult<T> {
+    self.into()
+  }
+
+  pub fn map<R>(self, map: impl FnOnce(T) -> R) -> Result<R> {
+    use Result::*;
+    match self {
+      Ok(t) => Ok(map(t)),
+      Err(e) => Err(e),
+    }
+  }
+
+  pub fn map_encode<B: CastBytes + Send>(self) -> EncodedResult<B>
+  where
+    T: Encode<B>,
+  {
+    self.map(Encode::encode).encode()
+  }
+
+  pub fn map_decode<D>(self) -> anyhow::Result<D>
+  where
+    T: CastBytes + Send + Decode<D>,
+  {
+    match self.map(Decode::decode) {
+      Result::Ok(res) => res,
+      Result::Err(e) => Err(e),
+    }
   }
 }
 
-impl<T: CastBytes> CastBytes for EncodedResult<T> {
-  fn from_bytes(bytes: Bytes) -> Self {
-    Self(T::from_bytes(bytes))
-  }
-  fn into_bytes(self) -> Bytes {
-    self.0.into_bytes()
-  }
-  fn from_vec(vec: Vec<u8>) -> Self {
-    Self(T::from_vec(vec))
-  }
-  fn into_vec(self) -> Vec<u8> {
-    self.0.into_vec()
-  }
-}
-
-impl<T: CastBytes + Send> Encode<EncodedResult<T>>
-  for anyhow::Result<T>
-{
+impl<T: CastBytes + Send> Encode<EncodedResult<T>> for Result<T> {
   fn encode(self) -> EncodedResult<T> {
+    use Result::*;
     let bytes = match self {
       Ok(data) => {
         let mut bytes = data.into_vec();
@@ -55,8 +73,14 @@ impl<T: CastBytes + Send> Encode<EncodedResult<T>>
 }
 
 impl<T: CastBytes + Send> Encode<EncodedResult<T>>
-  for &anyhow::Error
+  for AnyhowResult<T>
 {
+  fn encode(self) -> EncodedResult<T> {
+    Result::from(self).encode()
+  }
+}
+
+impl<T: CastBytes> Encode<EncodedResult<T>> for &anyhow::Error {
   fn encode(self) -> EncodedResult<T> {
     let mut bytes = serialize_error_bytes(self);
     bytes.push(1);
@@ -65,7 +89,7 @@ impl<T: CastBytes + Send> Encode<EncodedResult<T>>
 }
 
 impl<T: CastBytes> Decode<T> for EncodedResult<T> {
-  fn decode(self) -> anyhow::Result<T> {
+  fn decode(self) -> AnyhowResult<T> {
     let mut bytes = self.0.into_vec();
     let result_byte =
       bytes.pop().context("ResultWrapper bytes cannot be empty")?;
@@ -73,6 +97,24 @@ impl<T: CastBytes> Decode<T> for EncodedResult<T> {
       Ok(T::from_vec(bytes))
     } else {
       Err(deserialize_error_bytes(&bytes))
+    }
+  }
+}
+
+impl<T> From<AnyhowResult<T>> for Result<T> {
+  fn from(value: AnyhowResult<T>) -> Self {
+    match value {
+      Ok(t) => Self::Ok(t),
+      Err(e) => Self::Err(e),
+    }
+  }
+}
+
+impl<T> From<Result<T>> for AnyhowResult<T> {
+  fn from(value: Result<T>) -> Self {
+    match value {
+      Result::Ok(t) => Ok(t),
+      Result::Err(e) => Err(e),
     }
   }
 }

@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use uuid::Uuid;
 
-use crate::{CastBytes, Decode, Encode};
+use crate::{CastBytes, Decode, Encode, impl_wrapper};
 
 /// Message wrapper to handle Error unwrapping
 /// anywhere in the en/decoding chain.
@@ -13,24 +13,16 @@ use crate::{CastBytes, Decode, Encode};
 #[derive(Clone, Debug)]
 pub struct EncodedChannel<T>(T);
 
-impl<T> From<T> for EncodedChannel<T> {
-  fn from(value: T) -> Self {
-    Self(value)
-  }
-}
+impl_wrapper!(EncodedChannel);
 
-impl<T: CastBytes> CastBytes for EncodedChannel<T> {
-  fn from_bytes(bytes: Bytes) -> Self {
-    Self(T::from_bytes(bytes))
-  }
-  fn into_bytes(self) -> Bytes {
-    self.0.into_bytes()
-  }
-  fn from_vec(vec: Vec<u8>) -> Self {
-    Self(T::from_vec(vec))
-  }
-  fn into_vec(self) -> Vec<u8> {
-    self.0.into_vec()
+impl<B: CastBytes> EncodedChannel<B> {
+  pub fn decode_map<T>(self) -> anyhow::Result<WithChannel<T>>
+  where
+    B: Decode<T>,
+  {
+    let WithChannel { channel, data } = self.decode()?;
+    let data = data.decode()?;
+    Ok(WithChannel { channel, data })
   }
 }
 
@@ -46,14 +38,21 @@ impl<T> WithChannel<T> {
       data: map(self.data),
     }
   }
-}
 
-impl<T, E: Encode<T>> Encode<WithChannel<T>> for WithChannel<E> {
-  fn encode(self) -> WithChannel<T> {
-    WithChannel {
-      channel: self.channel,
-      data: self.data.encode(),
-    }
+  pub fn map_encode<B: CastBytes + Send>(self) -> EncodedChannel<B>
+  where
+    T: Encode<B>,
+  {
+    self.map(Encode::encode).encode()
+  }
+
+  pub fn map_decode<D>(self) -> anyhow::Result<WithChannel<D>>
+  where
+    T: CastBytes + Send + Decode<D>,
+  {
+    let WithChannel { channel, data } = self;
+    let data = data.decode()?;
+    Ok(WithChannel { channel, data })
   }
 }
 

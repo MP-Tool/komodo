@@ -135,7 +135,7 @@ impl PeripheryClient {
         .await?;
 
       // Still in progress, sent to avoid timeout.
-      let Some(message) = message.decode()? else {
+      let Some(message) = message.decode()?.into_std() else {
         continue;
       };
 

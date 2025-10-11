@@ -29,7 +29,7 @@ impl CastBytes for EncodedLoginMessage {
 
 impl Encode<EncodedLoginMessage> for anyhow::Result<LoginMessage> {
   fn encode(self) -> EncodedLoginMessage {
-    EncodedLoginMessage(self.map(LoginMessage::encode).encode())
+    EncodedLoginMessage(encoding::Result::from(self).map_encode())
   }
 }
 
@@ -124,7 +124,7 @@ impl Decode<LoginMessage> for InnerEncodedLoginMessage {
     let mut bytes = self.0;
     let variant_byte = bytes
       .pop()
-      .context("Failed to parse login message | bytes are empty")?;
+      .context("Failed to parse login message | Bytes are empty")?;
     let variant = LoginMessageVariant::from_byte(variant_byte)?;
     use LoginMessageVariant::*;
     match variant {
