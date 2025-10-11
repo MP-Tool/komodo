@@ -20,13 +20,14 @@ pub fn periphery_keys() -> &'static RotatableKeyPair {
     if let Some(private_key_spec) = config.private_key.as_deref() {
       RotatableKeyPair::from_private_key_spec(private_key_spec)
     } else {
-      RotatableKeyPair::from_private_key_spec(
+      RotatableKeyPair::from_private_key_spec(&format!(
+        "file:{}",
         config
           .root_directory
           .join("keys/periphery.key")
           .to_str()
-          .expect("Invalid root directory"),
-      )
+          .expect("Invalid root directory")
+      ))
     }
     .unwrap()
   })
