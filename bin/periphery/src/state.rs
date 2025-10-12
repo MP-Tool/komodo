@@ -1,5 +1,7 @@
 use std::{
   collections::HashMap,
+  path::PathBuf,
+  str::FromStr,
   sync::{Arc, OnceLock},
 };
 
@@ -47,11 +49,20 @@ pub fn core_public_keys() -> &'static CorePublicKeys {
   CORE_PUBLIC_KEYS.get_or_init(CorePublicKeys::default)
 }
 
-pub struct CorePublicKeys(ArcSwap<Vec<SpkiPublicKey>>);
+pub struct CorePublicKeys {
+  keys: ArcSwap<Vec<SpkiPublicKey>>,
+  /// If any keys fail to write, store them here.
+  /// For Periphery -> Core connection, Periphery will
+  /// write the Core pub keys to these files as they connect.
+  to_write: ArcSwap<Vec<PathBuf>>,
+}
 
 impl Default for CorePublicKeys {
   fn default() -> Self {
-    let keys = CorePublicKeys(Default::default());
+    let keys = CorePublicKeys {
+      keys: Default::default(),
+      to_write: Default::default(),
+    };
     keys.refresh();
     keys
   }
@@ -59,12 +70,40 @@ impl Default for CorePublicKeys {
 
 impl CorePublicKeys {
   pub fn load(&self) -> arc_swap::Guard<Arc<Vec<SpkiPublicKey>>> {
-    self.0.load()
+    self.keys.load()
   }
 
-  pub fn is_valid(&self, public_key: &str) -> bool {
-    let keys = self.0.load();
+  pub async fn is_valid(&self, public_key: &str) -> bool {
+    // For Periphery -> Core connection, maybe init
+    // Core public key file if it doesn't exist.
+    self.maybe_write(public_key).await;
+    let keys = self.keys.load();
     keys.is_empty() || keys.iter().any(|pk| pk.as_str() == public_key)
+  }
+
+  async fn maybe_write(&self, public_key: &str) {
+    let to_write = self.to_write.load();
+    match to_write.as_slice() {
+      // Do nothing if empty
+      [] => {
+        return;
+      }
+      [path, _rest @ ..] => {
+        let public_key =
+          match SpkiPublicKey::from_maybe_pem(public_key) {
+            Ok(public_key) => public_key,
+            Err(e) => {
+              error!("Invalid incoming public key | {e:#}");
+              return;
+            }
+          };
+        if let Err(e) = public_key.write_pem_async(path).await {
+          warn!("Failed to pin incoming public key | {e:#}");
+          return;
+        }
+        self.refresh();
+      }
+    };
   }
 
   pub fn refresh(&self) {
@@ -73,31 +112,41 @@ impl CorePublicKeys {
     else {
       return;
     };
+    let mut to_write = Vec::new();
     let core_public_keys = core_public_keys
       .iter()
       .flat_map(|public_key| {
-        let res = if let Some(path) = public_key.strip_prefix("file:")
+        if let Some(path) = public_key.strip_prefix("file:")
         {
-          SpkiPublicKey::from_file(path)
+          match (SpkiPublicKey::from_file(path), config.server_enabled) {
+            (Ok(public_key), _) => Some(public_key),
+            (Err(e), false) => {
+              // If only outbound connections, only warn.
+              // It will be written when Core public key received.
+              warn!("{e:#}");
+              let Ok(path) = PathBuf::from_str(path);
+              to_write.push(path);
+              None
+            }
+            (Err(e), true) => {
+              // This is too dangerous to allow if server_enabled.
+              error!("{e:#}");
+              std::process::exit(1)
+            }
+          }
         } else {
           SpkiPublicKey::from_maybe_pem(public_key)
-        };
-        match (res, config.server_enabled) {
-          (Ok(public_key), _) => Some(public_key),
-          (Err(e), false) => {
-            // If only outbound connections, only warn.
-            // It will be written the next time `RotateCoreKeys` is executed.
-            warn!("{e:#}");
-            None
-          }
-          (Err(e), true) => {
-            // This is too dangerous to allow if server_enabled.
-            panic!("{e:#}");
-          }
+            .context("Invalid hardcoded public key. If this is supposed to point to file, add 'file:' prefix.")
+            .inspect_err(|e| {
+              error!("{e:#}");
+              std::process::exit(1)
+            })
+            .ok()
         }
       })
       .collect::<Vec<_>>();
-    self.0.store(Arc::new(core_public_keys));
+    self.keys.store(Arc::new(core_public_keys));
+    self.to_write.store(Arc::new(to_write));
   }
 }
 

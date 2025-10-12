@@ -32,10 +32,7 @@ pub mod server;
 impl PublicKeyValidator for &CorePublicKeys {
   type ValidationResult = ();
   async fn validate(&self, public_key: String) -> anyhow::Result<()> {
-    let keys = self.load();
-    if keys.is_empty()
-      || keys.iter().any(|pk| pk.as_str() == public_key)
-    {
+    if self.is_valid(&public_key).await {
       Ok(())
     } else {
       Err(

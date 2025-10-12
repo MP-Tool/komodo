@@ -28,7 +28,7 @@ pub fn cli_env() -> &'static Env {
     {
       Ok(env) => env,
       Err(e) => {
-        panic!("{e:?}");
+        panic!("{e:?}")
       }
     }
   })
