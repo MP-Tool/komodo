@@ -18,10 +18,11 @@ use axum::{
   routing::get,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use periphery_client::transport::LoginMessage;
+use periphery_client::{
+  api::CoreConnectionQuery, transport::LoginMessage,
+};
 use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
-  CoreConnectionQuery,
   auth::{
     ConnectionIdentifiers, HeaderConnectionIdentifiers,
     ServerLoginFlow,

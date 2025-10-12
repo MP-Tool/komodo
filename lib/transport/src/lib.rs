@@ -1,29 +1,7 @@
-use ::bytes::Bytes;
-use serde::Deserialize;
-
 pub mod auth;
 pub mod channel;
 pub mod timeout;
 pub mod websocket;
-
-pub trait TransportHandler {
-  fn handle_incoming_bytes(
-    &self,
-    bytes: Bytes,
-  ) -> impl Future<Output = ()> + Send;
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct CoreConnectionQuery {
-  /// Core host (eg demo.komo.do)
-  pub core: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct PeripheryConnectionQuery {
-  /// Server Id or name
-  pub server: String,
-}
 
 /// - Fixes ws addresses:
 ///   - `server.domain` => `wss://server.domain`

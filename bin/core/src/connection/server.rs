@@ -17,11 +17,12 @@ use komodo_client::{
     user::system_user,
   },
 };
-use periphery_client::transport::LoginMessage;
+use periphery_client::{
+  api::PeripheryConnectionQuery, transport::LoginMessage,
+};
 use resolver_api::Resolve;
 use serror::{AddStatusCode, AddStatusCodeError};
 use transport::{
-  PeripheryConnectionQuery,
   auth::{
     HeaderConnectionIdentifiers, LoginFlow, LoginFlowArgs,
     PublicKeyValidator, ServerLoginFlow,
