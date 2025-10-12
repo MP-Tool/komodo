@@ -142,7 +142,7 @@ async fn handle_passkey_login(
     };
 
     socket
-      .send(LoginMessage::V1Passkey(passkey))
+      .send_message(LoginMessage::V1Passkey(passkey))
       .await
       .context("Failed to send Login V1Passkey message")?;
 

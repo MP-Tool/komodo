@@ -166,7 +166,7 @@ async fn handle_login(
   match (&config.core_public_keys, &config.passkeys) {
     (Some(_), _) | (_, None) => {
       socket
-        .send(LoginMessage::V1PasskeyFlow(false))
+        .send_message(LoginMessage::V1PasskeyFlow(false))
         .await
         .context("Failed to send Login V1PasskeyFlow message")?;
       super::handle_login::<_, ServerLoginFlow>(socket, identifiers)
@@ -189,7 +189,7 @@ async fn handle_passkey_login(
   };
   let res = async {
     socket
-      .send(LoginMessage::V1PasskeyFlow(true))
+      .send_message(LoginMessage::V1PasskeyFlow(true))
       .await
       .context("Failed to send login type indicator")?;
 
@@ -204,7 +204,7 @@ async fn handle_passkey_login(
       .any(|expected_passkey| expected_passkey.as_bytes() == passkey)
     {
       socket
-        .send(LoginMessage::Success)
+        .send_message(LoginMessage::Success)
         .await
         .context("Failed to send login type indicator")?;
       Ok(())

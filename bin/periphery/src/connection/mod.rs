@@ -160,7 +160,7 @@ async fn handle_socket<W: Websocket>(
           break;
         }
       };
-      match ws_write.send_inner(message.into_bytes()).await {
+      match ws_write.send(message.into_bytes()).await {
         // Clears the stored message from receiver buffer.
         Ok(_) => receiver.clear_buffer(),
         Err(e) => {
@@ -174,7 +174,7 @@ async fn handle_socket<W: Websocket>(
 
   let handle_reads = async {
     loop {
-      let message = match ws_read.recv().await {
+      let message = match ws_read.recv_message().await {
         Ok(res) => res,
         Err(e) => {
           warn!("{e:#}");

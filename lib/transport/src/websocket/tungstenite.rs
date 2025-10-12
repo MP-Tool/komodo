@@ -51,7 +51,7 @@ impl Websocket for TungsteniteWebsocket {
     MaybeWithTimeout::new(try_next(&mut self.0))
   }
 
-  async fn send_inner(&mut self, bytes: Bytes) -> anyhow::Result<()> {
+  async fn send(&mut self, bytes: Bytes) -> anyhow::Result<()> {
     self
       .0
       .send(tungstenite::Message::Binary(bytes))
@@ -76,7 +76,7 @@ pub type InnerWebsocketSender = SplitSink<
 pub struct TungsteniteWebsocketSender(pub InnerWebsocketSender);
 
 impl WebsocketSender for TungsteniteWebsocketSender {
-  async fn send_inner(&mut self, bytes: Bytes) -> anyhow::Result<()> {
+  async fn send(&mut self, bytes: Bytes) -> anyhow::Result<()> {
     self
       .0
       .send(tungstenite::Message::Binary(bytes))
@@ -149,7 +149,7 @@ impl WebsocketReceiver for TungsteniteWebsocketReceiver {
     self.cancel = Some(cancel);
   }
 
-  async fn recv_inner(
+  async fn recv(
     &mut self,
   ) -> anyhow::Result<WebsocketMessage<Self::CloseFrame>> {
     let fut = try_next(&mut self.receiver);

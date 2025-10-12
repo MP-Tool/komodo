@@ -161,7 +161,7 @@ async fn handle_onboarding(
 
   // Post onboarding login 1: Send public key
   socket
-    .send(LoginMessage::PublicKey(
+    .send_message(LoginMessage::PublicKey(
       periphery_keys().load().public.clone(),
     ))
     .await

@@ -55,7 +55,7 @@ impl LoginFlow for ServerLoginFlow {
 
     let res = async {
       socket
-        .send(LoginMessage::Nonce(nonce))
+        .send_message(LoginMessage::Nonce(nonce))
         .await
         .context("Failed to send connection nonce")?;
 
@@ -81,7 +81,7 @@ impl LoginFlow for ServerLoginFlow {
         .next_message()
         .context("Failed to write handshake_m2")?;
       socket
-        .send(LoginMessage::Handshake(handshake_m2))
+        .send_message(LoginMessage::Handshake(handshake_m2))
         .await
         .context("Failed to send handshake_m2")?;
 
@@ -107,7 +107,7 @@ impl LoginFlow for ServerLoginFlow {
     match res {
       Ok(res) => {
         socket
-          .send(LoginMessage::Success)
+          .send_message(LoginMessage::Success)
           .await
           .context("Failed to send login successful to client")?;
         Ok(res)
@@ -161,7 +161,7 @@ impl LoginFlow for ClientLoginFlow {
         .next_message()
         .context("Failed to write handshake m1")?;
       socket
-        .send(LoginMessage::Handshake(handshake_m1))
+        .send_message(LoginMessage::Handshake(handshake_m1))
         .await
         .context("Failed to send handshake_m1")?;
 
@@ -188,7 +188,7 @@ impl LoginFlow for ClientLoginFlow {
         .next_message()
         .context("Failed to write handshake_m3")?;
       socket
-        .send(LoginMessage::Handshake(handshake_m3))
+        .send_message(LoginMessage::Handshake(handshake_m3))
         .await
         .context("Failed to send handshake_m3")?;
 

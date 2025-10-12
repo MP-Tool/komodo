@@ -365,7 +365,7 @@ impl PeripheryConnection {
         let Ok(message) = receiver.recv().await else {
           break;
         };
-        match ws_write.send_inner(message.into_bytes()).await {
+        match ws_write.send(message.into_bytes()).await {
           Ok(_) => receiver.clear_buffer(),
           Err(e) => {
             self.set_error(e).await;
@@ -380,7 +380,7 @@ impl PeripheryConnection {
 
     let handle_reads = async {
       loop {
-        match ws_read.recv_inner().await {
+        match ws_read.recv().await {
           Ok(WebsocketMessage::Message(message)) => {
             self.handle_incoming_message(message).await
           }

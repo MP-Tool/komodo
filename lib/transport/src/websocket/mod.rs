@@ -38,7 +38,7 @@ pub trait Websocket: Send {
   /// Abstraction over websocket splitting
   fn split(self) -> (impl WebsocketSender, impl WebsocketReceiver);
 
-  fn send_inner(
+  fn send(
     &mut self,
     bytes: Bytes,
   ) -> impl Future<Output = anyhow::Result<()>> + Send;
@@ -60,15 +60,15 @@ pub trait Websocket: Send {
 }
 
 pub trait WebsocketExt: Websocket {
-  fn send(
+  fn send_message(
     &mut self,
     message: impl Encode<EncodedTransportMessage>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    self.send_inner(message.encode().into_bytes())
+    self.send(message.encode().into_bytes())
   }
 
-  /// Looping receiver for websocket messages which only returns on messages.
-  fn recv(
+  /// Looping receiver for websocket messages which only returns on TransportMessage.
+  fn recv_message(
     &mut self,
   ) -> MaybeWithTimeout<
     impl Future<Output = anyhow::Result<TransportMessage>> + Send,
@@ -92,7 +92,7 @@ impl<W: Websocket> WebsocketExt for W {}
 /// Traits for split websocket receiver
 pub trait WebsocketSender {
   /// Streamlined sending on bytes
-  fn send_inner(
+  fn send(
     &mut self,
     bytes: Bytes,
   ) -> impl Future<Output = anyhow::Result<()>> + Send;
@@ -108,7 +108,7 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     &mut self,
     message: impl Encode<EncodedTransportMessage>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    self.send_inner(message.encode().into_vec().into())
+    self.send(message.encode().into_vec().into())
   }
 
   fn send_request<'a, T: Serialize + Send>(
@@ -160,7 +160,7 @@ pub trait WebsocketReceiver: Send {
 
   /// Looping receiver for websocket messages which only returns
   /// on significant messages. Must implement cancel support.
-  fn recv_inner(
+  fn recv(
     &mut self,
   ) -> impl Future<
     Output = anyhow::Result<WebsocketMessage<Self::CloseFrame>>,
@@ -168,15 +168,15 @@ pub trait WebsocketReceiver: Send {
 }
 
 pub trait WebsocketReceiverExt: WebsocketReceiver {
-  /// Looping receiver for websocket messages which only returns on messages.
-  fn recv(
+  /// Looping receiver for websocket messages which only returns on TransportMessage.
+  fn recv_message(
     &mut self,
   ) -> MaybeWithTimeout<
     impl Future<Output = anyhow::Result<TransportMessage>> + Send,
   > {
     MaybeWithTimeout::new(async {
       match self
-        .recv_inner()
+        .recv()
         .await
         .context("Failed to read websocket message")?
       {

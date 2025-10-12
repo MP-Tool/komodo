@@ -17,7 +17,7 @@ pub trait LoginWebsocketExt: WebsocketExt {
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
     let message =
       TransportMessage::Login(EncodedLoginMessage::from(e.encode()));
-    self.send(message)
+    self.send_message(message)
   }
 
   fn recv_login_message(
@@ -25,7 +25,7 @@ pub trait LoginWebsocketExt: WebsocketExt {
   ) -> impl Future<Output = anyhow::Result<LoginMessage>> + Send {
     async {
       let TransportMessage::Login(message) =
-        self.recv().with_timeout(AUTH_TIMEOUT).await?
+        self.recv_message().with_timeout(AUTH_TIMEOUT).await?
       else {
         return Err(anyhow!(
           "Expected Login message, got other message type"

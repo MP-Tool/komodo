@@ -125,7 +125,7 @@ async fn existing_server_handler(
     let mut socket = AxumWebsocket(socket);
 
     if let Err(e) = socket
-      .send(LoginMessage::OnboardingFlow(false))
+      .send_message(LoginMessage::OnboardingFlow(false))
       .await
       .context("Failed to send Login OnboardingFlow false message")
     {
@@ -158,7 +158,7 @@ async fn onboard_server_handler(
       format!("server={}", urlencoding::encode(&server_query));
     let mut socket = AxumWebsocket(socket);
 
-    if let Err(e) = socket.send(LoginMessage::OnboardingFlow(true)).await.context(
+    if let Err(e) = socket.send_message(LoginMessage::OnboardingFlow(true)).await.context(
       "Failed to send Login OnboardingFlow true message",
     ).context("Server onboarding error") {
       warn!("{e:#}");
@@ -215,7 +215,7 @@ async fn onboard_server_handler(
     };
 
     if let Err(e) = socket
-      .send(LoginMessage::Success)
+      .send_message(LoginMessage::Success)
       .await
       .context("Failed to send Login Onboarding Successful message")
     {
