@@ -1,7 +1,4 @@
-use std::sync::{Arc, OnceLock};
-
 use anyhow::{Context, anyhow};
-use arc_swap::ArcSwap;
 use bollard::Docker;
 use command::run_komodo_command;
 use komodo_client::entities::{TerminationSignal, update::Log};
@@ -14,53 +11,15 @@ mod images;
 mod networks;
 mod volumes;
 
-pub fn docker_client() -> &'static SwappableDockerClient {
-  static DOCKER_CLIENT: OnceLock<SwappableDockerClient> =
-    OnceLock::new();
-  DOCKER_CLIENT.get_or_init(SwappableDockerClient::init)
-}
-
-#[derive(Default)]
-pub struct SwappableDockerClient(ArcSwap<Option<DockerClient>>);
-
-impl SwappableDockerClient {
-  pub fn init() -> Self {
-    let docker = Docker::connect_with_defaults()
-      .context("Failed to connect to docker api. Docker monitoring won't work and will return empty results.")
-      // Only logs on first init, although keeps trying to connect
-      .inspect_err(|e| warn!("{e:#}"))
-      .map(|docker| DockerClient { docker })
-      .ok();
-    Self(ArcSwap::new(Arc::new(docker)))
-  }
-
-  pub fn load(&self) -> arc_swap::Guard<Arc<Option<DockerClient>>> {
-    let res = self.0.load();
-    if res.is_some() {
-      return res;
-    }
-    self.reload();
-    self.0.load()
-  }
-
-  pub fn reload(&self) {
-    let docker = Docker::connect_with_defaults()
-      .map(|docker| DockerClient { docker })
-      .ok();
-    self.0.store(Arc::new(docker));
-  }
-}
-
 pub struct DockerClient {
   docker: Docker,
 }
 
-impl Default for DockerClient {
-  fn default() -> DockerClient {
-    DockerClient {
-      docker: Docker::connect_with_defaults()
-        .expect("failed to connect to docker daemon"),
-    }
+impl DockerClient {
+  pub fn connect() -> anyhow::Result<DockerClient> {
+    let docker = Docker::connect_with_defaults()
+      .context("Failed to connect to docker api. Docker monitoring won't work and will return empty results.")?;
+    Ok(DockerClient { docker })
   }
 }
 

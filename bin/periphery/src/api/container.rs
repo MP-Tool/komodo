@@ -12,10 +12,9 @@ use periphery_client::api::container::*;
 use resolver_api::Resolve;
 
 use crate::{
-  docker::{
-    docker_client, stats::get_container_stats, stop_container_command,
-  },
+  docker::{stats::get_container_stats, stop_container_command},
   helpers::format_log_grep,
+  state::docker_client,
 };
 
 // ======

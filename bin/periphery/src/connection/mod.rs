@@ -1,15 +1,9 @@
-use std::{
-  sync::{Arc, OnceLock},
-  time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use anyhow::anyhow;
-use arc_swap::ArcSwap;
-use cache::CloneCache;
 use encoding::{
   CastBytes as _, Decode as _, Encode as _, WithChannel,
 };
-use noise::key::SpkiPublicKey;
 use periphery_client::transport::{
   EncodedRequestMessage, EncodedTransportMessage, RequestMessage,
   TransportMessage,
@@ -20,7 +14,7 @@ use transport::{
     ConnectionIdentifiers, LoginFlow, LoginFlowArgs,
     PublicKeyValidator,
   },
-  channel::{BufferedChannel, BufferedReceiver, Sender},
+  channel::{BufferedReceiver, Sender},
   websocket::{
     Websocket, WebsocketReceiverExt as _, WebsocketSender as _,
   },
@@ -28,81 +22,17 @@ use transport::{
 
 use crate::{
   api::{Args, PeripheryRequest},
-  config::{periphery_config, periphery_keys},
+  config::periphery_config,
+  state::{CorePublicKeys, core_public_keys, periphery_keys},
 };
 
 pub mod client;
 pub mod server;
 
-// Core Address / Host -> Channel
-pub type CoreConnection = BufferedChannel<EncodedTransportMessage>;
-pub type CoreConnections = CloneCache<String, Arc<CoreConnection>>;
-
-pub fn core_connections() -> &'static CoreConnections {
-  static CORE_CONNECTIONS: OnceLock<CoreConnections> =
-    OnceLock::new();
-  CORE_CONNECTIONS.get_or_init(Default::default)
-}
-
-pub fn core_public_keys() -> &'static CorePublicKeys {
-  static CORE_PUBLIC_KEYS: OnceLock<CorePublicKeys> = OnceLock::new();
-  CORE_PUBLIC_KEYS.get_or_init(CorePublicKeys::default)
-}
-
-pub struct CorePublicKeys(ArcSwap<Vec<SpkiPublicKey>>);
-
-impl Default for CorePublicKeys {
-  fn default() -> Self {
-    let keys = CorePublicKeys(Default::default());
-    keys.refresh();
-    keys
-  }
-}
-
-impl CorePublicKeys {
-  pub fn is_valid(&self, public_key: &str) -> bool {
-    let keys = self.0.load();
-    keys.is_empty() || keys.iter().any(|pk| pk.as_str() == public_key)
-  }
-
-  pub fn refresh(&self) {
-    let config = periphery_config();
-    let Some(core_public_keys) = config.core_public_keys.as_ref()
-    else {
-      return;
-    };
-    let core_public_keys = core_public_keys
-      .iter()
-      .flat_map(|public_key| {
-        let res = if let Some(path) = public_key.strip_prefix("file:")
-        {
-          SpkiPublicKey::from_file(path)
-        } else {
-          SpkiPublicKey::from_maybe_pem(public_key)
-        };
-        match (res, config.server_enabled) {
-          (Ok(public_key), _) => Some(public_key),
-          (Err(e), false) => {
-            // If only outbound connections, only warn.
-            // It will be written the next time `RotateCoreKeys` is executed.
-            warn!("{e:#}");
-            None
-          }
-          (Err(e), true) => {
-            // This is too dangerous to allow if server_enabled.
-            panic!("{e:#}");
-          }
-        }
-      })
-      .collect::<Vec<_>>();
-    self.0.store(Arc::new(core_public_keys));
-  }
-}
-
 impl PublicKeyValidator for &CorePublicKeys {
   type ValidationResult = ();
   async fn validate(&self, public_key: String) -> anyhow::Result<()> {
-    let keys = self.0.load();
+    let keys = self.load();
     if keys.is_empty()
       || keys.iter().any(|pk| pk.as_str() == public_key)
     {

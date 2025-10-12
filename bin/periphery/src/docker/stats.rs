@@ -1,10 +1,6 @@
-use std::{
-  collections::HashMap,
-  sync::{Arc, OnceLock},
-};
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Context, anyhow};
-use arc_swap::ArcSwap;
 use async_timing_util::wait_until_timelength;
 use bollard::{models, query_parameters::StatsOptionsBuilder};
 use futures::StreamExt;
@@ -19,15 +15,10 @@ use komodo_client::entities::docker::{
 };
 use run_command::async_run_command;
 
-use crate::{config::periphery_config, docker::DockerClient};
-
-pub type ContainerStatsMap = HashMap<String, ContainerStats>;
-
-pub fn container_stats() -> &'static ArcSwap<ContainerStatsMap> {
-  static CONTAINER_STATS: OnceLock<ArcSwap<ContainerStatsMap>> =
-    OnceLock::new();
-  CONTAINER_STATS.get_or_init(Default::default)
-}
+use crate::{
+  config::periphery_config, docker::DockerClient,
+  state::container_stats,
+};
 
 pub fn spawn_polling_thread() {
   tokio::spawn(async move {

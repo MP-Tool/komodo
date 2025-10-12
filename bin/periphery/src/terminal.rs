@@ -1,12 +1,7 @@
-use std::{
-  collections::{HashMap, VecDeque},
-  sync::{Arc, OnceLock},
-  time::Duration,
-};
+use std::{collections::VecDeque, sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
-use cache::CloneCache;
 use encoding::{Decode as _, WithChannel};
 use komodo_client::{
   api::write::TerminalRecreateMode,
@@ -14,88 +9,10 @@ use komodo_client::{
 };
 use periphery_client::transport::EncodedTerminalMessage;
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
-use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
+use tokio::sync::{broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
 
-#[derive(Debug)]
-pub struct TerminalChannel {
-  pub sender: mpsc::Sender<StdinMsg>,
-  pub cancel: CancellationToken,
-}
-
-pub type TerminalChannels = CloneCache<Uuid, Arc<TerminalChannel>>;
-
-pub fn terminal_channels() -> &'static TerminalChannels {
-  static TERMINAL_CHANNELS: OnceLock<TerminalChannels> =
-    OnceLock::new();
-  TERMINAL_CHANNELS.get_or_init(Default::default)
-}
-
-#[derive(Debug)]
-pub struct TerminalTrigger {
-  sender: Mutex<Option<oneshot::Sender<()>>>,
-  receiver: Mutex<Option<oneshot::Receiver<()>>>,
-}
-
-impl TerminalTrigger {
-  /// This consumes the Trigger Sender.
-  pub async fn send(&self) -> anyhow::Result<()> {
-    let mut sender = self.sender.lock().await;
-    let sender = sender
-      .take()
-      .context("Called TerminalTrigger 'send' more than once.")?;
-    sender.send(()).map_err(|_| anyhow!("Sender already used"))
-  }
-
-  /// This consumes the Trigger Receiver.
-  pub async fn wait(&self) -> anyhow::Result<()> {
-    let mut receiver = self.receiver.lock().await;
-    let receiver = receiver
-      .take()
-      .context("Called TerminalTrigger 'wait' more than once.")?;
-    receiver.await.context("Failed to receive TerminalTrigger")
-  }
-}
-
-/// Periphery must wait for Core to finish setting
-/// up channel forwarding before sending message,
-/// or the first sent messages may be missed.
-#[derive(Default)]
-pub struct TerminalTriggers(CloneCache<Uuid, Arc<TerminalTrigger>>);
-
-pub fn terminal_triggers() -> &'static TerminalTriggers {
-  static TERMINAL_TRIGGERS: OnceLock<TerminalTriggers> =
-    OnceLock::new();
-  TERMINAL_TRIGGERS.get_or_init(Default::default)
-}
-
-impl TerminalTriggers {
-  pub async fn insert(&self, channel: Uuid) {
-    let (sender, receiver) = oneshot::channel();
-    let trigger = Arc::new(TerminalTrigger {
-      sender: Some(sender).into(),
-      receiver: Some(receiver).into(),
-    });
-    self.0.insert(channel, trigger).await;
-  }
-
-  pub async fn send(&self, channel: &Uuid) -> anyhow::Result<()> {
-    let trigger = self.0.get(channel).await.with_context(|| {
-      format!("No trigger found for channel {channel}")
-    })?;
-    trigger.send().await
-  }
-
-  pub async fn wait(&self, channel: &Uuid) -> anyhow::Result<()> {
-    let trigger = self.0.get(channel).await.with_context(|| {
-      format!("No trigger found for channel {channel}")
-    })?;
-    trigger.wait().await?;
-    self.0.remove(channel).await;
-    Ok(())
-  }
-}
+use crate::state::{terminal_channels, terminal_triggers, terminals};
 
 pub async fn handle_message(message: EncodedTerminalMessage) {
   let WithChannel {
@@ -137,11 +54,6 @@ pub async fn handle_message(message: EncodedTerminalMessage) {
     warn!("No receiver for {channel_id} | {e:?}");
   };
 }
-
-type PtyName = String;
-type PtyMap = tokio::sync::RwLock<HashMap<PtyName, Arc<Terminal>>>;
-type StdinSender = mpsc::Sender<StdinMsg>;
-type StdoutReceiver = broadcast::Receiver<Bytes>;
 
 pub async fn create_terminal(
   name: String,
@@ -241,11 +153,6 @@ pub async fn delete_all_terminals() {
   tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
-fn terminals() -> &'static PtyMap {
-  static TERMINALS: OnceLock<PtyMap> = OnceLock::new();
-  TERMINALS.get_or_init(Default::default)
-}
-
 #[derive(Clone, serde::Deserialize)]
 pub struct ResizeDimensions {
   rows: u16,
@@ -257,6 +164,9 @@ pub enum StdinMsg {
   Bytes(Vec<u8>),
   Resize(ResizeDimensions),
 }
+
+pub type StdinSender = mpsc::Sender<StdinMsg>;
+pub type StdoutReceiver = broadcast::Receiver<Bytes>;
 
 pub struct Terminal {
   /// The command that was used as the root command, eg `shell`

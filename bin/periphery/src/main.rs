@@ -1,7 +1,7 @@
 use futures::{StreamExt, stream::FuturesUnordered};
 use komodo_client::entities::config::periphery::Command;
 
-use crate::config::{periphery_args, periphery_keys};
+use crate::{config::periphery_args, state::periphery_keys};
 
 #[macro_use]
 extern crate tracing;
@@ -11,6 +11,7 @@ mod config;
 mod connection;
 mod docker;
 mod helpers;
+mod state;
 mod stats;
 mod terminal;
 

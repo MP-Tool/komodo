@@ -15,7 +15,12 @@ use transport::channel::{BufferedChannel, Sender};
 use uuid::Uuid;
 
 use crate::{
-  config::periphery_config, connection::core_connections, terminal::*,
+  config::periphery_config,
+  state::{
+    TerminalChannel, core_connections, terminal_channels,
+    terminal_triggers,
+  },
+  terminal::*,
 };
 
 //

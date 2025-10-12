@@ -16,7 +16,7 @@ use komodo_client::entities::{
 use periphery_client::api::docker::*;
 use resolver_api::Resolve;
 
-use crate::docker::{docker_client, docker_login};
+use crate::{docker::docker_login, state::docker_client};
 
 // =====
 // IMAGE

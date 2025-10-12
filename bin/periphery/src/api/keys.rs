@@ -6,8 +6,8 @@ use periphery_client::api::keys::{
 use resolver_api::Resolve;
 
 use crate::{
-  config::{periphery_config, periphery_keys},
-  connection::core_public_keys,
+  config::periphery_config,
+  state::{core_public_keys, periphery_keys},
 };
 
 //

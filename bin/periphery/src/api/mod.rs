@@ -17,9 +17,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
   api::compose::list_compose_projects,
-  config::{periphery_config, periphery_keys},
-  docker::docker_client,
-  stats::stats_client,
+  config::periphery_config,
+  state::{docker_client, periphery_keys, stats_client},
 };
 
 pub mod terminal;

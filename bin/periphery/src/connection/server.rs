@@ -34,7 +34,7 @@ use transport::{
 };
 
 use crate::{
-  api::Args, config::periphery_config, connection::core_connections,
+  api::Args, config::periphery_config, state::core_connections,
 };
 
 pub async fn run() -> anyhow::Result<()> {

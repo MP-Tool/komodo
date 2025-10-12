@@ -9,7 +9,9 @@ use komodo_client::entities::docker::{
   container::*,
 };
 
-use super::{DockerClient, stats::container_stats};
+use crate::state::container_stats;
+
+use super::DockerClient;
 
 impl DockerClient {
   pub async fn list_containers(

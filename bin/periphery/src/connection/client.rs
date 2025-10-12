@@ -19,8 +19,9 @@ use transport::{
 
 use crate::{
   api::Args,
-  config::{periphery_config, periphery_keys},
-  connection::{core_connections, core_public_keys},
+  config::periphery_config,
+  connection::core_public_keys,
+  state::{core_connections, periphery_keys},
 };
 
 pub async fn handler(address: &str) -> anyhow::Result<()> {

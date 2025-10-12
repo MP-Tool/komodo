@@ -10,28 +10,6 @@ use komodo_client::entities::{
   config::periphery::{CliArgs, Env, PeripheryConfig},
   logger::{LogConfig, LogLevel},
 };
-use noise::key::RotatableKeyPair;
-
-/// Should call in startup to ensure Periphery errors without valid private key.
-pub fn periphery_keys() -> &'static RotatableKeyPair {
-  static PERIPHERY_KEYS: OnceLock<RotatableKeyPair> = OnceLock::new();
-  PERIPHERY_KEYS.get_or_init(|| {
-    let config = periphery_config();
-    if let Some(private_key_spec) = config.private_key.as_deref() {
-      RotatableKeyPair::from_private_key_spec(private_key_spec)
-    } else {
-      RotatableKeyPair::from_private_key_spec(&format!(
-        "file:{}",
-        config
-          .root_directory
-          .join("keys/periphery.key")
-          .to_str()
-          .expect("Invalid root directory")
-      ))
-    }
-    .unwrap()
-  })
-}
 
 pub fn periphery_args() -> &'static CliArgs {
   static PERIPHERY_ARGS: OnceLock<CliArgs> = OnceLock::new();
