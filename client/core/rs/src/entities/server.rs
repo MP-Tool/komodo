@@ -356,6 +356,8 @@ pub struct PeripheryInformation {
   pub container_terminals_disabled: bool,
   /// The rate the system stats are being polled from the system
   pub stats_polling_rate: Timelength,
+  /// Whether Periphery is successfully connected to docker daemon.
+  pub docker_connected: bool,
 }
 
 /// Info about an active terminal on a server.

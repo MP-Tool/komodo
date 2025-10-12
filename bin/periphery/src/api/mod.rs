@@ -238,6 +238,7 @@ impl Resolve<Args> for PollStatus {
         container_terminals_disabled: config
           .disable_container_terminals,
         stats_polling_rate: config.stats_polling_rate,
+        docker_connected: docker_client().load().is_some(),
       },
       system_info: stats_client.info.clone(),
       system_stats,
