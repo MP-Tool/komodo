@@ -30,7 +30,12 @@ impl Resolve<super::Args> for InspectContainer {
     self,
     _: &super::Args,
   ) -> anyhow::Result<Container> {
-    docker_client().inspect_container(&self.name).await
+    let client = docker_client().load();
+    let client = client
+      .iter()
+      .next()
+      .context("Could not connect to docker client")?;
+    client.inspect_container(&self.name).await
   }
 }
 
@@ -106,7 +111,12 @@ impl Resolve<super::Args> for GetFullContainerStats {
     self,
     _: &super::Args,
   ) -> anyhow::Result<FullContainerStats> {
-    docker_client().full_container_stats(&self.name).await
+    let client = docker_client().load();
+    let client = client
+      .iter()
+      .next()
+      .context("Could not connect to docker client")?;
+    client.full_container_stats(&self.name).await
   }
 }
 
@@ -279,7 +289,12 @@ impl Resolve<super::Args> for StartAllContainers {
     self,
     _: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
-    let containers = docker_client()
+    let client = docker_client().load();
+    let client = client
+      .iter()
+      .next()
+      .context("Could not connect to docker client")?;
+    let containers = client
       .list_containers()
       .await
       .context("failed to list all containers on host")?;
@@ -308,7 +323,12 @@ impl Resolve<super::Args> for RestartAllContainers {
     self,
     _: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
-    let containers = docker_client()
+    let client = docker_client().load();
+    let client = client
+      .iter()
+      .next()
+      .context("Could not connect to docker client")?;
+    let containers = client
       .list_containers()
       .await
       .context("failed to list all containers on host")?;
@@ -337,7 +357,12 @@ impl Resolve<super::Args> for PauseAllContainers {
     self,
     _: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
-    let containers = docker_client()
+    let client = docker_client().load();
+    let client = client
+      .iter()
+      .next()
+      .context("Could not connect to docker client")?;
+    let containers = client
       .list_containers()
       .await
       .context("failed to list all containers on host")?;
@@ -366,7 +391,12 @@ impl Resolve<super::Args> for UnpauseAllContainers {
     self,
     _: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
-    let containers = docker_client()
+    let client = docker_client().load();
+    let client = client
+      .iter()
+      .next()
+      .context("Could not connect to docker client")?;
+    let containers = client
       .list_containers()
       .await
       .context("failed to list all containers on host")?;
@@ -395,7 +425,12 @@ impl Resolve<super::Args> for StopAllContainers {
     self,
     _: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
-    let containers = docker_client()
+    let client = docker_client().load();
+    let client = client
+      .iter()
+      .next()
+      .context("Could not connect to docker client")?;
+    let containers = client
       .list_containers()
       .await
       .context("failed to list all containers on host")?;

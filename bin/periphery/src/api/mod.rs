@@ -189,19 +189,22 @@ impl Resolve<Args> for PollStatus {
   ) -> anyhow::Result<PollStatusResponse> {
     // Docker lists
     let docker_lists = async {
-      let docker = docker_client();
+      let client = docker_client().load();
+      let Some(client) = client.iter().next() else {
+        return Default::default();
+      };
       let containers =
-        docker.list_containers().await.unwrap_or_default();
+        client.list_containers().await.unwrap_or_default();
       // Todo: handle errors better
       (
         tokio::join!(
-          docker
+          client
             .list_networks(&containers)
             .map(Result::unwrap_or_default),
-          docker
+          client
             .list_images(&containers)
             .map(Result::unwrap_or_default),
-          docker
+          client
             .list_volumes(&containers)
             .map(Result::unwrap_or_default)
         ),
