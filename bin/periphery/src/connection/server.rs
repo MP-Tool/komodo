@@ -46,6 +46,7 @@ pub async fn run() -> anyhow::Result<()> {
     .context("failed to parse listen address")?;
 
   let app = Router::new()
+    .route("/version", get(|| async { env!("CARGO_PKG_VERSION") }))
     .route("/", get(crate::connection::server::handler))
     .layer(middleware::from_fn(guard_request_by_ip))
     .into_make_service_with_connect_info::<SocketAddr>();
