@@ -1,7 +1,9 @@
 use anyhow::anyhow;
 use encoding::{Decode as _, Encode as _};
 use noise::key::SpkiPublicKey;
-use periphery_client::transport::{LoginMessage, TransportMessage};
+use periphery_client::transport::{
+  EncodedLoginMessage, LoginMessage, TransportMessage,
+};
 
 use crate::{
   auth::AUTH_TIMEOUT,
@@ -13,7 +15,8 @@ pub trait LoginWebsocketExt: WebsocketExt {
     &mut self,
     e: &anyhow::Error,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    let message = TransportMessage::Login(e.encode_into());
+    let message =
+      TransportMessage::Login(EncodedLoginMessage::from(e.encode()));
     self.send(message)
   }
 

@@ -1,51 +1,26 @@
 use anyhow::{Context, anyhow};
 use derive_variants::{EnumVariants, ExtractVariant};
-use encoding::{CastBytes, Decode, Encode, EncodedResult};
+use encoding::{
+  CastBytes, Decode, Encode, EncodedResult, impl_cast_bytes_vec,
+};
 use noise::key::SpkiPublicKey;
 
-use crate::transport::{
-  DecodedTransportMessage, EncodedTransportMessage,
-};
-
-impl Encode<EncodedTransportMessage> for LoginMessage {
-  fn encode(self) -> EncodedTransportMessage {
-    DecodedTransportMessage::Login(Ok(self)).encode()
-  }
-}
+use crate::transport::{EncodedTransportMessage, TransportMessage};
 
 #[derive(Debug)]
 pub struct EncodedLoginMessage(
   EncodedResult<InnerEncodedLoginMessage>,
 );
 
-impl CastBytes for EncodedLoginMessage {
-  fn from_vec(bytes: Vec<u8>) -> Self {
-    Self(EncodedResult::from_vec(bytes))
-  }
-  fn into_vec(self) -> Vec<u8> {
-    self.0.into_vec()
-  }
-}
-
-impl Encode<EncodedLoginMessage> for anyhow::Result<LoginMessage> {
-  fn encode(self) -> EncodedLoginMessage {
-    EncodedLoginMessage(encoding::Result::from(self).map_encode())
-  }
-}
-
-impl Encode<EncodedLoginMessage>
-  for EncodedResult<InnerEncodedLoginMessage>
+impl From<EncodedResult<InnerEncodedLoginMessage>>
+  for EncodedLoginMessage
 {
-  fn encode(self) -> EncodedLoginMessage {
-    EncodedLoginMessage(self)
+  fn from(value: EncodedResult<InnerEncodedLoginMessage>) -> Self {
+    Self(value)
   }
 }
 
-impl Decode<LoginMessage> for EncodedLoginMessage {
-  fn decode(self) -> anyhow::Result<LoginMessage> {
-    self.0.decode_into()
-  }
-}
+impl_cast_bytes_vec!(EncodedLoginMessage, EncodedResult);
 
 /// ```markdown
 /// | -- u8[] -- | --------- u8 ------------ |
@@ -54,14 +29,7 @@ impl Decode<LoginMessage> for EncodedLoginMessage {
 #[derive(Clone, Debug)]
 pub struct InnerEncodedLoginMessage(Vec<u8>);
 
-impl CastBytes for InnerEncodedLoginMessage {
-  fn from_vec(vec: Vec<u8>) -> Self {
-    Self(vec)
-  }
-  fn into_vec(self) -> Vec<u8> {
-    self.0
-  }
-}
+impl_cast_bytes_vec!(InnerEncodedLoginMessage, Vec);
 
 #[derive(EnumVariants, Clone)]
 #[variant_derive(Debug, Clone, Copy)]
@@ -93,8 +61,8 @@ pub enum LoginMessage {
   V1Passkey(Vec<u8>),
 }
 
-impl Encode<InnerEncodedLoginMessage> for LoginMessage {
-  fn encode(self) -> InnerEncodedLoginMessage {
+impl Encode<EncodedTransportMessage> for LoginMessage {
+  fn encode(self) -> EncodedTransportMessage {
     let variant_byte = self.extract_variant().as_byte();
     let mut bytes = match self {
       LoginMessage::Success => Vec::new(),
@@ -114,29 +82,33 @@ impl Encode<InnerEncodedLoginMessage> for LoginMessage {
       LoginMessage::V1Passkey(bytes) => bytes,
     };
     bytes.push(variant_byte);
-    InnerEncodedLoginMessage(bytes)
+    let inner = InnerEncodedLoginMessage(bytes);
+    let res = Ok(inner).encode();
+    TransportMessage::Login(EncodedLoginMessage(res)).encode()
   }
 }
 
-impl Decode<LoginMessage> for InnerEncodedLoginMessage {
-  /// Parses login messages, performing various validations.
+impl Decode<LoginMessage> for EncodedLoginMessage {
   fn decode(self) -> anyhow::Result<LoginMessage> {
-    let mut bytes = self.0;
+    let mut bytes = self.0.decode()?.into_vec();
+
     let variant_byte = bytes
       .pop()
       .context("Failed to parse login message | Bytes are empty")?;
-    let variant = LoginMessageVariant::from_byte(variant_byte)?;
-    use LoginMessageVariant::*;
-    match variant {
-      Success => Ok(LoginMessage::Success),
 
-      Nonce => Ok(LoginMessage::Nonce(
+    let variant = LoginMessageVariant::from_byte(variant_byte)?;
+
+    use LoginMessageVariant::*;
+    let message = match variant {
+      Success => LoginMessage::Success,
+
+      Nonce => LoginMessage::Nonce(
         bytes
           .try_into()
           .map_err(|_| anyhow!("Invalid connection nonce"))?,
-      )),
+      ),
 
-      Handshake => Ok(LoginMessage::Handshake(bytes)),
+      Handshake => LoginMessage::Handshake(bytes),
 
       OnboardingFlow => {
         let onboarding_flow = match bytes.as_slice() {
@@ -148,7 +120,7 @@ impl Decode<LoginMessage> for InnerEncodedLoginMessage {
             ));
           }
         };
-        Ok(LoginMessage::OnboardingFlow(onboarding_flow))
+        LoginMessage::OnboardingFlow(onboarding_flow)
       }
 
       PublicKey => {
@@ -159,7 +131,7 @@ impl Decode<LoginMessage> for InnerEncodedLoginMessage {
         }
         let public_key = String::from_utf8(bytes)
           .context("Public key is not valid utf-8")?;
-        Ok(LoginMessage::PublicKey(SpkiPublicKey::from(public_key)))
+        LoginMessage::PublicKey(SpkiPublicKey::from(public_key))
       }
 
       // V1
@@ -173,7 +145,7 @@ impl Decode<LoginMessage> for InnerEncodedLoginMessage {
             ));
           }
         };
-        Ok(LoginMessage::V1PasskeyFlow(passkey_login))
+        LoginMessage::V1PasskeyFlow(passkey_login)
       }
 
       V1Passkey => {
@@ -182,9 +154,11 @@ impl Decode<LoginMessage> for InnerEncodedLoginMessage {
             "Got empty LoginMessage V1Passkey bytes"
           ));
         }
-        Ok(LoginMessage::V1Passkey(bytes))
+        LoginMessage::V1Passkey(bytes)
       }
-    }
+    };
+
+    Ok(message)
   }
 }
 

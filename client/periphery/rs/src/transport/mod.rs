@@ -2,28 +2,22 @@ use anyhow::{Context as _, anyhow};
 use derive_variants::{EnumVariants, ExtractVariant as _};
 use encoding::{
   CastBytes, Decode, Encode, EncodedChannel, EncodedJsonMessage,
-  EncodedOption, EncodedResult, WithChannel,
+  EncodedOption, EncodedResult, WithChannel, impl_cast_bytes_vec,
 };
 
 mod login;
 pub use login::*;
 use serde::de::DeserializeOwned;
-
-#[derive(Debug, Clone)]
-pub struct EncodedTransportMessage(Vec<u8>);
-
-impl CastBytes for EncodedTransportMessage {
-  fn from_vec(vec: Vec<u8>) -> Self {
-    Self(vec)
-  }
-  fn into_vec(self) -> Vec<u8> {
-    self.0
-  }
-}
+use uuid::Uuid;
 
 // ===================
 //  TRANSPORT MESSAGE
 // ===================
+
+#[derive(Debug, Clone)]
+pub struct EncodedTransportMessage(Vec<u8>);
+
+impl_cast_bytes_vec!(EncodedTransportMessage, Vec);
 
 /// When an EncodedTransportMessage is received,
 /// it is decoded into this type.
@@ -76,7 +70,7 @@ impl Decode<TransportMessage> for EncodedTransportMessage {
           EncodedTerminalMessage(EncodedChannel::from_vec(bytes)),
         ),
       };
-    Ok(message.into())
+    Ok(message)
   }
 }
 
@@ -108,72 +102,6 @@ impl TransportMessageVariant {
   }
 }
 
-// ===================
-//  DECODED TRANSPORT
-// ===================
-
-pub enum DecodedTransportMessage {
-  Login(anyhow::Result<LoginMessage>),
-  Request(WithChannel<EncodedJsonMessage>),
-  Response(
-    WithChannel<Option<anyhow::Result<EncodedJsonMessage>>>, // EncodedChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
-  ),
-  Terminal(WithChannel<Vec<u8>>),
-}
-
-impl Encode<TransportMessage> for DecodedTransportMessage {
-  fn encode(self) -> TransportMessage {
-    use DecodedTransportMessage::*;
-    match self {
-      Login(res) => TransportMessage::Login(res.encode()),
-      Request(data) => TransportMessage::Request(
-        EncodedRequestMessage(data.encode()),
-      ),
-      Response(data) => {
-        TransportMessage::Response(EncodedResponseMessage(
-          data
-            .map(|data| encoding::Option::from(data).map_encode())
-            .encode(),
-        ))
-      }
-      Terminal(data) => TransportMessage::Terminal(
-        EncodedTerminalMessage(data.encode()),
-      ),
-    }
-  }
-}
-
-impl Encode<EncodedTransportMessage> for DecodedTransportMessage {
-  fn encode(self) -> EncodedTransportMessage {
-    let res: TransportMessage = self.encode();
-    res.encode()
-  }
-}
-
-impl<T: From<DecodedTransportMessage>> Decode<T>
-  for TransportMessage
-{
-  fn decode(self) -> anyhow::Result<T> {
-    let message = match self {
-      TransportMessage::Login(encoded_result) => {
-        DecodedTransportMessage::Login(encoded_result.decode())
-      }
-      TransportMessage::Request(encoded_channel) => {
-        DecodedTransportMessage::Request(encoded_channel.0.decode()?)
-      }
-      TransportMessage::Response(encoded_channel) => {
-        DecodedTransportMessage::Response(
-          encoded_channel.0.decode()?.map(|data| data.decode_map()),
-        )
-      }
-      TransportMessage::Terminal(encoded_channel) => {
-        DecodedTransportMessage::Terminal(encoded_channel.0.decode()?)
-      }
-    };
-    Ok(message.into())
-  }
-}
-
 // =================
 //  REQUEST MESSAGE
 // =================
@@ -181,30 +109,37 @@ impl<T: From<DecodedTransportMessage>> Decode<T>
 #[derive(Debug)]
 pub struct EncodedRequestMessage(EncodedChannel<EncodedJsonMessage>);
 
-impl CastBytes for EncodedRequestMessage {
-  fn from_vec(bytes: Vec<u8>) -> Self {
-    Self(EncodedChannel::from_vec(bytes))
-  }
-  fn into_vec(self) -> Vec<u8> {
-    self.0.into_vec()
+impl_cast_bytes_vec!(EncodedRequestMessage, EncodedChannel);
+
+pub struct RequestMessage(WithChannel<EncodedJsonMessage>);
+
+impl RequestMessage {
+  pub fn map_decode<T: DeserializeOwned>(
+    self,
+  ) -> anyhow::Result<WithChannel<T>> {
+    self.0.map_decode()
   }
 }
 
-impl Encode<EncodedRequestMessage>
-  for WithChannel<EncodedJsonMessage>
-{
-  fn encode(self) -> EncodedRequestMessage {
-    EncodedRequestMessage(self.encode())
+impl RequestMessage {
+  pub fn new(channel: Uuid, json: EncodedJsonMessage) -> Self {
+    Self(WithChannel {
+      channel,
+      data: json,
+    })
   }
 }
 
-impl<T: DeserializeOwned> Decode<WithChannel<T>>
-  for EncodedRequestMessage
-{
-  fn decode(self) -> anyhow::Result<WithChannel<T>> {
-    let WithChannel { channel, data } = self.0.decode()?;
-    let data = data.decode()?;
-    Ok(WithChannel { channel, data })
+impl Encode<EncodedTransportMessage> for RequestMessage {
+  fn encode(self) -> EncodedTransportMessage {
+    TransportMessage::Request(EncodedRequestMessage(self.0.encode()))
+      .encode()
+  }
+}
+
+impl Decode<RequestMessage> for EncodedRequestMessage {
+  fn decode(self) -> anyhow::Result<RequestMessage> {
+    self.0.decode().map(RequestMessage)
   }
 }
 
@@ -214,74 +149,63 @@ impl<T: DeserializeOwned> Decode<WithChannel<T>>
 
 #[derive(Debug)]
 pub struct EncodedResponseMessage(
-  EncodedChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
+  EncodedChannel<InnerEncodedResponseMessage>,
 );
 
-impl CastBytes for EncodedResponseMessage {
-  fn from_vec(bytes: Vec<u8>) -> Self {
-    Self(EncodedChannel::from_vec(bytes))
-  }
-  fn into_vec(self) -> Vec<u8> {
-    self.0.into_vec()
-  }
-}
-
-impl Encode<EncodedResponseMessage>
-  for WithChannel<
-    encoding::Option<encoding::Result<EncodedJsonMessage>>,
-  >
-{
-  fn encode(self) -> EncodedResponseMessage {
-    EncodedResponseMessage(
-      self.map(|data| data.map_encode()).encode(),
-    )
-  }
-}
-
-impl Encode<EncodedResponseMessage>
-  for WithChannel<EncodedResult<EncodedJsonMessage>>
-{
-  fn encode(self) -> EncodedResponseMessage {
-    EncodedResponseMessage(self.map(Some).map_encode())
-  }
-}
-
-impl<T: DeserializeOwned>
-  Decode<WithChannel<Option<anyhow::Result<T>>>>
+impl From<EncodedChannel<InnerEncodedResponseMessage>>
   for EncodedResponseMessage
 {
-  fn decode(
-    self,
-  ) -> anyhow::Result<WithChannel<Option<anyhow::Result<T>>>> {
-    let WithChannel { channel, data } = self.0.decode()?;
-    let data = data.decode()?.into_std();
-    // Does it this way to make sure the inner result is preserved
-    // for later handling.
-    let Some(data) = data else {
-      return Ok(WithChannel {
-        channel,
-        data: None,
-      });
-    };
-    let data = data.decode().and_then(|data| data.decode());
-    Ok(WithChannel {
-      channel,
-      data: Some(data),
-    })
+  fn from(
+    value: EncodedChannel<InnerEncodedResponseMessage>,
+  ) -> Self {
+    Self(value)
   }
 }
 
-impl
-  Decode<
-    WithChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
-  > for EncodedResponseMessage
-{
-  fn decode(
+impl_cast_bytes_vec!(EncodedResponseMessage, EncodedChannel);
+
+/// This is handled as one bundle in main handler,
+/// and passed to response handler for parsing.
+#[derive(Debug)]
+pub struct InnerEncodedResponseMessage(
+  EncodedOption<EncodedResult<EncodedJsonMessage>>,
+);
+
+impl_cast_bytes_vec!(InnerEncodedResponseMessage, EncodedOption);
+
+pub struct ResponseMessage(WithChannel<InnerEncodedResponseMessage>);
+
+impl ResponseMessage {
+  pub fn new(
+    channel: Uuid,
+    response: Option<EncodedResult<EncodedJsonMessage>>,
+  ) -> Self {
+    Self(WithChannel {
+      channel,
+      data: InnerEncodedResponseMessage(response.encode()),
+    })
+  }
+
+  pub fn extract(
     self,
-  ) -> anyhow::Result<
-    WithChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
-  > {
-    self.0.decode()
+  ) -> WithChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>
+  {
+    self.0.map(|data| data.0)
+  }
+}
+
+impl Encode<EncodedTransportMessage> for ResponseMessage {
+  fn encode(self) -> EncodedTransportMessage {
+    TransportMessage::Response(EncodedResponseMessage(
+      self.0.encode(),
+    ))
+    .encode()
+  }
+}
+
+impl Decode<ResponseMessage> for EncodedResponseMessage {
+  fn decode(self) -> anyhow::Result<ResponseMessage> {
+    self.0.decode().map(ResponseMessage)
   }
 }
 
@@ -292,18 +216,25 @@ impl
 #[derive(Debug)]
 pub struct EncodedTerminalMessage(EncodedChannel<Vec<u8>>);
 
-impl CastBytes for EncodedTerminalMessage {
-  fn from_vec(bytes: Vec<u8>) -> Self {
-    Self(EncodedChannel::from_vec(bytes))
-  }
-  fn into_vec(self) -> Vec<u8> {
-    self.0.into_vec()
+impl TerminalMessage {
+  pub fn new(channel: Uuid, bytes: Vec<u8>) -> Self {
+    Self(WithChannel {
+      channel,
+      data: bytes,
+    })
   }
 }
 
-impl Encode<EncodedTerminalMessage> for WithChannel<Vec<u8>> {
-  fn encode(self) -> EncodedTerminalMessage {
-    EncodedTerminalMessage(self.encode())
+impl_cast_bytes_vec!(EncodedTerminalMessage, EncodedChannel);
+
+pub struct TerminalMessage(WithChannel<Vec<u8>>);
+
+impl Encode<EncodedTransportMessage> for TerminalMessage {
+  fn encode(self) -> EncodedTransportMessage {
+    TransportMessage::Terminal(EncodedTerminalMessage(
+      self.0.encode(),
+    ))
+    .encode()
   }
 }
 

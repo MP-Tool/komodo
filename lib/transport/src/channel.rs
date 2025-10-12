@@ -1,10 +1,11 @@
 use anyhow::{Context, anyhow};
 use encoding::{
-  Encode, EncodedJsonMessage, EncodedResult, JsonMessage, WithChannel,
+  Encode, EncodedJsonMessage, EncodedResult, JsonMessage,
 };
 use futures_util::FutureExt;
 use periphery_client::transport::{
-  DecodedTransportMessage, EncodedTransportMessage, TransportMessage,
+  EncodedTransportMessage, RequestMessage, ResponseMessage,
+  TerminalMessage,
 };
 use serde::Serialize;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
@@ -86,21 +87,15 @@ impl Sender<EncodedTransportMessage> {
   where
     &'a T: Send,
   {
-    let data = JsonMessage(request).encode().into_anyhow()?;
-    let message =
-      DecodedTransportMessage::Request(WithChannel { channel, data });
-    self.send_message(message).await
+    let json = JsonMessage(request).encode().into_anyhow()?;
+    self.send_message(RequestMessage::new(channel, json)).await
   }
 
   pub async fn send_in_progress(
     &self,
     channel: Uuid,
   ) -> anyhow::Result<()> {
-    let message = DecodedTransportMessage::Response(WithChannel {
-      channel,
-      data: None,
-    });
-    self.send_message(message).await
+    self.send_message(ResponseMessage::new(channel, None)).await
   }
 
   pub async fn send_response(
@@ -108,14 +103,9 @@ impl Sender<EncodedTransportMessage> {
     channel: Uuid,
     response: EncodedResult<EncodedJsonMessage>,
   ) -> anyhow::Result<()> {
-    let message = TransportMessage::Response(
-      WithChannel {
-        channel,
-        data: response,
-      }
-      .encode(),
-    );
-    self.send_message(message).await
+    self
+      .send_message(ResponseMessage::new(channel, Some(response)))
+      .await
   }
 
   pub async fn send_terminal(
@@ -123,11 +113,9 @@ impl Sender<EncodedTransportMessage> {
     channel: Uuid,
     data: impl Into<Vec<u8>>,
   ) -> anyhow::Result<()> {
-    let message = DecodedTransportMessage::Terminal(WithChannel {
-      channel,
-      data: data.into(),
-    });
-    self.send_message(message).await
+    self
+      .send_message(TerminalMessage::new(channel, data.into()))
+      .await
   }
 }
 

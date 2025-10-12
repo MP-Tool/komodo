@@ -11,7 +11,8 @@ use encoding::{
 };
 use noise::key::SpkiPublicKey;
 use periphery_client::transport::{
-  EncodedRequestMessage, EncodedTransportMessage, TransportMessage,
+  EncodedRequestMessage, EncodedTransportMessage, RequestMessage,
+  TransportMessage,
 };
 use resolver_api::Resolve;
 use transport::{
@@ -208,14 +209,15 @@ fn handle_request(
     let WithChannel {
       channel,
       data: request,
-    }: WithChannel<PeripheryRequest> = match message.decode() {
-      Ok(res) => res,
-      Err(e) => {
-        // TODO: handle:
-        warn!("Failed to parse Request bytes | {e:#}");
-        return;
-      }
-    };
+    }: WithChannel<PeripheryRequest> =
+      match message.decode().and_then(RequestMessage::map_decode) {
+        Ok(res) => res,
+        Err(e) => {
+          // TODO: handle:
+          warn!("Failed to parse Request bytes | {e:#}");
+          return;
+        }
+      };
 
     let resolve_response = async {
       let response = match request.resolve(&args).await {

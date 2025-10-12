@@ -19,7 +19,7 @@ use komodo_client::entities::{
   server::Server,
 };
 use periphery_client::transport::{
-  EncodedTransportMessage, TransportMessage,
+  EncodedTransportMessage, ResponseMessage, TransportMessage,
 };
 use serror::serror_into_anyhow_error;
 use tokio::sync::RwLock;
@@ -415,28 +415,30 @@ impl PeripheryConnection {
       }
     };
     match message {
-      TransportMessage::Response(data) => match data.decode() {
-        Ok(WithChannel {
-          channel: channel_id,
-          data,
-        }) => {
-          let Some(channel) = self.responses.get(&channel_id).await
-          else {
-            warn!(
-              "Failed to forward Response message | No response channel found at {channel_id}"
-            );
-            return;
-          };
-          if let Err(e) = channel.send(data).await {
-            warn!(
-              "Failed to send response | Channel failure at {channel_id} | {e:#}"
-            );
+      TransportMessage::Response(data) => {
+        match data.decode().map(ResponseMessage::extract) {
+          Ok(WithChannel {
+            channel: channel_id,
+            data,
+          }) => {
+            let Some(channel) = self.responses.get(&channel_id).await
+            else {
+              warn!(
+                "Failed to forward Response message | No response channel found at {channel_id}"
+              );
+              return;
+            };
+            if let Err(e) = channel.send(data).await {
+              warn!(
+                "Failed to send response | Channel failure at {channel_id} | {e:#}"
+              );
+            }
+          }
+          Err(e) => {
+            warn!("Failed to read Response message | {e:#}");
           }
         }
-        Err(e) => {
-          warn!("Failed to read Response message | {e:#}");
-        }
-      },
+      }
       TransportMessage::Terminal(data) => match data.decode() {
         Ok(WithChannel {
           channel: channel_id,

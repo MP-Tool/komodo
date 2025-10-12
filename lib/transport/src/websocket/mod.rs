@@ -4,10 +4,11 @@ use anyhow::{Context, anyhow};
 use bytes::Bytes;
 use encoding::{
   CastBytes as _, Decode as _, Encode, EncodedJsonMessage,
-  EncodedResult, JsonMessage, WithChannel,
+  EncodedResult, JsonMessage,
 };
 use periphery_client::transport::{
-  DecodedTransportMessage, EncodedTransportMessage, TransportMessage,
+  EncodedTransportMessage, RequestMessage, ResponseMessage,
+  TerminalMessage, TransportMessage,
 };
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
@@ -103,7 +104,7 @@ pub trait WebsocketSender {
 }
 
 pub trait WebsocketSenderExt: WebsocketSender + Send {
-  fn send(
+  fn send_message(
     &mut self,
     message: impl Encode<EncodedTransportMessage>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
@@ -119,12 +120,8 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     &'a T: Send,
   {
     async move {
-      let data = JsonMessage(request).encode().into_anyhow()?;
-      let message = DecodedTransportMessage::Request(WithChannel {
-        channel,
-        data,
-      });
-      self.send(message).await
+      let json = JsonMessage(request).encode().into_anyhow()?;
+      self.send_message(RequestMessage::new(channel, json)).await
     }
   }
 
@@ -132,11 +129,7 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     &mut self,
     channel: Uuid,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    let message = DecodedTransportMessage::Response(WithChannel {
-      channel,
-      data: None,
-    });
-    self.send(message)
+    self.send_message(ResponseMessage::new(channel, None))
   }
 
   fn send_response(
@@ -144,14 +137,7 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     channel: Uuid,
     response: EncodedResult<EncodedJsonMessage>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    let message = TransportMessage::Response(
-      WithChannel {
-        channel,
-        data: response,
-      }
-      .encode(),
-    );
-    self.send(message)
+    self.send_message(ResponseMessage::new(channel, Some(response)))
   }
 
   fn send_terminal(
@@ -159,11 +145,7 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     channel: Uuid,
     data: impl Into<Vec<u8>>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    let message = DecodedTransportMessage::Terminal(WithChannel {
-      channel,
-      data: data.into(),
-    });
-    self.send(message)
+    self.send_message(TerminalMessage::new(channel, data.into()))
   }
 }
 
