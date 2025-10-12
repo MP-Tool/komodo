@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use bytes::Bytes;
 use encoding::{
   CastBytes as _, Decode as _, Encode, EncodedJsonMessage,
-  EncodedResult, JsonMessage,
+  EncodedResponse, JsonMessage,
 };
 use periphery_client::transport::{
   EncodedTransportMessage, RequestMessage, ResponseMessage,
@@ -120,7 +120,7 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     &'a T: Send,
   {
     async move {
-      let json = JsonMessage(request).encode().into_anyhow()?;
+      let json = JsonMessage(request).encode()?;
       self.send_message(RequestMessage::new(channel, json)).await
     }
   }
@@ -129,15 +129,18 @@ pub trait WebsocketSenderExt: WebsocketSender + Send {
     &mut self,
     channel: Uuid,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    self.send_message(ResponseMessage::new(channel, None))
+    self.send_message(ResponseMessage::new(
+      channel,
+      encoding::Response::Pending.encode(),
+    ))
   }
 
   fn send_response(
     &mut self,
     channel: Uuid,
-    response: EncodedResult<EncodedJsonMessage>,
+    response: EncodedResponse<EncodedJsonMessage>,
   ) -> impl Future<Output = anyhow::Result<()>> + Send {
-    self.send_message(ResponseMessage::new(channel, Some(response)))
+    self.send_message(ResponseMessage::new(channel, response))
   }
 
   fn send_terminal(

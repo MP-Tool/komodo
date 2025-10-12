@@ -10,8 +10,8 @@ use anyhow::anyhow;
 use cache::CloneCache;
 use database::mungos::{by_id::update_one_by_id, mongodb::bson::doc};
 use encoding::{
-  CastBytes as _, Decode as _, EncodedJsonMessage, EncodedOption,
-  EncodedResult, WithChannel,
+  CastBytes as _, Decode as _, EncodedJsonMessage, EncodedResponse,
+  WithChannel,
 };
 use komodo_client::entities::{
   builder::{AwsBuilderConfig, UrlBuilderConfig},
@@ -253,10 +253,8 @@ impl<'a> From<&'a OwnedPeripheryConnectionArgs>
 }
 
 /// Sends None as InProgress ping.
-pub type ResponseChannels = CloneCache<
-  Uuid,
-  Sender<EncodedOption<EncodedResult<EncodedJsonMessage>>>,
->;
+pub type ResponseChannels =
+  CloneCache<Uuid, Sender<EncodedResponse<EncodedJsonMessage>>>;
 
 pub type TerminalChannels = CloneCache<Uuid, Sender<Vec<u8>>>;
 

@@ -1,6 +1,6 @@
 use command::run_komodo_command;
 use derive_variants::EnumVariants;
-use encoding::{EncodedJsonMessage, EncodedResult};
+use encoding::{EncodedJsonMessage, EncodedResponse};
 use futures::FutureExt;
 use komodo_client::entities::{
   config::{DockerRegistry, GitProvider},
@@ -41,7 +41,7 @@ pub struct Args {
   Serialize, Deserialize, Debug, Clone, Resolve, EnumVariants,
 )]
 #[args(Args)]
-#[response(EncodedResult<EncodedJsonMessage>)]
+#[response(EncodedResponse<EncodedJsonMessage>)]
 #[error(anyhow::Error)]
 #[variant_derive(Debug)]
 #[serde(tag = "type", content = "params")]

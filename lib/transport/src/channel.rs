@@ -1,6 +1,6 @@
 use anyhow::{Context, anyhow};
 use encoding::{
-  Encode, EncodedJsonMessage, EncodedResult, JsonMessage,
+  Encode, EncodedJsonMessage, EncodedResponse, JsonMessage,
 };
 use futures_util::FutureExt;
 use periphery_client::transport::{
@@ -87,7 +87,7 @@ impl Sender<EncodedTransportMessage> {
   where
     &'a T: Send,
   {
-    let json = JsonMessage(request).encode().into_anyhow()?;
+    let json = JsonMessage(request).encode()?;
     self.send_message(RequestMessage::new(channel, json)).await
   }
 
@@ -95,16 +95,21 @@ impl Sender<EncodedTransportMessage> {
     &self,
     channel: Uuid,
   ) -> anyhow::Result<()> {
-    self.send_message(ResponseMessage::new(channel, None)).await
+    self
+      .send_message(ResponseMessage::new(
+        channel,
+        encoding::Response::Pending.encode(),
+      ))
+      .await
   }
 
   pub async fn send_response(
     &self,
     channel: Uuid,
-    response: EncodedResult<EncodedJsonMessage>,
+    response: EncodedResponse<EncodedJsonMessage>,
   ) -> anyhow::Result<()> {
     self
-      .send_message(ResponseMessage::new(channel, Some(response)))
+      .send_message(ResponseMessage::new(channel, response))
       .await
   }
 

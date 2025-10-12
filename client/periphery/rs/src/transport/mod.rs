@@ -2,7 +2,8 @@ use anyhow::{Context as _, anyhow};
 use derive_variants::{EnumVariants, ExtractVariant as _};
 use encoding::{
   CastBytes, Decode, Encode, EncodedChannel, EncodedJsonMessage,
-  EncodedOption, EncodedResult, WithChannel, impl_cast_bytes_vec,
+  EncodedResponse, WithChannel, impl_cast_bytes_vec,
+  impl_from_for_wrapper,
 };
 
 mod login;
@@ -152,15 +153,10 @@ pub struct EncodedResponseMessage(
   EncodedChannel<InnerEncodedResponseMessage>,
 );
 
-impl From<EncodedChannel<InnerEncodedResponseMessage>>
-  for EncodedResponseMessage
-{
-  fn from(
-    value: EncodedChannel<InnerEncodedResponseMessage>,
-  ) -> Self {
-    Self(value)
-  }
-}
+impl_from_for_wrapper!(
+  EncodedResponseMessage,
+  EncodedChannel<InnerEncodedResponseMessage>
+);
 
 impl_cast_bytes_vec!(EncodedResponseMessage, EncodedChannel);
 
@@ -168,28 +164,27 @@ impl_cast_bytes_vec!(EncodedResponseMessage, EncodedChannel);
 /// and passed to response handler for parsing.
 #[derive(Debug)]
 pub struct InnerEncodedResponseMessage(
-  EncodedOption<EncodedResult<EncodedJsonMessage>>,
+  EncodedResponse<EncodedJsonMessage>,
 );
 
-impl_cast_bytes_vec!(InnerEncodedResponseMessage, EncodedOption);
+impl_cast_bytes_vec!(InnerEncodedResponseMessage, EncodedResponse);
 
 pub struct ResponseMessage(WithChannel<InnerEncodedResponseMessage>);
 
 impl ResponseMessage {
   pub fn new(
     channel: Uuid,
-    response: Option<EncodedResult<EncodedJsonMessage>>,
+    response: EncodedResponse<EncodedJsonMessage>,
   ) -> Self {
     Self(WithChannel {
       channel,
-      data: InnerEncodedResponseMessage(response.encode()),
+      data: InnerEncodedResponseMessage(response),
     })
   }
 
   pub fn extract(
     self,
-  ) -> WithChannel<EncodedOption<EncodedResult<EncodedJsonMessage>>>
-  {
+  ) -> WithChannel<EncodedResponse<EncodedJsonMessage>> {
     self.0.map(|data| data.0)
   }
 }

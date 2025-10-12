@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use uuid::Uuid;
 
-use crate::{CastBytes, Decode, Encode, impl_wrapper};
+use crate::{CastBytes, Decode, Encode};
 
 /// Message wrapper to handle Error unwrapping
 /// anywhere in the en/decoding chain.

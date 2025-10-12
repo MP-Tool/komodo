@@ -1,7 +1,8 @@
 use anyhow::{Context, anyhow};
 use derive_variants::{EnumVariants, ExtractVariant};
 use encoding::{
-  CastBytes, Decode, Encode, EncodedResult, impl_cast_bytes_vec,
+  CastBytes, Decode, Encode, EncodedResponse, impl_cast_bytes_vec,
+  impl_from_for_wrapper,
 };
 use noise::key::SpkiPublicKey;
 
@@ -9,18 +10,14 @@ use crate::transport::{EncodedTransportMessage, TransportMessage};
 
 #[derive(Debug)]
 pub struct EncodedLoginMessage(
-  EncodedResult<InnerEncodedLoginMessage>,
+  EncodedResponse<InnerEncodedLoginMessage>,
 );
 
-impl From<EncodedResult<InnerEncodedLoginMessage>>
-  for EncodedLoginMessage
-{
-  fn from(value: EncodedResult<InnerEncodedLoginMessage>) -> Self {
-    Self(value)
-  }
-}
-
-impl_cast_bytes_vec!(EncodedLoginMessage, EncodedResult);
+impl_from_for_wrapper!(
+  EncodedLoginMessage,
+  EncodedResponse<InnerEncodedLoginMessage>
+);
+impl_cast_bytes_vec!(EncodedLoginMessage, EncodedResponse);
 
 /// ```markdown
 /// | -- u8[] -- | --------- u8 ------------ |
@@ -90,7 +87,11 @@ impl Encode<EncodedTransportMessage> for LoginMessage {
 
 impl Decode<LoginMessage> for EncodedLoginMessage {
   fn decode(self) -> anyhow::Result<LoginMessage> {
-    let mut bytes = self.0.decode()?.into_vec();
+    let mut bytes = self
+      .0
+      .decode()?
+      .context("Should not receive Pending (2) Response message")?
+      .into_vec();
 
     let variant_byte = bytes
       .pop()
