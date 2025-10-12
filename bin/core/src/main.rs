@@ -6,7 +6,7 @@ extern crate tracing;
 use std::{net::SocketAddr, str::FromStr};
 
 use anyhow::Context;
-use axum::Router;
+use axum::{Router, routing::get};
 use axum_server::{Handle, tls_rustls::RustlsConfig};
 use tower_http::{
   cors::{Any, CorsLayer},
@@ -90,6 +90,7 @@ async fn app() -> anyhow::Result<()> {
     .not_found_service(frontend_index.clone());
 
   let app = Router::new()
+    .route("/version", get(|| async { env!("CARGO_PKG_VERSION") }))
     .nest("/auth", api::auth::router())
     .nest("/user", api::user::router())
     .nest("/read", api::read::router())
