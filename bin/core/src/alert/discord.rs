@@ -50,7 +50,7 @@ pub async fn send_alert(
       match alert.level {
         SeverityLevel::Ok => {
           format!(
-            "{level} | **{name}**{region} is now **reachable**\n{link}"
+            "{level} | **{name}**{region} is now **connected**\n{link}"
           )
         }
         SeverityLevel::Critical => {
@@ -241,31 +241,33 @@ pub async fn send_alert(
     }
     AlertData::None {} => Default::default(),
   };
-  if !content.is_empty() {
-    let VariablesAndSecrets { variables, secrets } =
-      get_variables_and_secrets().await?;
-    let mut url_interpolated = url.to_string();
-
-    let mut interpolator =
-      Interpolator::new(Some(&variables), &secrets);
-
-    interpolator.interpolate_string(&mut url_interpolated)?;
-
-    send_message(&url_interpolated, &content)
-      .await
-      .map_err(|e| {
-        let replacers = interpolator
-          .secret_replacers
-          .into_iter()
-          .collect::<Vec<_>>();
-        let sanitized_error =
-          svi::replace_in_string(&format!("{e:?}"), &replacers);
-        anyhow::Error::msg(format!(
-          "Error with slack request: {sanitized_error}"
-        ))
-      })?;
+  
+  if content.is_empty() {
+    return Ok(());
   }
-  Ok(())
+
+  let VariablesAndSecrets { variables, secrets } =
+    get_variables_and_secrets().await?;
+  let mut url_interpolated = url.to_string();
+
+  let mut interpolator =
+    Interpolator::new(Some(&variables), &secrets);
+
+  interpolator.interpolate_string(&mut url_interpolated)?;
+
+  send_message(&url_interpolated, &content)
+    .await
+    .map_err(|e| {
+      let replacers = interpolator
+        .secret_replacers
+        .into_iter()
+        .collect::<Vec<_>>();
+      let sanitized_error =
+        svi::replace_in_string(&format!("{e:?}"), &replacers);
+      anyhow::Error::msg(format!(
+        "Error with slack request: {sanitized_error}"
+      ))
+    })
 }
 
 async fn send_message(

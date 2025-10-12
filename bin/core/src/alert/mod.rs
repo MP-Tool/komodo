@@ -294,7 +294,7 @@ fn standard_alert_content(alert: &Alert) -> String {
       let link = resource_link(ResourceTargetVariant::Server, id);
       match alert.level {
         SeverityLevel::Ok => {
-          format!("{level} | {name}{region} is now reachable\n{link}")
+          format!("{level} | {name}{region} is now connected\n{link}")
         }
         SeverityLevel::Critical => {
           let err = err

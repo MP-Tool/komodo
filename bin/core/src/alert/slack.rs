@@ -64,11 +64,11 @@ pub async fn send_alert(
       match alert.level {
         SeverityLevel::Ok => {
           let text =
-            format!("{level} | *{name}*{region} is now *reachable*");
+            format!("{level} | *{name}*{region} is now *connected*");
           let blocks = vec![
             Block::header(level),
             Block::section(format!(
-              "*{name}*{region} is now *reachable*"
+              "*{name}*{region} is now *connnected*"
             )),
           ];
           (text, blocks.into())
@@ -468,31 +468,32 @@ pub async fn send_alert(
     }
     AlertData::None {} => Default::default(),
   };
-  if !text.is_empty() {
-    let VariablesAndSecrets { variables, secrets } =
-      get_variables_and_secrets().await?;
-    let mut url_interpolated = url.to_string();
-
-    let mut interpolator =
-      Interpolator::new(Some(&variables), &secrets);
-
-    interpolator.interpolate_string(&mut url_interpolated)?;
-
-    let slack = ::slack::Client::new(url_interpolated);
-    slack
-      .send_owned_message_single(&text, blocks.as_deref())
-      .await
-      .map_err(|e| {
-        let replacers = interpolator
-          .secret_replacers
-          .into_iter()
-          .collect::<Vec<_>>();
-        let sanitized_error =
-          svi::replace_in_string(&format!("{e:?}"), &replacers);
-        anyhow::Error::msg(format!(
-          "Error with slack request: {sanitized_error}"
-        ))
-      })?;
+  if text.is_empty() {
+    return Ok(());
   }
+  let VariablesAndSecrets { variables, secrets } =
+    get_variables_and_secrets().await?;
+  let mut url_interpolated = url.to_string();
+
+  let mut interpolator =
+    Interpolator::new(Some(&variables), &secrets);
+
+  interpolator.interpolate_string(&mut url_interpolated)?;
+
+  let slack = ::slack::Client::new(url_interpolated);
+  slack
+    .send_owned_message_single(&text, blocks.as_deref())
+    .await
+    .map_err(|e| {
+      let replacers = interpolator
+        .secret_replacers
+        .into_iter()
+        .collect::<Vec<_>>();
+      let sanitized_error =
+        svi::replace_in_string(&format!("{e:?}"), &replacers);
+      anyhow::Error::msg(format!(
+        "Error with slack request: {sanitized_error}"
+      ))
+    })?;
   Ok(())
 }
