@@ -414,21 +414,19 @@ impl PeripheryConnection {
     };
     match message {
       TransportMessage::Response(data) => {
-        match data.decode().map(ResponseMessage::extract) {
-          Ok(WithChannel {
-            channel: channel_id,
-            data,
-          }) => {
-            let Some(channel) = self.responses.get(&channel_id).await
+        match data.decode().map(ResponseMessage::into_inner) {
+          Ok(WithChannel { channel, data }) => {
+            let Some(response_channel) =
+              self.responses.get(&channel).await
             else {
               warn!(
-                "Failed to forward Response message | No response channel found at {channel_id}"
+                "Failed to forward Response message | No response channel found at {channel}"
               );
               return;
             };
-            if let Err(e) = channel.send(data).await {
+            if let Err(e) = response_channel.send(data).await {
               warn!(
-                "Failed to send response | Channel failure at {channel_id} | {e:#}"
+                "Failed to forward Response | Response channel failure at {channel} | {e:#}"
               );
             }
           }

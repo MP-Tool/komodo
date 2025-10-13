@@ -175,7 +175,7 @@ impl ResponseMessage {
     })
   }
 
-  pub fn extract(
+  pub fn into_inner(
     self,
   ) -> WithChannel<EncodedResponse<EncodedJsonMessage>> {
     self.0
