@@ -144,8 +144,8 @@ exclude_disk_mounts = []
 ## Enable the inbound connection server for
 ## Core -> Periphery connection.
 ## Env: PERIHERY_SERVER_ENABLED
-## Default: true
-server_enabled = true
+## Default: If 'core_addresses' are defined, false, otherwise true.
+# server_enabled = true
 
 ## Optional. The port the server runs on.
 ## Env: PERIPHERY_PORT

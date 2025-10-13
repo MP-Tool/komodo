@@ -7,35 +7,23 @@
 
 services:
   periphery:
-    image: ghcr.io/moghtech/komodo-periphery:${COMPOSE_KOMODO_IMAGE_TAG:-latest}
+    image: ghcr.io/moghtech/komodo-periphery:2
     restart: unless-stopped
     ## Full variable list + descriptions are available here:
     ## 🦎 https://github.com/moghtech/komodo/blob/main/config/periphery.config.toml 🦎
     environment:
-      ## You only need to keep the config for one of the
-      ## connection directions.
-      ### ==============================
-      ###  PERIPHERY -> CORE CONNECTION
-      ### ==============================
       ## The address of Komodo Core to connect to.
       PERIPHERY_CORE_ADDRESS: komodo.example.com
       ## The name of the Komodo Server to connect as.
       ## Must match existing server.
       PERIPHERY_CONNECT_AS: server-name
-      ## Create a Server Onboarding Key in the Komodo UI.
+      ## Optional. Create a Server Onboarding Key in the Komodo UI.
       ## This allows Periphery to create a new Server in the UI with the above name,
       ## and can be ommitted once the Server exists in Komodo.
-      PERIPHERY_ONBOARDING_KEY: <your-key>
-      ## Disable the inbound connection server.
-      PERIPHERY_SERVER_ENABLED: false
-      ### ==============================
-      ###  CORE -> PERIPHERY CONNECTION
-      ### ==============================
-      ## List of accepted Core public keys
-      # PERIPHERY_CORE_PUBLIC_KEYS: sFIibtOSCFLQelO4b4x6VoYIddkRn9Tj1Nas2eR1ME0=
-      ### ================
-      ###  GENERAL CONFIG
-      ### ================
+      PERIPHERY_ONBOARDING_KEY: <your-onboarding-key>
+      ## List of accepted Core public keys.
+      ## File will be auto written if doesn't exist to match first Core it connects to.
+      PERIPHERY_CORE_PUBLIC_KEYS: file:/config/keys/core.pub
       ## Specify the root directory used by Periphery agent.
       ## All your compose files and repos need to be inside this directory
       ## for Periphery to interact with them.
@@ -66,10 +54,6 @@ services:
       - ${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}:${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}
       ## Optionally mount a custom periphery.config.toml
       # - /path/to/periphery.config.toml:/config/config.toml
-    ## If Periphery is being run in Core -> Periphery mode,
-    ## the port may need to be exposed.
-    # ports:
-    #   - 8120:8120
 
 volumes:
   keys:

@@ -58,8 +58,8 @@ async fn app() -> anyhow::Result<()> {
     }
   }
 
-  // Spawn server connection handler
-  if config.server_enabled {
+  // Spawn server connection handler.
+  if config.server_enabled() {
     handles.push(tokio::spawn(connection::server::run()));
   }
 

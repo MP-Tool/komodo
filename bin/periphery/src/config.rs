@@ -99,7 +99,7 @@ pub fn periphery_config() -> &'static PeripheryConfig {
         .unwrap_or(config.connect_as),
       server_enabled: env
         .periphery_server_enabled
-        .unwrap_or(config.server_enabled),
+        .or(config.server_enabled),
       port: env.periphery_port.unwrap_or(config.port),
       bind_ip: env.periphery_bind_ip.unwrap_or(config.bind_ip),
       root_directory: env

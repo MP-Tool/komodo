@@ -242,6 +242,8 @@ pub struct PeripheryConfig {
   ///
   /// Supports openssl generated pem file, `openssl pkey -in private.key -pubout -out public.key`.
   /// To load from file, include `file:/path/to/public.key` in the list.
+  ///
+  /// If not provided and `core_addresses` are defined, defaults to ["file:${root_directory}/keys/core.pub"]
   #[serde(
     default,
     alias = "core_public_key",
@@ -278,9 +280,11 @@ pub struct PeripheryConfig {
   // ======================
   // = INBOUND CONNECTION =
   // ======================
-  /// Enable the inbound connection server
-  #[serde(default = "default_server_enabled")]
-  pub server_enabled: bool,
+  /// Enable the inbound connection server.
+  ///
+  /// - If `core_addresses` set, defaults to `false`.
+  /// - If `core_addresses` unset, defaults to `true`.
+  pub server_enabled: Option<bool>,
 
   /// The port periphery will run on.
   /// Default: `8120`
@@ -431,10 +435,6 @@ fn default_container_stats_polling_rate() -> Timelength {
   Timelength::ThirtySeconds
 }
 
-fn default_server_enabled() -> bool {
-  true
-}
-
 fn default_ssl_enabled() -> bool {
   true
 }
@@ -449,7 +449,7 @@ impl Default for PeripheryConfig {
       core_addresses: Default::default(),
       core_tls_insecure_skip_verify: Default::default(),
       connect_as: Default::default(),
-      server_enabled: default_server_enabled(),
+      server_enabled: Default::default(),
       port: default_periphery_port(),
       bind_ip: default_periphery_bind_ip(),
       root_directory: default_root_directory(),
@@ -559,6 +559,32 @@ impl PeripheryConfig {
       ssl_key_file: self.ssl_key_file.clone(),
       ssl_cert_file: self.ssl_cert_file.clone(),
     }
+  }
+
+  /// If `server_enabled` is None, defaults based on
+  /// whether there are any core_addresses defined.
+  pub fn server_enabled(&self) -> bool {
+    self
+      .server_enabled
+      .unwrap_or(self.core_addresses.is_empty())
+  }
+
+  pub fn core_public_keys_spec(&self) -> Option<Vec<String>> {
+    // Return explicitly set public key spec.
+    if let Some(public_keys) = self.core_public_keys.clone() {
+      return Some(public_keys);
+    };
+    // If server enabled, pass through empty public keys exactly
+    if self.server_enabled() {
+      return None;
+    }
+    // Defaults to $root_directory/keys/core.pub for Periphery -> Core.
+    // If it doesn't exist, will be auto written on first connection with Core.
+    let path = format!(
+      "file:{}",
+      self.root_directory.join("keys/core.pub").display()
+    );
+    Some(vec![path])
   }
 
   pub fn repo_dir(&self) -> PathBuf {

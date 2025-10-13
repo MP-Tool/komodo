@@ -95,6 +95,14 @@ impl CorePublicKeys {
         return;
       }
     };
+    // Check equality at path again before trying to rewrite.
+    match SpkiPublicKey::from_file(path) {
+      Ok(existing) if existing == public_key => {
+        self.refresh();
+        return;
+      }
+      _ => {}
+    }
     if let Err(e) = public_key.write_pem_async(path).await {
       warn!("Failed to pin incoming public key | {e:#}");
     }
@@ -103,17 +111,17 @@ impl CorePublicKeys {
 
   pub fn refresh(&self) {
     let config = periphery_config();
-    let Some(core_public_keys) = config.core_public_keys.as_ref()
+    let Some(core_public_keys_spec) = config.core_public_keys_spec()
     else {
       return;
     };
     let mut to_write = Vec::new();
-    let core_public_keys = core_public_keys
+    let core_public_keys = core_public_keys_spec
       .iter()
       .flat_map(|public_key| {
         if let Some(path) = public_key.strip_prefix("file:")
         {
-          match (SpkiPublicKey::from_file(path), config.server_enabled) {
+          match (SpkiPublicKey::from_file(path), config.server_enabled()) {
             (Ok(public_key), _) => Some(public_key),
             (Err(e), false) => {
               // If only outbound connections, only warn.
