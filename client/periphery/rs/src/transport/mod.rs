@@ -150,26 +150,19 @@ impl Decode<RequestMessage> for EncodedRequestMessage {
 
 #[derive(Debug)]
 pub struct EncodedResponseMessage(
-  EncodedChannel<InnerEncodedResponseMessage>,
+  EncodedChannel<EncodedResponse<EncodedJsonMessage>>,
 );
 
 impl_from_for_wrapper!(
   EncodedResponseMessage,
-  EncodedChannel<InnerEncodedResponseMessage>
+  EncodedChannel<EncodedResponse<EncodedJsonMessage>>
 );
 
 impl_cast_bytes_vec!(EncodedResponseMessage, EncodedChannel);
 
-/// This is handled as one bundle in main handler,
-/// and passed to response handler for parsing.
-#[derive(Debug)]
-pub struct InnerEncodedResponseMessage(
-  EncodedResponse<EncodedJsonMessage>,
+pub struct ResponseMessage(
+  WithChannel<EncodedResponse<EncodedJsonMessage>>,
 );
-
-impl_cast_bytes_vec!(InnerEncodedResponseMessage, EncodedResponse);
-
-pub struct ResponseMessage(WithChannel<InnerEncodedResponseMessage>);
 
 impl ResponseMessage {
   pub fn new(
@@ -178,14 +171,14 @@ impl ResponseMessage {
   ) -> Self {
     Self(WithChannel {
       channel,
-      data: InnerEncodedResponseMessage(response),
+      data: response,
     })
   }
 
   pub fn extract(
     self,
   ) -> WithChannel<EncodedResponse<EncodedJsonMessage>> {
-    self.0.map(|data| data.0)
+    self.0
   }
 }
 

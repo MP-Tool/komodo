@@ -83,27 +83,22 @@ impl CorePublicKeys {
 
   async fn maybe_write(&self, public_key: &str) {
     let to_write = self.to_write.load();
-    match to_write.as_slice() {
+    let path = match to_write.as_slice() {
       // Do nothing if empty
-      [] => {
+      [] => return,
+      [path, _rest @ ..] => path,
+    };
+    let public_key = match SpkiPublicKey::from_maybe_pem(public_key) {
+      Ok(public_key) => public_key,
+      Err(e) => {
+        error!("Invalid incoming public key | {e:#}");
         return;
       }
-      [path, _rest @ ..] => {
-        let public_key =
-          match SpkiPublicKey::from_maybe_pem(public_key) {
-            Ok(public_key) => public_key,
-            Err(e) => {
-              error!("Invalid incoming public key | {e:#}");
-              return;
-            }
-          };
-        if let Err(e) = public_key.write_pem_async(path).await {
-          warn!("Failed to pin incoming public key | {e:#}");
-          return;
-        }
-        self.refresh();
-      }
     };
+    if let Err(e) = public_key.write_pem_async(path).await {
+      warn!("Failed to pin incoming public key | {e:#}");
+    }
+    self.refresh();
   }
 
   pub fn refresh(&self) {
