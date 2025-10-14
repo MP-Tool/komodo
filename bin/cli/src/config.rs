@@ -187,7 +187,7 @@ pub fn cli_config() -> &'static CliConfig {
       config.config_profile
     };
 
-    CliConfig {
+    let config = CliConfig {
       config_profile,
       config_aliases: config.config_aliases,
       default_profile: config.default_profile,
@@ -269,6 +269,8 @@ pub fn cli_config() -> &'static CliConfig {
           .unwrap_or(config.cli_logging.opentelemetry_service_name),
       },
       profile: config.profile,
-    }
+    };
+
+    config::interpolate_config_struct(&config).unwrap()
   })
 }

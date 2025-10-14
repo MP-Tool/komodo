@@ -9,9 +9,9 @@
 //! into the image at `/config/config.toml`.
 //!
 
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
   deserializers::option_string_list_deserializer,
@@ -35,7 +35,7 @@ use super::{DockerRegistry, GitProvider, empty_or_redacted};
 /// To configure the core api, you can either mount your own custom configuration file to
 /// `/config/config.toml` inside the container,
 /// or simply override whichever fields you need using the environment.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Env {
   /// Specify a custom config path for the core config toml.
   /// Default: `/config/config.toml`
@@ -263,7 +263,7 @@ pub struct Env {
 }
 
 fn default_core_config_paths() -> Vec<PathBuf> {
-  vec![PathBuf::from_str("/config").unwrap()]
+  vec![PathBuf::from("/config")]
 }
 
 /// # Core Configuration File
@@ -682,18 +682,15 @@ fn default_init_admin_password() -> String {
 }
 
 fn default_sync_directory() -> PathBuf {
-  // unwrap ok: `/syncs` will always be valid path
-  PathBuf::from_str("/syncs").unwrap()
+  PathBuf::from("/syncs")
 }
 
 fn default_repo_directory() -> PathBuf {
-  // unwrap ok: `/repo-cache` will always be valid path
-  PathBuf::from_str("/repo-cache").unwrap()
+  PathBuf::from("/repo-cache")
 }
 
 fn default_action_directory() -> PathBuf {
-  // unwrap ok: `/action-cache` will always be valid path
-  PathBuf::from_str("/action-cache").unwrap()
+  PathBuf::from("/action-cache")
 }
 
 fn default_prune_days() -> u64 {

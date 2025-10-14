@@ -69,7 +69,7 @@ pub fn periphery_config() -> &'static PeripheryConfig {
       .expect("failed at parsing config from paths")
     };
 
-    PeripheryConfig {
+    let config = PeripheryConfig {
       private_key: maybe_read_item_from_file(
         env.periphery_private_key_file,
         env.periphery_private_key,
@@ -169,6 +169,8 @@ pub fn periphery_config() -> &'static PeripheryConfig {
       secrets: config.secrets,
       git_providers: config.git_providers,
       docker_registries: config.docker_registries,
-    }
+    };
+
+    config::interpolate_config_struct(&config).unwrap()
   })
 }

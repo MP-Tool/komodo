@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -137,11 +137,11 @@ pub struct Env {
 fn default_config_paths() -> Vec<PathBuf> {
   if let Ok(home) = std::env::var("HOME") {
     vec![
-      PathBuf::from_str(&home).unwrap().join(".config/komodo"),
-      PathBuf::from_str(".").unwrap(),
+      PathBuf::from(&home).join(".config/komodo"),
+      PathBuf::from("."),
     ]
   } else {
-    vec![PathBuf::from_str(".").unwrap()]
+    vec![PathBuf::from(".")]
   }
 }
 
@@ -238,8 +238,7 @@ pub struct CliConfig {
 }
 
 fn default_backups_folder() -> PathBuf {
-  // SAFE: /backups is a valid path.
-  PathBuf::from_str("/backups").unwrap()
+  PathBuf::from("/backups")
 }
 
 fn default_max_backups() -> u16 {

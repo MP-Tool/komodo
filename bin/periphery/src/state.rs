@@ -1,7 +1,6 @@
 use std::{
   collections::HashMap,
   path::PathBuf,
-  str::FromStr,
   sync::{Arc, OnceLock},
 };
 
@@ -127,8 +126,7 @@ impl CorePublicKeys {
               // If only outbound connections, only warn.
               // It will be written when Core public key received.
               warn!("{e:#}");
-              let Ok(path) = PathBuf::from_str(path);
-              to_write.push(path);
+              to_write.push(path.into());
               None
             }
             (Err(e), true) => {
@@ -152,6 +150,15 @@ impl CorePublicKeys {
     self.to_write.store(Arc::new(to_write));
   }
 }
+
+/// Replaces `$(hostname)` with value from shell.
+// pub fn periphery_connect_as() -> &'static String {
+//   static PERIPHERY_CONNECT_AS: OnceLock<String> = OnceLock::new();
+//   PERIPHERY_CONNECT_AS.get_or_init(|| {
+//     let config = periphery_config();
+//     todo!()
+//   })
+// }
 
 // Core Address / Host -> Channel
 pub type CoreConnection = BufferedChannel<EncodedTransportMessage>;

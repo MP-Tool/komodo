@@ -1,6 +1,5 @@
 use std::{
   path::{Path, PathBuf},
-  str::FromStr,
   sync::Arc,
 };
 
@@ -120,9 +119,7 @@ impl RotatableKeyPair {
   ) -> anyhow::Result<Self> {
     let (keys, path) =
       if let Some(path) = private_key_spec.strip_prefix("file:") {
-        let path = PathBuf::from_str(path).with_context(|| {
-          format!("Private key path is invalid: {path:?}")
-        })?;
+        let path = PathBuf::from(path);
         (EncodedKeyPair::load_maybe_generate(&path)?, Some(path))
       } else {
         (EncodedKeyPair::from_private_key(private_key_spec)?, None)

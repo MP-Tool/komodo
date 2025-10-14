@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr, time::Duration};
+use std::{path::PathBuf, time::Duration};
 
 use anyhow::{Context, anyhow};
 use database::mungos::mongodb::bson::to_document;
@@ -522,8 +522,7 @@ async fn get_git_remote(
   .await
   .context("failed to clone build repo")?;
 
-  let relative_path = PathBuf::from_str(&build.config.build_path)
-    .context("Invalid build path")?
+  let relative_path = PathBuf::from(&build.config.build_path)
     .join(&build.config.dockerfile_path);
 
   let full_path = repo_path.join(&relative_path);

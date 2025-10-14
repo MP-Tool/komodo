@@ -12,10 +12,12 @@ use serde::de::DeserializeOwned;
 
 mod error;
 mod includes;
+mod interpolate;
 mod load;
 mod merge;
 
 pub use error::Error;
+pub use interpolate::*;
 pub use merge::{merge_config, merge_objects};
 
 pub type Result<T> = ::core::result::Result<T, Error>;

@@ -1,7 +1,6 @@
 use std::{
   collections::HashSet,
   path::{Path, PathBuf},
-  str::FromStr,
   sync::OnceLock,
 };
 
@@ -340,7 +339,7 @@ fn deno_dir() -> Option<&'static Path> {
   DENO_DIR
     .get_or_init(|| {
       let deno_dir = std::env::var("DENO_DIR").ok()?;
-      PathBuf::from_str(&deno_dir).ok()
+      Some(PathBuf::from(&deno_dir))
     })
     .as_deref()
 }
