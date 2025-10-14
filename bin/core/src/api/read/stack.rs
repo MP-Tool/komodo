@@ -202,7 +202,6 @@ impl Resolve<ReadArgs> for ListCommonStackExtraArgs {
     let stacks = resource::list_full_for_user::<Stack>(
       self.query,
       user,
-      PermissionLevel::Read.into(),
       &all_tags,
     )
     .await
@@ -236,7 +235,6 @@ impl Resolve<ReadArgs> for ListCommonStackBuildExtraArgs {
     let stacks = resource::list_full_for_user::<Stack>(
       self.query,
       user,
-      PermissionLevel::Read.into(),
       &all_tags,
     )
     .await
@@ -271,7 +269,6 @@ impl Resolve<ReadArgs> for ListStacks {
     let stacks = resource::list_for_user::<Stack>(
       self.query,
       user,
-      PermissionLevel::Read.into(),
       &all_tags,
     )
     .await?;
@@ -307,7 +304,6 @@ impl Resolve<ReadArgs> for ListFullStacks {
       resource::list_full_for_user::<Stack>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -344,7 +340,6 @@ impl Resolve<ReadArgs> for GetStacksSummary {
     let stacks = resource::list_full_for_user::<Stack>(
       Default::default(),
       user,
-      PermissionLevel::Read.into(),
       &[],
     )
     .await

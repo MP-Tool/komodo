@@ -1,6 +1,6 @@
 use anyhow::{Context, anyhow};
 use formatting::format_serror;
-use futures::{TryStreamExt, stream::FuturesUnordered};
+use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
 use komodo_client::{
   api::execute::{SendAlert, TestAlerter},
   entities::{
@@ -84,23 +84,44 @@ impl Resolve<ExecuteArgs> for SendAlert {
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
   ) -> Result<Self::Response, Self::Error> {
-    let alerters = list_full_for_user::<Alerter>(
-      Default::default(),
-      user,
-      PermissionLevel::Execute.into(),
-      &[],
-    )
-    .await?
-    .into_iter()
-    .filter(|a| {
-      a.config.enabled
-        && (self.alerters.is_empty()
-          || self.alerters.contains(&a.name)
-          || self.alerters.contains(&a.id))
-        && (a.config.alert_types.is_empty()
-          || a.config.alert_types.contains(&AlertDataVariant::Custom))
-    })
-    .collect::<Vec<_>>();
+    let alerters =
+      list_full_for_user::<Alerter>(Default::default(), user, &[])
+        .await?
+        .into_iter()
+        .filter(|a| {
+          a.config.enabled
+            && (self.alerters.is_empty()
+              || self.alerters.contains(&a.name)
+              || self.alerters.contains(&a.id))
+            && (a.config.alert_types.is_empty()
+              || a
+                .config
+                .alert_types
+                .contains(&AlertDataVariant::Custom))
+        })
+        .collect::<Vec<_>>();
+
+    let alerters = if user.admin {
+      alerters
+    } else {
+      // Only keep alerters with execute permissions
+      alerters
+        .into_iter()
+        .map(|alerter| async move {
+          get_check_permissions::<Alerter>(
+            &alerter.id,
+            user,
+            PermissionLevel::Execute.into(),
+          )
+          .await
+        })
+        .collect::<FuturesUnordered<_>>()
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .flatten()
+        .collect()
+    };
 
     if alerters.is_empty() {
       return Err(anyhow!(

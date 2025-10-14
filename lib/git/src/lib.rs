@@ -6,7 +6,6 @@ use komodo_client::entities::{
   LatestCommit, komodo_timestamp, update::Log,
 };
 use run_command::async_run_command;
-use tracing::instrument;
 
 mod clone;
 mod commit;
@@ -22,7 +21,6 @@ pub use crate::{
   pull_or_clone::pull_or_clone,
 };
 
-#[instrument(level = "debug")]
 pub async fn get_commit_hash_info(
   repo_dir: &Path,
 ) -> anyhow::Result<LatestCommit> {
@@ -46,7 +44,6 @@ pub async fn get_commit_hash_info(
   Ok(LatestCommit { hash, message })
 }
 /// returns (Log, commit hash, commit message)
-#[instrument(level = "debug")]
 pub async fn get_commit_hash_log(
   repo_dir: &Path,
 ) -> anyhow::Result<(Log, String, String)> {

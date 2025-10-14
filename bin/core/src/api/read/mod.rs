@@ -11,7 +11,6 @@ use komodo_client::{
     build::Build,
     builder::{Builder, BuilderConfig},
     config::{DockerRegistry, GitProvider},
-    permission::PermissionLevel,
     repo::Repo,
     server::Server,
     sync::ResourceSync,
@@ -399,19 +398,16 @@ impl Resolve<ReadArgs> for ListGitProvidersFromConfig {
       resource::list_full_for_user::<Build>(
         Default::default(),
         user,
-        PermissionLevel::Read.into(),
         &[]
       ),
       resource::list_full_for_user::<Repo>(
         Default::default(),
         user,
-        PermissionLevel::Read.into(),
         &[]
       ),
       resource::list_full_for_user::<ResourceSync>(
         Default::default(),
         user,
-        PermissionLevel::Read.into(),
         &[]
       ),
     )?;

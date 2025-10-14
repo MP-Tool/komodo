@@ -140,7 +140,6 @@ fn update_cache_for_server_controller()
 /// which exits early if the lock is busy or it was completed too recently.
 /// If force is true, it will wait on simultaneous calls, and will
 /// ignore the restriction on being completed too recently.
-#[instrument(level = "debug")]
 pub async fn update_cache_for_server(server: &Server, force: bool) {
   // Concurrency controller to ensure it isn't done too often
   // when it happens in other contexts.

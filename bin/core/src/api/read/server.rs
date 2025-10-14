@@ -66,7 +66,6 @@ impl Resolve<ReadArgs> for GetServersSummary {
     let servers = resource::list_for_user::<Server>(
       Default::default(),
       user,
-      PermissionLevel::Read.into(),
       &[],
     )
     .await?;
@@ -130,7 +129,6 @@ impl Resolve<ReadArgs> for ListServers {
       resource::list_for_user::<Server>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -152,7 +150,6 @@ impl Resolve<ReadArgs> for ListFullServers {
       resource::list_full_for_user::<Server>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -400,7 +397,6 @@ impl Resolve<ReadArgs> for ListAllDockerContainers {
     let servers = resource::list_for_user::<Server>(
       Default::default(),
       user,
-      PermissionLevel::Read.into(),
       &[],
     )
     .await?
@@ -434,7 +430,6 @@ impl Resolve<ReadArgs> for GetDockerContainersSummary {
     let servers = resource::list_full_for_user::<Server>(
       Default::default(),
       user,
-      PermissionLevel::Read.into(),
       &[],
     )
     .await

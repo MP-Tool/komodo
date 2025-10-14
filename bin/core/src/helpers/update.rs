@@ -40,7 +40,6 @@ pub fn make_update(
   }
 }
 
-#[instrument(level = "debug")]
 pub async fn add_update(
   mut update: Update,
 ) -> anyhow::Result<String> {
@@ -59,7 +58,6 @@ pub async fn add_update(
   Ok(id)
 }
 
-#[instrument(level = "debug")]
 pub async fn add_update_without_send(
   update: &Update,
 ) -> anyhow::Result<String> {
@@ -75,7 +73,6 @@ pub async fn add_update_without_send(
   Ok(id)
 }
 
-#[instrument(level = "debug")]
 pub async fn update_update(update: Update) -> anyhow::Result<()> {
   update_one_by_id(&db_client().updates, &update.id, database::mungos::update::Update::Set(to_document(&update)?), None)
     .await
@@ -85,7 +82,6 @@ pub async fn update_update(update: Update) -> anyhow::Result<()> {
   Ok(())
 }
 
-#[instrument(level = "debug")]
 async fn update_list_item(
   update: Update,
 ) -> anyhow::Result<UpdateListItem> {
@@ -115,7 +111,6 @@ async fn update_list_item(
   Ok(update)
 }
 
-#[instrument(level = "debug")]
 async fn send_update(update: UpdateListItem) -> anyhow::Result<()> {
   update_channel().sender.lock().await.send(update)?;
   Ok(())

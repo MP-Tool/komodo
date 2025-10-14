@@ -49,7 +49,6 @@ impl Resolve<ReadArgs> for ListActions {
       resource::list_for_user::<Action>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -71,7 +70,6 @@ impl Resolve<ReadArgs> for ListFullActions {
       resource::list_full_for_user::<Action>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -108,7 +106,6 @@ impl Resolve<ReadArgs> for GetActionsSummary {
     let actions = resource::list_full_for_user::<Action>(
       Default::default(),
       user,
-      PermissionLevel::Read.into(),
       &[],
     )
     .await

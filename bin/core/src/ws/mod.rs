@@ -46,7 +46,6 @@ pub fn router() -> Router {
     .route("/stack/terminal/attach", get(stack::attach))
 }
 
-#[instrument(level = "debug")]
 async fn user_ws_login(
   mut socket: WebSocket,
 ) -> Option<(WebSocket, User)> {
@@ -128,7 +127,6 @@ enum LoginMessage {
   Err(String),
 }
 
-#[instrument(level = "debug")]
 async fn check_user_valid(user_id: &str) -> anyhow::Result<User> {
   let user = get_user(user_id).await?;
   if !user.enabled {

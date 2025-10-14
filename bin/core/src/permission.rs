@@ -164,7 +164,6 @@ pub fn get_user_permission_on_resource<'a, T: KomodoResource>(
 }
 
 /// Returns None if still no need to filter by resource id (eg transparent mode, group membership with all access).
-#[instrument(level = "debug")]
 pub async fn get_resource_ids_for_user<T: KomodoResource>(
   user: &User,
 ) -> anyhow::Result<Option<Vec<String>>> {

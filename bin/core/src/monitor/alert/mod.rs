@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Context;
 use komodo_client::entities::{
-  permission::PermissionLevel, resource::ResourceQuery,
-  server::Server, user::User,
+  resource::ResourceQuery, server::Server, user::User,
 };
 
 use crate::resource;
@@ -13,7 +12,6 @@ mod server;
 mod stack;
 
 // called after cache update
-#[instrument(level = "debug")]
 pub async fn check_alerts(ts: i64) {
   let (servers, server_names) = match get_all_servers_map().await {
     Ok(res) => res,
@@ -30,7 +28,6 @@ pub async fn check_alerts(ts: i64) {
   );
 }
 
-#[instrument(level = "debug")]
 async fn get_all_servers_map()
 -> anyhow::Result<(HashMap<String, Server>, HashMap<String, String>)>
 {
@@ -40,7 +37,6 @@ async fn get_all_servers_map()
       admin: true,
       ..Default::default()
     },
-    PermissionLevel::Read.into(),
     &[],
   )
   .await

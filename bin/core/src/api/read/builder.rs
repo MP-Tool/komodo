@@ -47,7 +47,6 @@ impl Resolve<ReadArgs> for ListBuilders {
       resource::list_for_user::<Builder>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -69,7 +68,6 @@ impl Resolve<ReadArgs> for ListFullBuilders {
       resource::list_full_for_user::<Builder>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,

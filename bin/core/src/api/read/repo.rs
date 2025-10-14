@@ -47,7 +47,6 @@ impl Resolve<ReadArgs> for ListRepos {
       resource::list_for_user::<Repo>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -69,7 +68,6 @@ impl Resolve<ReadArgs> for ListFullRepos {
       resource::list_full_for_user::<Repo>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -106,7 +104,6 @@ impl Resolve<ReadArgs> for GetReposSummary {
     let repos = resource::list_full_for_user::<Repo>(
       Default::default(),
       user,
-      PermissionLevel::Read.into(),
       &[],
     )
     .await

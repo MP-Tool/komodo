@@ -2,7 +2,6 @@ use ::slack::types::OwnedBlock as Block;
 
 use super::*;
 
-#[instrument(level = "debug")]
 pub async fn send_alert(
   url: &str,
   alert: &Alert,

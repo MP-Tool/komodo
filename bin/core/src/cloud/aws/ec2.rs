@@ -229,7 +229,6 @@ async fn terminate_ec2_instance_inner(
 }
 
 /// Automatically retries 5 times, waiting 2 sec in between
-#[instrument(level = "debug")]
 async fn get_ec2_instance_status(
   client: &Client,
   instance_id: &str,
@@ -261,7 +260,6 @@ async fn get_ec2_instance_status(
   }
 }
 
-#[instrument(level = "debug")]
 async fn get_ec2_instance_state_name(
   client: &Client,
   instance_id: &str,
@@ -281,7 +279,6 @@ async fn get_ec2_instance_state_name(
 }
 
 /// Automatically retries 5 times, waiting 2 sec in between
-#[instrument(level = "debug")]
 async fn get_ec2_instance_public_ip(
   client: &Client,
   instance_id: &str,

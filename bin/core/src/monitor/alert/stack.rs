@@ -12,7 +12,6 @@ use crate::{
   state::{action_states, db_client, stack_status_cache},
 };
 
-#[instrument(level = "debug")]
 pub async fn alert_stacks(
   ts: i64,
   server_names: &HashMap<String, String>,

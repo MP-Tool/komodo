@@ -2,7 +2,6 @@ use std::sync::OnceLock;
 
 use super::*;
 
-#[instrument(level = "debug")]
 pub async fn send_alert(
   url: &str,
   alert: &Alert,

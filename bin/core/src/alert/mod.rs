@@ -24,14 +24,12 @@ mod ntfy;
 mod pushover;
 mod slack;
 
-#[instrument(level = "debug")]
 pub async fn send_alerts(alerts: &[Alert]) {
   if alerts.is_empty() {
     return;
   }
 
-  let span =
-    info_span!("send_alerts", alerts = format!("{alerts:?}"));
+  let span = info_span!("SendAlerts", alerts = format!("{alerts:?}"));
   async {
     let Ok(alerters) = find_collect(
       &db_client().alerters,
@@ -57,7 +55,6 @@ pub async fn send_alerts(alerts: &[Alert]) {
   .await
 }
 
-#[instrument(level = "debug")]
 async fn send_alert_to_alerters(alerters: &[Alerter], alert: &Alert) {
   if alerters.is_empty() {
     return;
@@ -161,7 +158,6 @@ pub async fn send_alert_to_alerter(
   }
 }
 
-#[instrument(level = "debug")]
 async fn send_custom_alert(
   url: &str,
   alert: &Alert,

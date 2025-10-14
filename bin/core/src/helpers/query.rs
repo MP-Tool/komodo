@@ -47,7 +47,6 @@ use crate::{
 };
 
 // user: Id or username
-#[instrument(level = "debug")]
 pub async fn get_user(user: &str) -> anyhow::Result<User> {
   if let Some(user) = admin_service_user(user) {
     return Ok(user);
@@ -60,7 +59,6 @@ pub async fn get_user(user: &str) -> anyhow::Result<User> {
     .with_context(|| format!("no user found with {user}"))
 }
 
-#[instrument(level = "debug")]
 pub async fn get_server_with_state(
   server_id_or_name: &str,
 ) -> anyhow::Result<(Server, ServerState)> {
@@ -69,7 +67,6 @@ pub async fn get_server_with_state(
   Ok((server, state))
 }
 
-#[instrument(level = "debug")]
 pub async fn get_server_state(server: &Server) -> ServerState {
   if !server.config.enabled {
     return ServerState::Disabled;
@@ -86,7 +83,6 @@ pub async fn get_server_state(server: &Server) -> ServerState {
   }
 }
 
-#[instrument(level = "debug")]
 pub async fn get_deployment_state(
   id: &String,
 ) -> anyhow::Result<DeploymentState> {
@@ -182,7 +178,6 @@ pub fn get_stack_state_from_containers(
   StackState::Unhealthy
 }
 
-#[instrument(level = "debug")]
 pub async fn get_stack_state(
   stack: &Stack,
 ) -> anyhow::Result<StackState> {
@@ -198,7 +193,6 @@ pub async fn get_stack_state(
   Ok(state)
 }
 
-#[instrument(level = "debug")]
 pub async fn get_tag(id_or_name: &str) -> anyhow::Result<Tag> {
   let query = match ObjectId::from_str(id_or_name) {
     Ok(id) => doc! { "_id": id },
@@ -212,7 +206,6 @@ pub async fn get_tag(id_or_name: &str) -> anyhow::Result<Tag> {
     .with_context(|| format!("no tag found matching {id_or_name}"))
 }
 
-#[instrument(level = "debug")]
 pub async fn get_tag_check_owner(
   id_or_name: &str,
   user: &User,
@@ -244,7 +237,6 @@ pub async fn get_id_to_tags(
   Ok(res)
 }
 
-#[instrument(level = "debug")]
 pub async fn get_user_user_groups(
   user_id: &str,
 ) -> anyhow::Result<Vec<UserGroup>> {
@@ -262,7 +254,6 @@ pub async fn get_user_user_groups(
   .context("failed to query db for user groups")
 }
 
-#[instrument(level = "debug")]
 pub async fn get_user_user_group_ids(
   user_id: &str,
 ) -> anyhow::Result<Vec<String>> {

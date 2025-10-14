@@ -57,7 +57,6 @@ impl Resolve<ReadArgs> for ListBuilds {
       resource::list_for_user::<Build>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -79,7 +78,6 @@ impl Resolve<ReadArgs> for ListFullBuilds {
       resource::list_full_for_user::<Build>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -116,7 +114,6 @@ impl Resolve<ReadArgs> for GetBuildsSummary {
     let builds = resource::list_full_for_user::<Build>(
       Default::default(),
       user,
-      PermissionLevel::Read.into(),
       &[],
     )
     .await
@@ -282,7 +279,6 @@ impl Resolve<ReadArgs> for ListCommonBuildExtraArgs {
     let builds = resource::list_full_for_user::<Build>(
       self.query,
       user,
-      PermissionLevel::Read.into(),
       &all_tags,
     )
     .await

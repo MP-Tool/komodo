@@ -13,7 +13,6 @@ use crate::{
   state::{action_states, db_client},
 };
 
-#[instrument(level = "debug")]
 pub async fn alert_deployments(
   ts: i64,
   server_names: &HashMap<String, String>,

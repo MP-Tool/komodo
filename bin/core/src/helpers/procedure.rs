@@ -10,7 +10,6 @@ use komodo_client::{
     action::Action,
     build::Build,
     deployment::Deployment,
-    permission::PermissionLevel,
     procedure::Procedure,
     repo::Repo,
     stack::Stack,
@@ -1288,7 +1287,6 @@ async fn handle_resolve_result(
 }
 
 /// ASSUMES FIRST LOG IS ALREADY CREATED
-#[instrument(level = "debug")]
 async fn add_line_to_update(update: &Mutex<Update>, line: &str) {
   let mut lock = update.lock().await;
   let log = &mut lock.logs[0];
@@ -1309,7 +1307,6 @@ async fn extend_batch_exection<E: ExtendBatch>(
     pattern,
     Default::default(),
     procedure_user(),
-    PermissionLevel::Read.into(),
     &[],
   )
   .await?

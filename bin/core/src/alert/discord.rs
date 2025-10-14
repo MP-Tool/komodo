@@ -4,7 +4,6 @@ use serde::Serialize;
 
 use super::*;
 
-#[instrument(level = "debug")]
 pub async fn send_alert(
   url: &str,
   alert: &Alert,
@@ -241,7 +240,7 @@ pub async fn send_alert(
     }
     AlertData::None {} => Default::default(),
   };
-  
+
   if content.is_empty() {
     return Ok(());
   }

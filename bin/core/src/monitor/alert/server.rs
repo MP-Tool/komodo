@@ -73,7 +73,6 @@ fn alert_buffer() -> &'static AlertBuffer {
   BUFFER.get_or_init(AlertBuffer::new)
 }
 
-#[instrument(level = "debug")]
 pub async fn alert_servers(
   ts: i64,
   mut servers: HashMap<String, Server>,
@@ -555,7 +554,6 @@ pub async fn alert_servers(
   );
 }
 
-#[instrument(level = "debug")]
 async fn open_new_alerts(alerts: &[(Alert, SendAlerts)]) {
   if alerts.is_empty() {
     return;
@@ -603,7 +601,6 @@ async fn open_new_alerts(alerts: &[(Alert, SendAlerts)]) {
   send_alerts(&alerts).await
 }
 
-#[instrument(level = "debug")]
 async fn update_alerts(alerts: &[(Alert, SendAlerts)]) {
   if alerts.is_empty() {
     return;
@@ -651,7 +648,6 @@ async fn update_alerts(alerts: &[(Alert, SendAlerts)]) {
   }
 }
 
-#[instrument(level = "debug")]
 async fn resolve_alerts(alerts: &[(Alert, SendAlerts)]) {
   if alerts.is_empty() {
     return;
@@ -708,7 +704,6 @@ async fn resolve_alerts(alerts: &[(Alert, SendAlerts)]) {
   }
 }
 
-#[instrument(level = "debug")]
 async fn get_open_alerts()
 -> anyhow::Result<(OpenAlertMap, OpenDiskAlertMap)> {
   let alerts = find_collect(

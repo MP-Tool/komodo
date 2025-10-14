@@ -16,7 +16,6 @@ use crate::helpers::{
   channel::update_channel, query::get_user_permission_on_target,
 };
 
-#[instrument(level = "debug")]
 pub async fn handler(ws: WebSocketUpgrade) -> impl IntoResponse {
   // get a reveiver for internal update messages.
   let mut receiver = update_channel().receiver.resubscribe();
@@ -82,7 +81,6 @@ pub async fn handler(ws: WebSocketUpgrade) -> impl IntoResponse {
     })
 }
 
-#[instrument(level = "debug")]
 async fn user_can_see_update(
   user: &User,
   update_target: &ResourceTarget,

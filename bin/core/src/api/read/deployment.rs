@@ -58,7 +58,6 @@ impl Resolve<ReadArgs> for ListDeployments {
     let deployments = resource::list_for_user::<Deployment>(
       self.query,
       user,
-      PermissionLevel::Read.into(),
       &all_tags,
     )
     .await?;
@@ -88,7 +87,6 @@ impl Resolve<ReadArgs> for ListFullDeployments {
       resource::list_full_for_user::<Deployment>(
         self.query,
         user,
-        PermissionLevel::Read.into(),
         &all_tags,
       )
       .await?,
@@ -303,7 +301,6 @@ impl Resolve<ReadArgs> for GetDeploymentsSummary {
     let deployments = resource::list_full_for_user::<Deployment>(
       Default::default(),
       user,
-      PermissionLevel::Read.into(),
       &[],
     )
     .await
@@ -351,7 +348,6 @@ impl Resolve<ReadArgs> for ListCommonDeploymentExtraArgs {
     let deployments = resource::list_full_for_user::<Deployment>(
       self.query,
       user,
-      PermissionLevel::Read.into(),
       &all_tags,
     )
     .await

@@ -326,6 +326,15 @@ impl PeripheryConnection {
     )
   }
 
+  #[instrument(
+    "PeripheryLogin",
+    skip(self, socket, identifiers),
+    fields(
+      server_id = self.args.id,
+      address = self.args.address,
+      public_key = self.args.periphery_public_key
+    )
+  )]
   pub async fn handle_login<W: Websocket, L: LoginFlow>(
     &self,
     socket: &mut W,
