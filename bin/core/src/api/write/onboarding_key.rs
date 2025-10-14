@@ -6,7 +6,9 @@ use komodo_client::{
     DeleteOnboardingKey, DeleteOnboardingKeyResponse,
     UpdateOnboardingKey, UpdateOnboardingKeyResponse,
   },
-  entities::{komodo_timestamp, onboarding_key::OnboardingKey},
+  entities::{
+    komodo_timestamp, onboarding_key::OnboardingKey, random_string,
+  },
 };
 use noise::key::EncodedKeyPair;
 use reqwest::StatusCode;
@@ -29,13 +31,16 @@ impl Resolve<WriteArgs> for CreateOnboardingKey {
           .status_code(StatusCode::FORBIDDEN),
       );
     }
-    let keys = if let Some(private_key) = self.private_key {
-      EncodedKeyPair::from_private_key(&private_key)?
+    let private_key = if let Some(private_key) = self.private_key {
+      private_key
     } else {
-      EncodedKeyPair::generate()?
+      format!("O-{}", random_string(30))
     };
+    let public_key = EncodedKeyPair::from_private_key(&private_key)?
+      .public
+      .into_inner();
     let onboarding_key = OnboardingKey {
-      public_key: keys.public.into_inner(),
+      public_key,
       name: self.name,
       enabled: true,
       onboarded: Default::default(),
@@ -62,7 +67,7 @@ impl Resolve<WriteArgs> for CreateOnboardingKey {
         "No Server onboarding key found on database after create",
       )?;
     Ok(CreateOnboardingKeyResponse {
-      private_key: keys.private.into_inner(),
+      private_key,
       created,
     })
   }
