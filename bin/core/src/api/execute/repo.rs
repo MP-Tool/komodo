@@ -599,7 +599,6 @@ async fn handle_builder_early_return(
   Ok(update)
 }
 
-#[instrument(skip_all)]
 pub async fn validate_cancel_repo_build(
   request: &ExecuteRequest,
 ) -> anyhow::Result<()> {
