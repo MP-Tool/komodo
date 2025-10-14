@@ -482,7 +482,7 @@ pub async fn send_alert(
 
   let slack = ::slack::Client::new(url_interpolated);
   slack
-    .send_owned_message_single(&text, blocks.as_deref())
+    .send_owned_message_single(&text, None, blocks.as_deref())
     .await
     .map_err(|e| {
       let replacers = interpolator
