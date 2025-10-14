@@ -8,7 +8,8 @@ use colored::Colorize;
 use serde::de::DeserializeOwned;
 
 use crate::{
-  Error, Result, includes::IncludesLoader, merge::merge_objects,
+  Error, Result, includes::IncludesLoader, interpolate_env_and_shell,
+  merge::merge_objects,
 };
 
 pub fn load_config_files(
@@ -128,7 +129,11 @@ pub fn load_parse_config_files<T: DeserializeOwned>(
     };
   }
 
-  serde_json::from_value(serde_json::Value::Object(target))
+  let json = serde_json::to_string(&target)
+    .map_err(|e| Error::SerializeJson { e })?;
+  let interpolated = interpolate_env_and_shell(&json);
+
+  serde_json::from_str(&interpolated)
     .map_err(|e| Error::ParseFinalJson { e })
 }
 

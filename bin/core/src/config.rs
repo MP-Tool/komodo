@@ -134,7 +134,7 @@ pub fn core_config() -> &'static CoreConfig {
     };
 
     // recreating CoreConfig here makes sure apply all env overrides applied.
-    let config = CoreConfig {
+    CoreConfig {
       // Secret things overridden with file
       private_key: maybe_read_item_from_file(
         env.komodo_private_key_file,
@@ -379,8 +379,6 @@ pub fn core_config() -> &'static CoreConfig {
       secrets: config.secrets,
       git_providers: config.git_providers,
       docker_registries: config.docker_registries,
-    };
-
-    config::interpolate_config_struct(&config).unwrap()
+    }
   })
 }

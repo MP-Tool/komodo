@@ -1,17 +1,6 @@
 use std::path::PathBuf;
 
 use colored::Colorize as _;
-use serde::{Serialize, de::DeserializeOwned};
-
-pub fn interpolate_config_struct<T: Serialize + DeserializeOwned>(
-  s: &T,
-) -> crate::Result<T> {
-  let res = serde_json::to_string(s)
-    .map_err(|e| crate::Error::SerializeJson { e })?;
-  let res = interpolate_env_and_shell(&res);
-  serde_json::from_str(&res)
-    .map_err(|e| crate::Error::ParseFinalJson { e })
-}
 
 /// - Supports '${VAR}' -> Env var extended
 /// - Supports '$(shell command)' -> 'echo $(shell command)'

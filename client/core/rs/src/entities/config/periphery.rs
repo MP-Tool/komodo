@@ -14,7 +14,7 @@
 
 use clap::Parser;
 use ipnetwork::IpNetwork;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
@@ -219,7 +219,7 @@ pub struct Env {
 /// # Periphery Configuration File
 ///
 /// Refer to the [example file](https://github.com/moghtech/komodo/blob/main/config/periphery.config.toml) for a full example.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PeripheryConfig {
   /// The private key used with noise handshake.
   ///
