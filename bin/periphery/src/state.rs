@@ -151,16 +151,7 @@ impl CorePublicKeys {
   }
 }
 
-/// Replaces `$(hostname)` with value from shell.
-// pub fn periphery_connect_as() -> &'static String {
-//   static PERIPHERY_CONNECT_AS: OnceLock<String> = OnceLock::new();
-//   PERIPHERY_CONNECT_AS.get_or_init(|| {
-//     let config = periphery_config();
-//     todo!()
-//   })
-// }
-
-// Core Address / Host -> Channel
+/// Core Address / Host -> Channel
 pub type CoreConnection = BufferedChannel<EncodedTransportMessage>;
 pub type CoreConnections = CloneCache<String, Arc<CoreConnection>>;
 

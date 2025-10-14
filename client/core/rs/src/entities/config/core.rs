@@ -35,7 +35,7 @@ use super::{DockerRegistry, GitProvider, empty_or_redacted};
 /// To configure the core api, you can either mount your own custom configuration file to
 /// `/config/config.toml` inside the container,
 /// or simply override whichever fields you need using the environment.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Env {
   /// Specify a custom config path for the core config toml.
   /// Default: `/config/config.toml`
@@ -279,7 +279,7 @@ fn default_core_config_paths() -> Vec<PathBuf> {
 /// or simply override whichever fields you need using the environment.
 ///
 /// Refer to the [example file](https://github.com/moghtech/komodo/blob/main/config/core.config.toml) for a full example.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoreConfig {
   // ===========
   // = General =
@@ -892,7 +892,7 @@ impl CoreConfig {
 }
 
 /// Generic Oauth credentials
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct OauthCredentials {
   /// Whether this oauth method is available for usage.
   #[serde(default)]
@@ -906,7 +906,7 @@ pub struct OauthCredentials {
 }
 
 /// Provide AWS credentials for Komodo to use.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AwsCredentials {
   /// The aws ACCESS_KEY_ID
   pub access_key_id: String,
