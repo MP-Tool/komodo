@@ -11,7 +11,7 @@ use crate::{permission::get_check_permissions, resource};
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateAction {
-  #[instrument(name = "CreateAction", skip(user))]
+  #[instrument("CreateAction", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -22,7 +22,7 @@ impl Resolve<WriteArgs> for CreateAction {
 }
 
 impl Resolve<WriteArgs> for CopyAction {
-  #[instrument(name = "CopyAction", skip(user))]
+  #[instrument("CopyAction", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -39,7 +39,7 @@ impl Resolve<WriteArgs> for CopyAction {
 }
 
 impl Resolve<WriteArgs> for UpdateAction {
-  #[instrument(name = "UpdateAction", skip(user))]
+  #[instrument("UpdateAction", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -49,7 +49,7 @@ impl Resolve<WriteArgs> for UpdateAction {
 }
 
 impl Resolve<WriteArgs> for RenameAction {
-  #[instrument(name = "RenameAction", skip(user))]
+  #[instrument("RenameAction", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -59,8 +59,15 @@ impl Resolve<WriteArgs> for RenameAction {
 }
 
 impl Resolve<WriteArgs> for DeleteAction {
-  #[instrument(name = "DeleteAction", skip(args))]
-  async fn resolve(self, args: &WriteArgs) -> serror::Result<Action> {
-    Ok(resource::delete::<Action>(&self.id, args).await?)
+  #[instrument(
+    "DeleteAction",
+    skip(self, user),
+    fields(user_id = user.id, action_id = self.id)
+  )]
+  async fn resolve(
+    self,
+    WriteArgs { user }: &WriteArgs,
+  ) -> serror::Result<Action> {
+    Ok(resource::delete::<Action>(&self.id, user).await?)
   }
 }

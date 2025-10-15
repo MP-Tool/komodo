@@ -13,7 +13,7 @@ use crate::{
   ws::forward_ws_channel,
 };
 
-#[instrument(name = "ConnectTerminal", skip(ws))]
+#[instrument("ConnectTerminal", skip(ws))]
 pub async fn handler(
   Query(ConnectTerminalQuery { server, terminal }): Query<
     ConnectTerminalQuery,

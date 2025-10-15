@@ -11,7 +11,7 @@ use crate::{permission::get_check_permissions, resource};
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateAlerter {
-  #[instrument(name = "CreateAlerter", skip(user))]
+  #[instrument("CreateAlerter", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -22,7 +22,7 @@ impl Resolve<WriteArgs> for CreateAlerter {
 }
 
 impl Resolve<WriteArgs> for CopyAlerter {
-  #[instrument(name = "CopyAlerter", skip(user))]
+  #[instrument("CopyAlerter", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -39,17 +39,17 @@ impl Resolve<WriteArgs> for CopyAlerter {
 }
 
 impl Resolve<WriteArgs> for DeleteAlerter {
-  #[instrument(name = "DeleteAlerter", skip(args))]
+  #[instrument("DeleteAlerter", skip(user))]
   async fn resolve(
     self,
-    args: &WriteArgs,
+    WriteArgs { user }: &WriteArgs,
   ) -> serror::Result<Alerter> {
-    Ok(resource::delete::<Alerter>(&self.id, args).await?)
+    Ok(resource::delete::<Alerter>(&self.id, user).await?)
   }
 }
 
 impl Resolve<WriteArgs> for UpdateAlerter {
-  #[instrument(name = "UpdateAlerter", skip(user))]
+  #[instrument("UpdateAlerter", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -62,7 +62,7 @@ impl Resolve<WriteArgs> for UpdateAlerter {
 }
 
 impl Resolve<WriteArgs> for RenameAlerter {
-  #[instrument(name = "RenameAlerter", skip(user))]
+  #[instrument("RenameAlerter", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

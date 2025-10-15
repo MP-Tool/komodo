@@ -12,6 +12,7 @@ use tower_http::{
   cors::{Any, CorsLayer},
   services::{ServeDir, ServeFile},
 };
+use tracing::Instrument;
 
 use crate::config::{core_config, core_keys};
 
@@ -41,46 +42,51 @@ async fn app() -> anyhow::Result<()> {
   let config = core_config();
   logger::init(&config.logging)?;
 
-  info!("Komodo Core version: v{}", env!("CARGO_PKG_VERSION"));
+  let startup_span = info_span!("CoreStartup");
+  async {
+    info!("Komodo Core version: v{}", env!("CARGO_PKG_VERSION"));
 
-  match (
-    config.pretty_startup_config,
-    config.unsafe_unsanitized_startup_config,
-  ) {
-    (true, true) => info!("{:#?}", config),
-    (true, false) => info!("{:#?}", config.sanitized()),
-    (false, true) => info!("{:?}", config),
-    (false, false) => info!("{:?}", config.sanitized()),
+    match (
+      config.pretty_startup_config,
+      config.unsafe_unsanitized_startup_config,
+    ) {
+      (true, true) => info!("{:#?}", config),
+      (true, false) => info!("{:#?}", config.sanitized()),
+      (false, true) => info!("{:?}", config),
+      (false, false) => info!("{:?}", config.sanitized()),
+    }
+
+    // Init + log public key. Will crash if invalid private key here.
+    info!("Public Key: {}", core_keys().load().public);
+
+    rustls::crypto::aws_lc_rs::default_provider()
+      .install_default()
+      .expect("Failed to install default crypto provider");
+
+    // Init jwt client to crash on failure
+    state::jwt_client();
+    tokio::join!(
+      // Init db_client check to crash on db init failure
+      state::init_db_client(),
+      // Manage OIDC client (defined in config / env vars / compose secret file)
+      auth::oidc::client::spawn_oidc_client_management()
+    );
+    // Run after db connection.
+    startup::on_startup().await;
+
+    // Spawn background tasks
+    monitor::spawn_monitor_loop();
+    resource::spawn_resource_refresh_loop();
+    resource::spawn_all_resources_cache_refresh_loop();
+    resource::spawn_build_state_refresh_loop();
+    resource::spawn_repo_state_refresh_loop();
+    resource::spawn_procedure_state_refresh_loop();
+    resource::spawn_action_state_refresh_loop();
+    schedule::spawn_schedule_executor();
+    helpers::prune::spawn_prune_loop();
   }
-
-  // Init + log public key. Will crash if invalid private key here.
-  info!("Public Key: {}", core_keys().load().public);
-
-  rustls::crypto::aws_lc_rs::default_provider()
-    .install_default()
-    .expect("Failed to install default crypto provider");
-
-  // Init jwt client to crash on failure
-  state::jwt_client();
-  tokio::join!(
-    // Init db_client check to crash on db init failure
-    state::init_db_client(),
-    // Manage OIDC client (defined in config / env vars / compose secret file)
-    auth::oidc::client::spawn_oidc_client_management()
-  );
-  // Run after db connection.
-  startup::on_startup().await;
-
-  // Spawn background tasks
-  monitor::spawn_monitor_loop();
-  resource::spawn_resource_refresh_loop();
-  resource::spawn_all_resources_cache_refresh_loop();
-  resource::spawn_build_state_refresh_loop();
-  resource::spawn_repo_state_refresh_loop();
-  resource::spawn_procedure_state_refresh_loop();
-  resource::spawn_action_state_refresh_loop();
-  schedule::spawn_schedule_executor();
-  helpers::prune::spawn_prune_loop();
+  .instrument(startup_span)
+  .await;
 
   // Setup static frontend services
   let frontend_path = &config.frontend_path;

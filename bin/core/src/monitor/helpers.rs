@@ -25,7 +25,6 @@ use super::{
   CachedStackStatus, History,
 };
 
-#[instrument(level = "debug", skip_all)]
 pub async fn insert_deployments_status_unknown(
   deployments: Vec<Deployment>,
 ) {
@@ -51,7 +50,6 @@ pub async fn insert_deployments_status_unknown(
   }
 }
 
-#[instrument(level = "debug", skip_all)]
 pub async fn insert_repos_status_unknown(repos: Vec<Repo>) {
   let status_cache = repo_status_cache();
   for repo in repos {
@@ -68,7 +66,6 @@ pub async fn insert_repos_status_unknown(repos: Vec<Repo>) {
   }
 }
 
-#[instrument(level = "debug", skip_all)]
 pub async fn insert_stacks_status_unknown(stacks: Vec<Stack>) {
   let status_cache = stack_status_cache();
   for stack in stacks {
@@ -99,7 +96,6 @@ type DockerLists = (
   Option<Vec<ComposeProject>>,
 );
 
-#[instrument(level = "debug", skip_all)]
 pub async fn insert_server_status(
   server: &Server,
   state: ServerState,

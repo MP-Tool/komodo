@@ -31,6 +31,7 @@ pub mod server;
 
 impl PublicKeyValidator for &CorePublicKeys {
   type ValidationResult = ();
+  #[instrument("ValidateCorePublicKey", skip(self))]
   async fn validate(&self, public_key: String) -> anyhow::Result<()> {
     if self.is_valid(&public_key).await {
       Ok(())
@@ -44,6 +45,7 @@ impl PublicKeyValidator for &CorePublicKeys {
   }
 }
 
+#[instrument("StandardCoreLoginFlow", skip(socket, identifiers))]
 async fn handle_login<W: Websocket, L: LoginFlow>(
   socket: &mut W,
   identifiers: ConnectionIdentifiers<'_>,

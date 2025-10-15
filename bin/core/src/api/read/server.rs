@@ -126,12 +126,8 @@ impl Resolve<ReadArgs> for ListServers {
       get_all_tags(None).await?
     };
     Ok(
-      resource::list_for_user::<Server>(
-        self.query,
-        user,
-        &all_tags,
-      )
-      .await?,
+      resource::list_for_user::<Server>(self.query, user, &all_tags)
+        .await?,
     )
   }
 }
@@ -148,9 +144,7 @@ impl Resolve<ReadArgs> for ListFullServers {
     };
     Ok(
       resource::list_full_for_user::<Server>(
-        self.query,
-        user,
-        &all_tags,
+        self.query, user, &all_tags,
       )
       .await?,
     )

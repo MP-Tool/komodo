@@ -156,7 +156,6 @@ pub enum PeripheryRequest {
 //
 
 impl Resolve<Args> for GetHealth {
-  #[instrument(name = "GetHealth", level = "debug", skip_all)]
   async fn resolve(
     self,
     _: &Args,
@@ -168,7 +167,6 @@ impl Resolve<Args> for GetHealth {
 //
 
 impl Resolve<Args> for GetVersion {
-  #[instrument(name = "GetVersion", level = "debug", skip(self))]
   async fn resolve(
     self,
     _: &Args,
@@ -253,7 +251,6 @@ impl Resolve<Args> for PollStatus {
 //
 
 impl Resolve<Args> for GetSystemProcesses {
-  #[instrument(name = "GetSystemProcesses", level = "debug")]
   async fn resolve(
     self,
     _: &Args,
@@ -265,7 +262,6 @@ impl Resolve<Args> for GetSystemProcesses {
 //
 
 impl Resolve<Args> for ListGitProviders {
-  #[instrument(name = "ListGitProviders", level = "debug", skip_all)]
   async fn resolve(
     self,
     _: &Args,
@@ -275,11 +271,6 @@ impl Resolve<Args> for ListGitProviders {
 }
 
 impl Resolve<Args> for ListDockerRegistries {
-  #[instrument(
-    name = "ListDockerRegistries",
-    level = "debug",
-    skip_all
-  )]
   async fn resolve(
     self,
     _: &Args,
@@ -291,7 +282,6 @@ impl Resolve<Args> for ListDockerRegistries {
 //
 
 impl Resolve<Args> for ListSecrets {
-  #[instrument(name = "ListSecrets", level = "debug", skip_all)]
   async fn resolve(self, _: &Args) -> anyhow::Result<Vec<String>> {
     Ok(
       periphery_config()
@@ -304,8 +294,8 @@ impl Resolve<Args> for ListSecrets {
 }
 
 impl Resolve<Args> for PruneSystem {
-  #[instrument(name = "PruneSystem", skip_all)]
-  async fn resolve(self, _: &Args) -> anyhow::Result<Log> {
+  #[instrument("PruneSystem", skip_all, fields(core = args.core))]
+  async fn resolve(self, args: &Args) -> anyhow::Result<Log> {
     let command = String::from("docker system prune -a -f --volumes");
     Ok(run_komodo_command("Prune System", None, command).await)
   }

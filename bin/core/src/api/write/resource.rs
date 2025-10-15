@@ -14,7 +14,7 @@ use crate::resource::{self, ResourceMetaUpdate};
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for UpdateResourceMeta {
-  #[instrument(name = "UpdateResourceMeta", skip(args))]
+  #[instrument("UpdateResourceMeta", skip(args))]
   async fn resolve(
     self,
     args: &WriteArgs,

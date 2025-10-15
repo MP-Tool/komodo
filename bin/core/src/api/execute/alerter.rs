@@ -22,7 +22,7 @@ use crate::{
 use super::ExecuteArgs;
 
 impl Resolve<ExecuteArgs> for TestAlerter {
-  #[instrument(name = "TestAlerter", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("TestAlerter", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -79,7 +79,7 @@ impl Resolve<ExecuteArgs> for TestAlerter {
 //
 
 impl Resolve<ExecuteArgs> for SendAlert {
-  #[instrument(name = "SendAlert", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("SendAlert", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,

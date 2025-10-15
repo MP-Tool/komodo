@@ -46,12 +46,8 @@ impl Resolve<ReadArgs> for ListActions {
       get_all_tags(None).await?
     };
     Ok(
-      resource::list_for_user::<Action>(
-        self.query,
-        user,
-        &all_tags,
-      )
-      .await?,
+      resource::list_for_user::<Action>(self.query, user, &all_tags)
+        .await?,
     )
   }
 }
@@ -68,9 +64,7 @@ impl Resolve<ReadArgs> for ListFullActions {
     };
     Ok(
       resource::list_full_for_user::<Action>(
-        self.query,
-        user,
-        &all_tags,
+        self.query, user, &all_tags,
       )
       .await?,
     )

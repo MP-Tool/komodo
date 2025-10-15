@@ -55,6 +55,7 @@ pub async fn handle_message(message: EncodedTerminalMessage) {
   };
 }
 
+#[instrument("CreateTerminalInner", skip_all, fields(name))]
 pub async fn create_terminal(
   name: String,
   command: String,
@@ -89,6 +90,7 @@ pub async fn create_terminal(
   Ok(terminal)
 }
 
+#[instrument("DeleteTerminalInner")]
 pub async fn delete_terminal(name: &str) {
   if let Some(terminal) = terminals().write().await.remove(name) {
     terminal.cancel.cancel();

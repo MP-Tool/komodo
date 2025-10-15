@@ -24,7 +24,7 @@ impl DockerClient {
 }
 
 /// Returns whether build result should be pushed after build
-#[instrument(skip(registry_token))]
+#[instrument("DockerLogin", skip(registry_token))]
 pub async fn docker_login(
   domain: &str,
   account: &str,
@@ -60,7 +60,7 @@ pub async fn docker_login(
   }
 }
 
-#[instrument]
+#[instrument("PullImage")]
 pub async fn pull_image(image: &str) -> Log {
   let command = format!("docker pull {image}");
   run_komodo_command("Docker Pull", None, command).await

@@ -32,7 +32,7 @@ use crate::{
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateRepo {
-  #[instrument(name = "CreateRepo", skip(user))]
+  #[instrument("CreateRepo", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -43,7 +43,7 @@ impl Resolve<WriteArgs> for CreateRepo {
 }
 
 impl Resolve<WriteArgs> for CopyRepo {
-  #[instrument(name = "CopyRepo", skip(user))]
+  #[instrument("CopyRepo", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -60,14 +60,17 @@ impl Resolve<WriteArgs> for CopyRepo {
 }
 
 impl Resolve<WriteArgs> for DeleteRepo {
-  #[instrument(name = "DeleteRepo", skip(args))]
-  async fn resolve(self, args: &WriteArgs) -> serror::Result<Repo> {
-    Ok(resource::delete::<Repo>(&self.id, args).await?)
+  #[instrument("DeleteRepo", skip(user))]
+  async fn resolve(
+    self,
+    WriteArgs { user }: &WriteArgs,
+  ) -> serror::Result<Repo> {
+    Ok(resource::delete::<Repo>(&self.id, user).await?)
   }
 }
 
 impl Resolve<WriteArgs> for UpdateRepo {
-  #[instrument(name = "UpdateRepo", skip(user))]
+  #[instrument("UpdateRepo", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -77,7 +80,7 @@ impl Resolve<WriteArgs> for UpdateRepo {
 }
 
 impl Resolve<WriteArgs> for RenameRepo {
-  #[instrument(name = "RenameRepo", skip(user))]
+  #[instrument("RenameRepo", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -154,11 +157,6 @@ impl Resolve<WriteArgs> for RenameRepo {
 }
 
 impl Resolve<WriteArgs> for RefreshRepoCache {
-  #[instrument(
-    name = "RefreshRepoCache",
-    level = "debug",
-    skip(user)
-  )]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

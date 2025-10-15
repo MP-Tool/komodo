@@ -11,7 +11,7 @@ use crate::{permission::get_check_permissions, resource};
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateBuilder {
-  #[instrument(name = "CreateBuilder", skip(user))]
+  #[instrument("CreateBuilder", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -22,7 +22,7 @@ impl Resolve<WriteArgs> for CreateBuilder {
 }
 
 impl Resolve<WriteArgs> for CopyBuilder {
-  #[instrument(name = "CopyBuilder", skip(user))]
+  #[instrument("CopyBuilder", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -39,17 +39,17 @@ impl Resolve<WriteArgs> for CopyBuilder {
 }
 
 impl Resolve<WriteArgs> for DeleteBuilder {
-  #[instrument(name = "DeleteBuilder", skip(args))]
+  #[instrument("DeleteBuilder", skip(user))]
   async fn resolve(
     self,
-    args: &WriteArgs,
+    WriteArgs { user }: &WriteArgs,
   ) -> serror::Result<Builder> {
-    Ok(resource::delete::<Builder>(&self.id, args).await?)
+    Ok(resource::delete::<Builder>(&self.id, user).await?)
   }
 }
 
 impl Resolve<WriteArgs> for UpdateBuilder {
-  #[instrument(name = "UpdateBuilder", skip(user))]
+  #[instrument("UpdateBuilder", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -62,7 +62,7 @@ impl Resolve<WriteArgs> for UpdateBuilder {
 }
 
 impl Resolve<WriteArgs> for RenameBuilder {
-  #[instrument(name = "RenameBuilder", skip(user))]
+  #[instrument("RenameBuilder", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

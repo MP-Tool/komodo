@@ -22,7 +22,7 @@ use crate::{
 use super::ExecuteArgs;
 
 impl Resolve<ExecuteArgs> for StartContainer {
-  #[instrument(name = "StartContainer", skip(self, user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("StartContainer", skip(self, user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -76,7 +76,7 @@ impl Resolve<ExecuteArgs> for StartContainer {
 }
 
 impl Resolve<ExecuteArgs> for RestartContainer {
-  #[instrument(name = "RestartContainer", skip(self, user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("RestartContainer", skip(self, user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -132,7 +132,7 @@ impl Resolve<ExecuteArgs> for RestartContainer {
 }
 
 impl Resolve<ExecuteArgs> for PauseContainer {
-  #[instrument(name = "PauseContainer", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PauseContainer", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -186,7 +186,7 @@ impl Resolve<ExecuteArgs> for PauseContainer {
 }
 
 impl Resolve<ExecuteArgs> for UnpauseContainer {
-  #[instrument(name = "UnpauseContainer", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("UnpauseContainer", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -242,7 +242,7 @@ impl Resolve<ExecuteArgs> for UnpauseContainer {
 }
 
 impl Resolve<ExecuteArgs> for StopContainer {
-  #[instrument(name = "StopContainer", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("StopContainer", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -298,7 +298,7 @@ impl Resolve<ExecuteArgs> for StopContainer {
 }
 
 impl Resolve<ExecuteArgs> for DestroyContainer {
-  #[instrument(name = "DestroyContainer", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("DestroyContainer", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -360,7 +360,7 @@ impl Resolve<ExecuteArgs> for DestroyContainer {
 }
 
 impl Resolve<ExecuteArgs> for StartAllContainers {
-  #[instrument(name = "StartAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("StartAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -411,7 +411,7 @@ impl Resolve<ExecuteArgs> for StartAllContainers {
 }
 
 impl Resolve<ExecuteArgs> for RestartAllContainers {
-  #[instrument(name = "RestartAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("RestartAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -464,7 +464,7 @@ impl Resolve<ExecuteArgs> for RestartAllContainers {
 }
 
 impl Resolve<ExecuteArgs> for PauseAllContainers {
-  #[instrument(name = "PauseAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PauseAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -515,7 +515,7 @@ impl Resolve<ExecuteArgs> for PauseAllContainers {
 }
 
 impl Resolve<ExecuteArgs> for UnpauseAllContainers {
-  #[instrument(name = "UnpauseAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("UnpauseAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -568,7 +568,7 @@ impl Resolve<ExecuteArgs> for UnpauseAllContainers {
 }
 
 impl Resolve<ExecuteArgs> for StopAllContainers {
-  #[instrument(name = "StopAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("StopAllContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -619,7 +619,7 @@ impl Resolve<ExecuteArgs> for StopAllContainers {
 }
 
 impl Resolve<ExecuteArgs> for PruneContainers {
-  #[instrument(name = "PruneContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PruneContainers", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -675,7 +675,7 @@ impl Resolve<ExecuteArgs> for PruneContainers {
 }
 
 impl Resolve<ExecuteArgs> for DeleteNetwork {
-  #[instrument(name = "DeleteNetwork", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("DeleteNetwork", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -726,7 +726,7 @@ impl Resolve<ExecuteArgs> for DeleteNetwork {
 }
 
 impl Resolve<ExecuteArgs> for PruneNetworks {
-  #[instrument(name = "PruneNetworks", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PruneNetworks", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -780,7 +780,7 @@ impl Resolve<ExecuteArgs> for PruneNetworks {
 }
 
 impl Resolve<ExecuteArgs> for DeleteImage {
-  #[instrument(name = "DeleteImage", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("DeleteImage", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -828,7 +828,7 @@ impl Resolve<ExecuteArgs> for DeleteImage {
 }
 
 impl Resolve<ExecuteArgs> for PruneImages {
-  #[instrument(name = "PruneImages", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PruneImages", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -880,7 +880,7 @@ impl Resolve<ExecuteArgs> for PruneImages {
 }
 
 impl Resolve<ExecuteArgs> for DeleteVolume {
-  #[instrument(name = "DeleteVolume", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("DeleteVolume", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -931,7 +931,7 @@ impl Resolve<ExecuteArgs> for DeleteVolume {
 }
 
 impl Resolve<ExecuteArgs> for PruneVolumes {
-  #[instrument(name = "PruneVolumes", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PruneVolumes", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -983,7 +983,7 @@ impl Resolve<ExecuteArgs> for PruneVolumes {
 }
 
 impl Resolve<ExecuteArgs> for PruneDockerBuilders {
-  #[instrument(name = "PruneDockerBuilders", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PruneDockerBuilders", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -1035,7 +1035,7 @@ impl Resolve<ExecuteArgs> for PruneDockerBuilders {
 }
 
 impl Resolve<ExecuteArgs> for PruneBuildx {
-  #[instrument(name = "PruneBuildx", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PruneBuildx", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -1087,7 +1087,7 @@ impl Resolve<ExecuteArgs> for PruneBuildx {
 }
 
 impl Resolve<ExecuteArgs> for PruneSystem {
-  #[instrument(name = "PruneSystem", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PruneSystem", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,

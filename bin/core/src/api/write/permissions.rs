@@ -22,7 +22,7 @@ use crate::{helpers::query::get_user, state::db_client};
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for UpdateUserAdmin {
-  #[instrument(name = "UpdateUserAdmin", skip(super_admin))]
+  #[instrument("UpdateUserAdmin", skip(super_admin))]
   async fn resolve(
     self,
     WriteArgs { user: super_admin }: &WriteArgs,
@@ -60,7 +60,7 @@ impl Resolve<WriteArgs> for UpdateUserAdmin {
 }
 
 impl Resolve<WriteArgs> for UpdateUserBasePermissions {
-  #[instrument(name = "UpdateUserBasePermissions", skip(admin))]
+  #[instrument("UpdateUserBasePermissions", skip(admin))]
   async fn resolve(
     self,
     WriteArgs { user: admin }: &WriteArgs,
@@ -117,7 +117,7 @@ impl Resolve<WriteArgs> for UpdateUserBasePermissions {
 }
 
 impl Resolve<WriteArgs> for UpdatePermissionOnResourceType {
-  #[instrument(name = "UpdatePermissionOnResourceType", skip(admin))]
+  #[instrument("UpdatePermissionOnResourceType", skip(admin))]
   async fn resolve(
     self,
     WriteArgs { user: admin }: &WriteArgs,
@@ -185,7 +185,7 @@ impl Resolve<WriteArgs> for UpdatePermissionOnResourceType {
 }
 
 impl Resolve<WriteArgs> for UpdatePermissionOnTarget {
-  #[instrument(name = "UpdatePermissionOnTarget", skip(admin))]
+  #[instrument("UpdatePermissionOnTarget", skip(admin))]
   async fn resolve(
     self,
     WriteArgs { user: admin }: &WriteArgs,

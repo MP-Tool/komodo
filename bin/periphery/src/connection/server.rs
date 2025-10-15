@@ -37,7 +37,9 @@ use crate::{
   api::Args, config::periphery_config, state::core_connections,
 };
 
-pub async fn run() -> anyhow::Result<()> {
+#[instrument("RunCoreConnectionServer")]
+pub async fn run()
+-> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
   let config = periphery_config();
 
   let addr = format!("{}:{}", config.bind_ip, config.port);
@@ -51,7 +53,7 @@ pub async fn run() -> anyhow::Result<()> {
     .layer(middleware::from_fn(guard_request_by_ip))
     .into_make_service_with_connect_info::<SocketAddr>();
 
-  if config.ssl_enabled {
+  let handle = if config.ssl_enabled {
     info!("🔒 Periphery SSL Enabled");
     crate::helpers::ensure_ssl_certs().await;
     info!("Komodo Periphery starting on wss://{}", socket_addr);
@@ -61,16 +63,24 @@ pub async fn run() -> anyhow::Result<()> {
     )
     .await
     .context("Invalid ssl cert / key")?;
-    axum_server::bind_rustls(socket_addr, ssl_config)
-      .serve(app)
-      .await?
+    tokio::spawn(async move {
+      axum_server::bind_rustls(socket_addr, ssl_config)
+        .serve(app)
+        .await
+        .context("Server crashed")
+    })
   } else {
     info!("🔓 Periphery SSL Disabled");
     info!("Komodo Periphery starting on ws://{}", socket_addr);
-    axum_server::bind(socket_addr).serve(app).await?
-  }
+    tokio::spawn(async move {
+      axum_server::bind(socket_addr)
+        .serve(app)
+        .await
+        .context("Server crashed")
+    })
+  };
 
-  Ok(())
+  Ok(handle)
 }
 
 fn already_logged_login_error() -> &'static AtomicBool {
@@ -159,6 +169,11 @@ async fn handler(
 
 /// Custom Core -> Periphery side only login wrapper
 /// to implement passkey support for backward compatibility
+#[instrument(
+  "CoreLogin",
+  skip(socket, identifiers),
+  fields(direction = "CoreToPeriphery")
+)]
 async fn handle_login(
   socket: &mut AxumWebsocket,
   identifiers: ConnectionIdentifiers<'_>,
@@ -179,6 +194,7 @@ async fn handle_login(
   }
 }
 
+#[instrument("V1PasskeyCoreLoginFlow", skip(socket, passkeys))]
 async fn handle_passkey_login(
   socket: &mut AxumWebsocket,
   passkeys: &[String],

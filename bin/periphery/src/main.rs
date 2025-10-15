@@ -1,5 +1,6 @@
 use futures::{StreamExt, stream::FuturesUnordered};
 use komodo_client::entities::config::periphery::Command;
+use tracing::Instrument;
 
 use crate::{
   config::periphery_args,
@@ -22,46 +23,61 @@ async fn app() -> anyhow::Result<()> {
   let config = config::periphery_config();
   logger::init(&config.logging)?;
 
-  info!("Komodo Periphery version: v{}", env!("CARGO_PKG_VERSION"));
+  let startup_span = info_span!("PeripheryStartup");
 
-  if config.pretty_startup_config {
-    info!("{:#?}", config.sanitized());
-  } else {
-    info!("{:?}", config.sanitized());
-  }
+  let mut handles = async {
+    info!("Komodo Periphery version: v{}", env!("CARGO_PKG_VERSION"));
 
-  // Init + log public key. Will crash if invalid private key here.
-  info!("Public Key: {}", periphery_keys().load().public);
-
-  // Init core public keys. Will crash if invalid core public keys here.
-  core_public_keys();
-
-  rustls::crypto::aws_lc_rs::default_provider()
-    .install_default()
-    .expect("Failed to install default crypto provider");
-
-  stats::spawn_polling_thread();
-  docker::stats::spawn_polling_thread();
-
-  let mut handles = FuturesUnordered::new();
-
-  // Spawn client side connections
-  if !config.core_addresses.is_empty() && config.connect_as.is_empty()
-  {
-    warn!(
-      "'core_addresses' are defined for outbound connection, but missing 'connect_as' (PERIPHERY_CONNECT_AS)."
-    );
-  } else {
-    for address in &config.core_addresses {
-      handles
-        .push(tokio::spawn(connection::client::handler(address)));
+    if config.pretty_startup_config {
+      info!("{:#?}", config.sanitized());
+    } else {
+      info!("{:?}", config.sanitized());
     }
-  }
 
-  // Spawn server connection handler.
-  if config.server_enabled() {
-    handles.push(tokio::spawn(connection::server::run()));
-  }
+    // Init + log public key. Will crash if invalid private key here.
+    info!("Public Key: {}", periphery_keys().load().public);
+
+    // Init core public keys. Will crash if invalid core public keys here.
+    core_public_keys();
+
+    rustls::crypto::aws_lc_rs::default_provider()
+      .install_default()
+      .expect("Failed to install default crypto provider");
+
+    stats::spawn_polling_thread();
+    docker::stats::spawn_polling_thread();
+
+    let handles = FuturesUnordered::new();
+
+    // Spawn client side connections
+    if !config.core_addresses.is_empty() && config.connect_as.is_empty()
+    {
+      warn!(
+        "'core_addresses' are defined for outbound connection, but missing 'connect_as' (PERIPHERY_CONNECT_AS)."
+      );
+    } else {
+      for address in &config.core_addresses {
+        match connection::client::handler(address).await {
+          Ok(handle) => handles.push(handle),
+          Err(e) => {
+            error!("Failed to start outbound connection to {address} | {e:#}");
+          }
+        }
+      }
+    }
+
+    // Spawn server connection handler.
+    if config.server_enabled() {
+      match connection::server::run().await {
+        Ok(handle) => handles.push(handle),
+        Err(e) => {
+          error!("Failed to run inbound connection server | {e:#}");
+        }
+      }
+    }
+
+    handles
+  }.instrument(startup_span).await;
 
   // Watch the threads
   while let Some(res) = handles.next().await {

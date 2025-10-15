@@ -42,7 +42,7 @@ use crate::{
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateBuild {
-  #[instrument(name = "CreateBuild", skip(user))]
+  #[instrument("CreateBuild", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -53,7 +53,7 @@ impl Resolve<WriteArgs> for CreateBuild {
 }
 
 impl Resolve<WriteArgs> for CopyBuild {
-  #[instrument(name = "CopyBuild", skip(user))]
+  #[instrument("CopyBuild", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -72,14 +72,17 @@ impl Resolve<WriteArgs> for CopyBuild {
 }
 
 impl Resolve<WriteArgs> for DeleteBuild {
-  #[instrument(name = "DeleteBuild", skip(args))]
-  async fn resolve(self, args: &WriteArgs) -> serror::Result<Build> {
-    Ok(resource::delete::<Build>(&self.id, args).await?)
+  #[instrument("DeleteBuild", skip(user))]
+  async fn resolve(
+    self,
+    WriteArgs { user }: &WriteArgs,
+  ) -> serror::Result<Build> {
+    Ok(resource::delete::<Build>(&self.id, user).await?)
   }
 }
 
 impl Resolve<WriteArgs> for UpdateBuild {
-  #[instrument(name = "UpdateBuild", skip(user))]
+  #[instrument("UpdateBuild", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -89,7 +92,7 @@ impl Resolve<WriteArgs> for UpdateBuild {
 }
 
 impl Resolve<WriteArgs> for RenameBuild {
-  #[instrument(name = "RenameBuild", skip(user))]
+  #[instrument("RenameBuild", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -99,7 +102,7 @@ impl Resolve<WriteArgs> for RenameBuild {
 }
 
 impl Resolve<WriteArgs> for WriteBuildFileContents {
-  #[instrument(name = "WriteBuildFileContents", skip(args))]
+  #[instrument("WriteBuildFileContents", skip(args))]
   async fn resolve(self, args: &WriteArgs) -> serror::Result<Update> {
     let build = get_check_permissions::<Build>(
       &self.build,
@@ -317,11 +320,6 @@ async fn write_dockerfile_contents_git(
 }
 
 impl Resolve<WriteArgs> for RefreshBuildCache {
-  #[instrument(
-    name = "RefreshBuildCache",
-    level = "debug",
-    skip(user)
-  )]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

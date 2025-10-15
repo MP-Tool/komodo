@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use anyhow::Context;
 use axum::{
   Extension, Router, extract::Path, middleware, routing::post,
@@ -11,6 +9,7 @@ use response::Response;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serror::Json;
+use strum::Display;
 use typeshare::typeshare;
 use uuid::Uuid;
 
@@ -47,7 +46,7 @@ pub struct WriteArgs {
 #[derive(
   Serialize, Deserialize, Debug, Clone, Resolve, EnumVariants,
 )]
-#[variant_derive(Debug)]
+#[variant_derive(Debug, Display)]
 #[args(WriteArgs)]
 #[response(Response)]
 #[error(serror::Error)]
@@ -230,31 +229,22 @@ async fn handler(
   res?
 }
 
-#[instrument(
-  name = "WriteRequest",
-  skip(user, request),
-  fields(
-    user_id = user.id,
-    request = format!("{:?}", request.extract_variant())
-  )
-)]
 async fn task(
   req_id: Uuid,
   request: WriteRequest,
   user: User,
 ) -> serror::Result<axum::response::Response> {
-  info!("/write request | user: {}", user.username);
-
-  let timer = Instant::now();
+  let variant = request.extract_variant();
+  info!("/write request | {variant} | user: {}", user.username);
 
   let res = request.resolve(&WriteArgs { user }).await;
 
   if let Err(e) = &res {
-    warn!("/write request {req_id} error: {:#}", e.error);
+    warn!(
+      "/write request {req_id} | {variant} | error: {:#}",
+      e.error
+    );
   }
-
-  let elapsed = timer.elapsed();
-  debug!("/write request {req_id} | resolve time: {elapsed:?}");
 
   res.map(|res| res.0)
 }

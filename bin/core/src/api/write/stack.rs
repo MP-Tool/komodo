@@ -42,7 +42,7 @@ use crate::{
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateStack {
-  #[instrument(name = "CreateStack", skip(user))]
+  #[instrument("CreateStack", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -53,7 +53,7 @@ impl Resolve<WriteArgs> for CreateStack {
 }
 
 impl Resolve<WriteArgs> for CopyStack {
-  #[instrument(name = "CopyStack", skip(user))]
+  #[instrument("CopyStack", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -71,14 +71,17 @@ impl Resolve<WriteArgs> for CopyStack {
 }
 
 impl Resolve<WriteArgs> for DeleteStack {
-  #[instrument(name = "DeleteStack", skip(args))]
-  async fn resolve(self, args: &WriteArgs) -> serror::Result<Stack> {
-    Ok(resource::delete::<Stack>(&self.id, args).await?)
+  #[instrument("DeleteStack", skip(user))]
+  async fn resolve(
+    self,
+    WriteArgs { user }: &WriteArgs,
+  ) -> serror::Result<Stack> {
+    Ok(resource::delete::<Stack>(&self.id, user).await?)
   }
 }
 
 impl Resolve<WriteArgs> for UpdateStack {
-  #[instrument(name = "UpdateStack", skip(user))]
+  #[instrument("UpdateStack", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -88,7 +91,7 @@ impl Resolve<WriteArgs> for UpdateStack {
 }
 
 impl Resolve<WriteArgs> for RenameStack {
-  #[instrument(name = "RenameStack", skip(user))]
+  #[instrument("RenameStack", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -98,7 +101,7 @@ impl Resolve<WriteArgs> for RenameStack {
 }
 
 impl Resolve<WriteArgs> for WriteStackFileContents {
-  #[instrument(name = "WriteStackFileContents", skip(user))]
+  #[instrument("WriteStackFileContents", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -360,11 +363,6 @@ async fn write_stack_file_contents_git(
 }
 
 impl Resolve<WriteArgs> for RefreshStackCache {
-  #[instrument(
-    name = "RefreshStackCache",
-    level = "debug",
-    skip(user)
-  )]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

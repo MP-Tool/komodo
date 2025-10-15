@@ -1,4 +1,4 @@
-use std::{pin::Pin, time::Instant};
+use std::pin::Pin;
 
 use anyhow::Context;
 use axum::{
@@ -25,6 +25,7 @@ use response::JsonString;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serror::Json;
+use strum::Display;
 use typeshare::typeshare;
 use uuid::Uuid;
 
@@ -62,7 +63,7 @@ pub struct ExecuteArgs {
 #[derive(
   Serialize, Deserialize, Debug, Clone, Resolve, EnumVariants,
 )]
-#[variant_derive(Debug)]
+#[variant_derive(Debug, Display)]
 #[args(ExecuteArgs)]
 #[response(JsonString)]
 #[error(serror::Error)]
@@ -276,23 +277,18 @@ pub fn inner_handler(
   })
 }
 
-#[instrument(
-  name = "ExecuteRequest",
-  skip(user, update),
-  fields(
-    user_id = user.id,
-    update_id = update.id,
-    request = format!("{:?}", request.extract_variant()))
-  )
-]
 async fn task(
   req_id: Uuid,
   request: ExecuteRequest,
   user: User,
   update: Update,
 ) -> anyhow::Result<String> {
-  info!("/execute request {req_id} | user: {}", user.username);
-  let timer = Instant::now();
+  let variant = request.extract_variant();
+
+  info!(
+    "/execute request {req_id} | {variant} | user: {}",
+    user.username
+  );
 
   let res = match request.resolve(&ExecuteArgs { user, update }).await
   {
@@ -307,9 +303,6 @@ async fn task(
     warn!("/execute request {req_id} error: {e:#}");
   }
 
-  let elapsed = timer.elapsed();
-  debug!("/execute request {req_id} | resolve time: {elapsed:?}");
-
   res
 }
 
@@ -318,6 +311,7 @@ trait BatchExecute {
   fn single_request(name: String) -> ExecuteRequest;
 }
 
+#[instrument("BatchExecute", skip(user))]
 async fn batch_execute<E: BatchExecute>(
   pattern: &str,
   user: &User,

@@ -15,6 +15,5 @@ cache.workspace = true
 #
 run_command.workspace = true
 #
-tracing.workspace = true
 anyhow.workspace = true
 tokio.workspace = true

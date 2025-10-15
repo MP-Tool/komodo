@@ -203,6 +203,7 @@ pub fn terminal_triggers() -> &'static TerminalTriggers {
 pub struct TerminalTriggers(CloneCache<Uuid, Arc<TerminalTrigger>>);
 
 impl TerminalTriggers {
+  #[instrument("InsertTerminalTrigger", skip(self))]
   pub async fn insert(&self, channel: Uuid) {
     let (sender, receiver) = oneshot::channel();
     let trigger = Arc::new(TerminalTrigger {
@@ -212,6 +213,7 @@ impl TerminalTriggers {
     self.0.insert(channel, trigger).await;
   }
 
+  #[instrument("SendTerminalTrigger", skip(self))]
   pub async fn send(&self, channel: &Uuid) -> anyhow::Result<()> {
     let trigger = self.0.get(channel).await.with_context(|| {
       format!("No trigger found for channel {channel}")
@@ -219,7 +221,8 @@ impl TerminalTriggers {
     trigger.send().await
   }
 
-  pub async fn wait(&self, channel: &Uuid) -> anyhow::Result<()> {
+  #[instrument("ReceiveTerminalTrigger", skip(self))]
+  pub async fn recv(&self, channel: &Uuid) -> anyhow::Result<()> {
     let trigger = self.0.get(channel).await.with_context(|| {
       format!("No trigger found for channel {channel}")
     })?;

@@ -23,6 +23,7 @@ use komodo_client::{
     config::core::CoreConfig,
     komodo_timestamp,
     permission::PermissionLevel,
+    random_string,
     update::Update,
     user::action_user,
   },
@@ -37,7 +38,6 @@ use crate::{
   config::core_config,
   helpers::{
     query::{VariablesAndSecrets, get_variables_and_secrets},
-    random_string,
     update::update_update,
   },
   permission::get_check_permissions,
@@ -58,7 +58,7 @@ impl super::BatchExecute for BatchRunAction {
 }
 
 impl Resolve<ExecuteArgs> for BatchRunAction {
-  #[instrument(name = "BatchRunAction", skip(self, user), fields(user_id = user.id))]
+  #[instrument("BatchRunAction", skip(self, user), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, .. }: &ExecuteArgs,
@@ -71,7 +71,7 @@ impl Resolve<ExecuteArgs> for BatchRunAction {
 }
 
 impl Resolve<ExecuteArgs> for RunAction {
-  #[instrument(name = "RunAction", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("RunAction", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -235,6 +235,7 @@ impl Resolve<ExecuteArgs> for RunAction {
   }
 }
 
+#[instrument("Interpolate", skip(contents, update, secret))]
 async fn interpolate(
   contents: &mut String,
   update: &mut Update,
@@ -320,6 +321,7 @@ main()
 /// Cleans up file at given path.
 /// ALSO if $DENO_DIR is set,
 /// will clean up the generated file matching "file"
+#[instrument("CleanupRun")]
 async fn cleanup_run(file: String, path: &Path) {
   if let Err(e) = fs::remove_file(path).await {
     warn!(

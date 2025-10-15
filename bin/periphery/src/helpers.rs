@@ -68,6 +68,14 @@ pub fn format_log_grep(
 //  Git
 // =====
 
+#[instrument(
+  "PostRepoExecution",
+  skip_all,
+  fields(
+    path = res.path.display().to_string(),
+    env_file_path
+  )
+)]
 pub async fn handle_post_repo_execution(
   mut res: RepoExecutionResponse,
   mut environment: Vec<EnvironmentVar>,
@@ -209,7 +217,7 @@ pub async fn ensure_ssl_certs() {
   }
 }
 
-#[instrument]
+#[instrument("GenerateSslCerts")]
 async fn generate_self_signed_ssl_certs() {
   info!("Generating certs...");
 

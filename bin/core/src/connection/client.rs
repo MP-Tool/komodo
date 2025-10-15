@@ -102,6 +102,15 @@ impl PeripheryConnectionArgs<'_> {
 impl PeripheryConnection {
   /// Custom Core -> Periphery side only login wrapper
   /// to implement passkey support for backward compatibility
+  #[instrument(
+    "PeripheryLogin",
+    skip(self, socket, identifiers),
+    fields(
+      server_id = self.args.id,
+      address = self.args.address,
+      direction = "CoreToPeriphery"
+    )
+  )]
   async fn client_login(
     &self,
     socket: &mut TungsteniteWebsocket,
@@ -124,6 +133,7 @@ impl PeripheryConnection {
   }
 }
 
+#[instrument("V1PasskeyPeripheryLoginFlow", skip(socket, passkey))]
 async fn handle_passkey_login(
   socket: &mut TungsteniteWebsocket,
   // for legacy auth

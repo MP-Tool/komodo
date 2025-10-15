@@ -22,6 +22,7 @@ use periphery_client::{
 };
 use resolver_api::Resolve;
 use serror::{AddStatusCode, AddStatusCodeError};
+use tracing::Instrument;
 use transport::{
   auth::{
     HeaderConnectionIdentifiers, LoginFlow, LoginFlowArgs,
@@ -133,13 +134,23 @@ async fn existing_server_handler(
       return;
     };
 
-    if let Err(e) = connection
-      .handle_login::<_, ServerLoginFlow>(
-        &mut socket,
-        identifiers.build(query.as_bytes()),
-      )
-      .await
-    {
+    let span = info_span!(
+      "PeripheryLogin",
+      server_id = server.id,
+      direction = "PeripheryToCore"
+    );
+    let login = async {
+      connection
+        .handle_login::<_, ServerLoginFlow>(
+          &mut socket,
+          identifiers.build(query.as_bytes()),
+        )
+        .await
+    }
+    .instrument(span)
+    .await;
+
+    if let Err(e) = login {
       connection.set_error(e).await;
       return;
     }

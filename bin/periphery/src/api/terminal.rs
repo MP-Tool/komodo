@@ -26,7 +26,6 @@ use crate::{
 //
 
 impl Resolve<super::Args> for ListTerminals {
-  #[instrument(name = "ListTerminals", level = "debug")]
   async fn resolve(
     self,
     _: &super::Args,
@@ -39,8 +38,11 @@ impl Resolve<super::Args> for ListTerminals {
 //
 
 impl Resolve<super::Args> for CreateTerminal {
-  #[instrument(name = "CreateTerminal", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<NoData> {
+  #[instrument("CreateTerminal", skip(args), fields(core = args.core))]
+  async fn resolve(
+    self,
+    args: &super::Args,
+  ) -> anyhow::Result<NoData> {
     if periphery_config().disable_terminals {
       return Err(anyhow!(
         "Terminals are disabled in the periphery config"
@@ -55,8 +57,11 @@ impl Resolve<super::Args> for CreateTerminal {
 //
 
 impl Resolve<super::Args> for DeleteTerminal {
-  #[instrument(name = "DeleteTerminal", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<NoData> {
+  #[instrument("DeleteTerminal", skip(args), fields(core = args.core))]
+  async fn resolve(
+    self,
+    args: &super::Args,
+  ) -> anyhow::Result<NoData> {
     delete_terminal(&self.terminal).await;
     Ok(NoData {})
   }
@@ -65,8 +70,11 @@ impl Resolve<super::Args> for DeleteTerminal {
 //
 
 impl Resolve<super::Args> for DeleteAllTerminals {
-  #[instrument(name = "DeleteAllTerminals", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<NoData> {
+  #[instrument("DeleteAllTerminals", skip_all, fields(core = args.core))]
+  async fn resolve(
+    self,
+    args: &super::Args,
+  ) -> anyhow::Result<NoData> {
     delete_all_terminals().await;
     Ok(NoData {})
   }
@@ -75,7 +83,7 @@ impl Resolve<super::Args> for DeleteAllTerminals {
 //
 
 impl Resolve<super::Args> for ConnectTerminal {
-  #[instrument(name = "ConnectTerminal", level = "debug")]
+  #[instrument("ConnectTerminal", skip(args), fields(core = args.core))]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_terminals {
       return Err(anyhow!(
@@ -102,7 +110,7 @@ impl Resolve<super::Args> for ConnectTerminal {
 //
 
 impl Resolve<super::Args> for ConnectContainerExec {
-  #[instrument(name = "ConnectContainerExec", level = "debug")]
+  #[instrument("ConnectContainerExec", skip(args), fields(core = args.core))]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_container_terminals {
       return Err(anyhow!(
@@ -147,7 +155,7 @@ impl Resolve<super::Args> for ConnectContainerExec {
 //
 
 impl Resolve<super::Args> for ConnectContainerAttach {
-  #[instrument(name = "ConnectContainerAttach", level = "debug")]
+  #[instrument("ConnectContainerAttach", skip(args), fields(core = args.core))]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_container_terminals {
       return Err(anyhow!(
@@ -191,8 +199,11 @@ impl Resolve<super::Args> for ConnectContainerAttach {
 //
 
 impl Resolve<super::Args> for DisconnectTerminal {
-  #[instrument(name = "DisconnectTerminal", level = "debug")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<NoData> {
+  #[instrument("DisconnectTerminal", skip(args), fields(core = args.core))]
+  async fn resolve(
+    self,
+    args: &super::Args,
+  ) -> anyhow::Result<NoData> {
     if let Some(channel) = terminal_channels().remove(&self.id).await
     {
       channel.cancel.cancel();
@@ -204,7 +215,7 @@ impl Resolve<super::Args> for DisconnectTerminal {
 //
 
 impl Resolve<super::Args> for ExecuteTerminal {
-  #[instrument(name = "ExecuteTerminal", level = "debug")]
+  #[instrument("ExecuteTerminal", skip(args), fields(core = args.core))]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_terminals {
       return Err(anyhow!(
@@ -244,7 +255,7 @@ impl Resolve<super::Args> for ExecuteTerminal {
 //
 
 impl Resolve<super::Args> for ExecuteContainerExec {
-  #[instrument(name = "ExecuteContainerExec", level = "debug")]
+  #[instrument("ExecuteContainerExec", skip(args), fields(core = args.core))]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Uuid> {
     if periphery_config().disable_container_terminals {
       return Err(anyhow!(
@@ -302,6 +313,7 @@ impl Resolve<super::Args> for ExecuteContainerExec {
   }
 }
 
+#[instrument("SpawnTerminalForwarding", skip_all)]
 async fn spawn_terminal_forwarding(
   connection: Arc<BufferedChannel<EncodedTransportMessage>>,
   terminal: Arc<Terminal>,
@@ -341,7 +353,7 @@ async fn handle_terminal_forwarding(
 ) {
   // This waits to begin forwarding until Core sends the None byte start trigger.
   // This ensures no messages are lost before channels on both sides are set up.
-  if let Err(e) = terminal_triggers().wait(&channel).await {
+  if let Err(e) = terminal_triggers().recv(&channel).await {
     warn!(
       "Failed to init terminal | Failed to receive begin trigger | {e:#}"
     );
@@ -482,7 +494,7 @@ async fn forward_execute_command_on_terminal_response(
 ) {
   // This waits to begin forwarding until Core sends the None byte start trigger.
   // This ensures no messages are lost before channels on both sides are set up.
-  if let Err(e) = terminal_triggers().wait(&channel).await {
+  if let Err(e) = terminal_triggers().recv(&channel).await {
     warn!("{e:#}");
     return;
   }

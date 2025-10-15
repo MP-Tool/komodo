@@ -21,19 +21,34 @@ pub struct LogConfig {
   #[serde(default = "default_location")]
   pub location: bool,
 
+  /// Logs use ansi colors for readability.
+  #[serde(default = "default_ansi")]
+  pub ansi: bool,
+
   /// Enable opentelemetry exporting
   #[serde(default)]
   pub otlp_endpoint: String,
 
   #[serde(default = "default_opentelemetry_service_name")]
   pub opentelemetry_service_name: String,
+
+  #[serde(default = "default_opentelemetry_scope_name")]
+  pub opentelemetry_scope_name: String,
 }
 
 fn default_opentelemetry_service_name() -> String {
   String::from("Komodo")
 }
 
+fn default_opentelemetry_scope_name() -> String {
+  String::from("Komodo")
+}
+
 fn default_location() -> bool {
+  false
+}
+
+fn default_ansi() -> bool {
   true
 }
 
@@ -44,9 +59,11 @@ impl Default for LogConfig {
       stdio: Default::default(),
       pretty: Default::default(),
       location: default_location(),
+      ansi: default_ansi(),
       otlp_endpoint: Default::default(),
       opentelemetry_service_name: default_opentelemetry_service_name(
       ),
+      opentelemetry_scope_name: default_opentelemetry_scope_name(),
     }
   }
 }

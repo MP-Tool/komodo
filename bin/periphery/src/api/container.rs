@@ -24,7 +24,6 @@ use crate::{
 //
 
 impl Resolve<super::Args> for InspectContainer {
-  #[instrument(name = "InspectContainer", level = "debug")]
   async fn resolve(
     self,
     _: &super::Args,
@@ -41,7 +40,6 @@ impl Resolve<super::Args> for InspectContainer {
 //
 
 impl Resolve<super::Args> for GetContainerLog {
-  #[instrument(name = "GetContainerLog", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let GetContainerLog {
       name,
@@ -62,7 +60,6 @@ impl Resolve<super::Args> for GetContainerLog {
 //
 
 impl Resolve<super::Args> for GetContainerLogSearch {
-  #[instrument(name = "GetContainerLogSearch", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let GetContainerLogSearch {
       name,
@@ -90,7 +87,6 @@ impl Resolve<super::Args> for GetContainerLogSearch {
 //
 
 impl Resolve<super::Args> for GetContainerStats {
-  #[instrument(name = "GetContainerStats", level = "debug")]
   async fn resolve(
     self,
     _: &super::Args,
@@ -105,7 +101,6 @@ impl Resolve<super::Args> for GetContainerStats {
 //
 
 impl Resolve<super::Args> for GetFullContainerStats {
-  #[instrument(name = "GetFullContainerStats", level = "debug")]
   async fn resolve(
     self,
     _: &super::Args,
@@ -122,7 +117,6 @@ impl Resolve<super::Args> for GetFullContainerStats {
 //
 
 impl Resolve<super::Args> for GetContainerStatsList {
-  #[instrument(name = "GetContainerStatsList", level = "debug")]
   async fn resolve(
     self,
     _: &super::Args,
@@ -136,8 +130,15 @@ impl Resolve<super::Args> for GetContainerStatsList {
 // =========
 
 impl Resolve<super::Args> for StartContainer {
-  #[instrument(name = "StartContainer")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument(
+    "StartContainer",
+    skip_all,
+    fields(
+      container = self.name,
+      core = args.core
+    )
+  )]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     Ok(
       run_komodo_command(
         "Docker Start",
@@ -152,8 +153,15 @@ impl Resolve<super::Args> for StartContainer {
 //
 
 impl Resolve<super::Args> for RestartContainer {
-  #[instrument(name = "RestartContainer")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument(
+    "RestartContainer",
+    skip_all,
+    fields(
+      container = self.name,
+      core = args.core
+    )
+  )]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     Ok(
       run_komodo_command(
         "Docker Restart",
@@ -168,8 +176,15 @@ impl Resolve<super::Args> for RestartContainer {
 //
 
 impl Resolve<super::Args> for PauseContainer {
-  #[instrument(name = "PauseContainer")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument(
+    "PauseContainer",
+    skip_all,
+    fields(
+      container = self.name,
+      core = args.core
+    )
+  )]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     Ok(
       run_komodo_command(
         "Docker Pause",
@@ -182,8 +197,15 @@ impl Resolve<super::Args> for PauseContainer {
 }
 
 impl Resolve<super::Args> for UnpauseContainer {
-  #[instrument(name = "UnpauseContainer")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument(
+    "UnpauseContainer",
+    skip_all,
+    fields(
+      container = self.name,
+      core = args.core
+    )
+  )]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     Ok(
       run_komodo_command(
         "Docker Unpause",
@@ -198,8 +220,15 @@ impl Resolve<super::Args> for UnpauseContainer {
 //
 
 impl Resolve<super::Args> for StopContainer {
-  #[instrument(name = "StopContainer")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument(
+    "StopContainer",
+    skip_all,
+    fields(
+      container = self.name,
+      core = args.core
+    )
+  )]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let StopContainer { name, signal, time } = self;
     let command = stop_container_command(&name, signal, time);
     let log = run_komodo_command("Docker Stop", None, command).await;
@@ -225,8 +254,15 @@ impl Resolve<super::Args> for StopContainer {
 //
 
 impl Resolve<super::Args> for RemoveContainer {
-  #[instrument(name = "RemoveContainer")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument(
+    "RemoveContainer",
+    skip_all,
+    fields(
+      container = self.name,
+      core = args.core
+    )
+  )]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let RemoveContainer { name, signal, time } = self;
     let stop_command = stop_container_command(&name, signal, time);
     let command =
@@ -259,8 +295,16 @@ impl Resolve<super::Args> for RemoveContainer {
 //
 
 impl Resolve<super::Args> for RenameContainer {
-  #[instrument(name = "RenameContainer")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument(
+    "RenameContainer",
+    skip_all,
+    fields(
+      current = self.curr_name,
+      new = self.new_name,
+      core = args.core
+    )
+  )]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let RenameContainer {
       curr_name,
       new_name,
@@ -273,8 +317,8 @@ impl Resolve<super::Args> for RenameContainer {
 //
 
 impl Resolve<super::Args> for PruneContainers {
-  #[instrument(name = "PruneContainers", skip_all)]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("PruneContainers", skip_all, fields(core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let command = String::from("docker container prune -f");
     Ok(run_komodo_command("Prune Containers", None, command).await)
   }
@@ -283,10 +327,10 @@ impl Resolve<super::Args> for PruneContainers {
 //
 
 impl Resolve<super::Args> for StartAllContainers {
-  #[instrument(name = "StartAllContainers", skip_all)]
+  #[instrument("StartAllContainers", skip_all, fields(core = args.core))]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
     let client = docker_client().load();
     let client = client
@@ -317,10 +361,10 @@ impl Resolve<super::Args> for StartAllContainers {
 //
 
 impl Resolve<super::Args> for RestartAllContainers {
-  #[instrument(name = "RestartAllContainers", skip_all)]
+  #[instrument("RestartAllContainers", skip_all, fields(core = args.core))]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
     let client = docker_client().load();
     let client = client
@@ -351,10 +395,10 @@ impl Resolve<super::Args> for RestartAllContainers {
 //
 
 impl Resolve<super::Args> for PauseAllContainers {
-  #[instrument(name = "PauseAllContainers", skip_all)]
+  #[instrument("PauseAllContainers", skip_all, fields(core = args.core))]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
     let client = docker_client().load();
     let client = client
@@ -385,10 +429,10 @@ impl Resolve<super::Args> for PauseAllContainers {
 //
 
 impl Resolve<super::Args> for UnpauseAllContainers {
-  #[instrument(name = "UnpauseAllContainers", skip_all)]
+  #[instrument("UnpauseAllContainers", skip_all, fields(core = args.core))]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
     let client = docker_client().load();
     let client = client
@@ -419,10 +463,10 @@ impl Resolve<super::Args> for UnpauseAllContainers {
 //
 
 impl Resolve<super::Args> for StopAllContainers {
-  #[instrument(name = "StopAllContainers", skip_all)]
+  #[instrument("StopAllContainers", skip_all, fields(core = args.core))]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> anyhow::Result<Vec<Log>> {
     let client = docker_client().load();
     let client = client

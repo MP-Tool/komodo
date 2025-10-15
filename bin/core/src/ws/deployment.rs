@@ -15,7 +15,7 @@ use komodo_client::{
 
 use crate::{permission::get_check_permissions, resource::get};
 
-#[instrument(name = "ConnectDeploymentExec", skip(ws))]
+#[instrument("ConnectDeploymentExec", skip(ws))]
 pub async fn exec(
   Query(ConnectDeploymentExecQuery {
     deployment,
@@ -73,7 +73,7 @@ pub async fn exec(
   })
 }
 
-#[instrument(name = "ConnectDeploymentAttach", skip(ws))]
+#[instrument("ConnectDeploymentAttach", skip(ws))]
 pub async fn attach(
   Query(ConnectDeploymentAttachQuery {
     deployment,

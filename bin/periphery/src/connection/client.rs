@@ -5,6 +5,7 @@ use axum::http::{HeaderValue, StatusCode};
 use periphery_client::{
   CONNECTION_RETRY_SECONDS, transport::LoginMessage,
 };
+use tracing::Instrument;
 use transport::{
   auth::{
     AddressConnectionIdentifiers, ClientLoginFlow,
@@ -24,7 +25,10 @@ use crate::{
   state::{core_connections, periphery_keys},
 };
 
-pub async fn handler(address: &str) -> anyhow::Result<()> {
+#[instrument("StartCoreConnection")]
+pub async fn handler(
+  address: &str,
+) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
   let address = fix_ws_address(address);
   let identifiers = AddressConnectionIdentifiers::extract(&address)?;
   let query = format!(
@@ -46,12 +50,37 @@ pub async fn handler(address: &str) -> anyhow::Result<()> {
   let channel =
     core_connections().get_or_insert_default(&args.core).await;
 
-  let mut receiver = channel.receiver()?;
+  let handle = tokio::spawn(async move {
+    let mut receiver = channel.receiver()?;
+    loop {
+      let (mut socket, accept) =
+        match connect_websocket(&endpoint).await {
+          Ok(res) => res,
+          Err(e) => {
+            if !already_logged_connection_error {
+              warn!("{e:#}");
+              already_logged_connection_error = true;
+              // If error transitions from login to connection,
+              // set to false to see login error after reconnect.
+              already_logged_login_error = false;
+              already_logged_onboarding_error = false;
+            }
+            tokio::time::sleep(Duration::from_secs(
+              CONNECTION_RETRY_SECONDS,
+            ))
+            .await;
+            continue;
+          }
+        };
 
-  loop {
-    let (mut socket, accept) =
-      match connect_websocket(&endpoint).await {
-        Ok(res) => res,
+      // Receive whether to use Server connection flow vs Server onboarding flow.
+
+      let onboarding_flow = match socket
+        .recv_login_onboarding_flow()
+        .await
+        .context("Failed to receive Login OnboardingFlow message")
+      {
+        Ok(onboarding_flow) => onboarding_flow,
         Err(e) => {
           if !already_logged_connection_error {
             warn!("{e:#}");
@@ -69,79 +98,67 @@ pub async fn handler(address: &str) -> anyhow::Result<()> {
         }
       };
 
-    // Receive whether to use Server connection flow vs Server onboarding flow.
+      already_logged_connection_error = false;
 
-    let onboarding_flow = match socket
-      .recv_login_onboarding_flow()
-      .await
-      .context("Failed to receive Login OnboardingFlow message")
-    {
-      Ok(onboarding_flow) => onboarding_flow,
-      Err(e) => {
-        if !already_logged_connection_error {
-          warn!("{e:#}");
-          already_logged_connection_error = true;
-          // If error transitions from login to connection,
-          // set to false to see login error after reconnect.
-          already_logged_login_error = false;
-          already_logged_onboarding_error = false;
+      let identifiers =
+        identifiers.build(accept.as_bytes(), query.as_bytes());
+
+      if onboarding_flow {
+        if let Err(e) = handle_onboarding(socket, identifiers).await {
+          if !already_logged_onboarding_error {
+            error!("{e:#}");
+            already_logged_onboarding_error = true;
+          }
+          tokio::time::sleep(Duration::from_secs(
+            CONNECTION_RETRY_SECONDS,
+          ))
+          .await;
+          continue;
+        };
+      } else {
+        let span = info_span!(
+          "CoreLogin",
+          address,
+          direction = "PeripheryToCore",
+        );
+        let login = async {
+          super::handle_login::<_, ClientLoginFlow>(
+            &mut socket,
+            identifiers,
+          )
+          .await
         }
-        tokio::time::sleep(Duration::from_secs(
-          CONNECTION_RETRY_SECONDS,
-        ))
+        .instrument(span)
         .await;
-        continue;
+        if let Err(e) = login {
+          if !already_logged_login_error {
+            warn!("Failed to login | {e:#}");
+            already_logged_login_error = true;
+          }
+          tokio::time::sleep(Duration::from_secs(
+            CONNECTION_RETRY_SECONDS,
+          ))
+          .await;
+          continue;
+        }
+
+        already_logged_login_error = false;
+
+        super::handle_socket(
+          socket,
+          &args,
+          &channel.sender,
+          &mut receiver,
+        )
+        .await
       }
-    };
-
-    already_logged_connection_error = false;
-
-    let identifiers =
-      identifiers.build(accept.as_bytes(), query.as_bytes());
-
-    if onboarding_flow {
-      if let Err(e) = handle_onboarding(socket, identifiers).await {
-        if !already_logged_onboarding_error {
-          error!("{e:#}");
-          already_logged_onboarding_error = true;
-        }
-        tokio::time::sleep(Duration::from_secs(
-          CONNECTION_RETRY_SECONDS,
-        ))
-        .await;
-        continue;
-      };
-    } else {
-      if let Err(e) = super::handle_login::<_, ClientLoginFlow>(
-        &mut socket,
-        identifiers,
-      )
-      .await
-      {
-        if !already_logged_login_error {
-          warn!("Failed to login | {e:#}");
-          already_logged_login_error = true;
-        }
-        tokio::time::sleep(Duration::from_secs(
-          CONNECTION_RETRY_SECONDS,
-        ))
-        .await;
-        continue;
-      }
-
-      already_logged_login_error = false;
-
-      super::handle_socket(
-        socket,
-        &args,
-        &channel.sender,
-        &mut receiver,
-      )
-      .await
     }
-  }
+  });
+
+  Ok(handle)
 }
 
+#[instrument("OnboardingFlow", skip_all)]
 async fn handle_onboarding(
   mut socket: TungsteniteWebsocket,
   identifiers: ConnectionIdentifiers<'_>,

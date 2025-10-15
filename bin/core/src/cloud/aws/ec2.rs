@@ -57,7 +57,6 @@ impl aws_credential_types::provider::ProvideCredentials
   }
 }
 
-#[instrument]
 async fn create_ec2_client(region: String) -> Client {
   let region = Region::new(region);
   let config = aws_config::defaults(BehaviorVersion::latest())
@@ -68,7 +67,7 @@ async fn create_ec2_client(region: String) -> Client {
   Client::new(&config)
 }
 
-#[instrument]
+#[instrument("LaunchEc2Instance")]
 pub async fn launch_ec2_instance(
   name: &str,
   config: &AwsBuilderConfig,
@@ -170,7 +169,7 @@ pub async fn launch_ec2_instance(
 const MAX_TERMINATION_TRIES: usize = 5;
 const TERMINATION_WAIT_SECS: u64 = 15;
 
-#[instrument]
+#[instrument("TerminateEc2Instance")]
 pub async fn terminate_ec2_instance_with_retry(
   region: String,
   instance_id: &str,
@@ -210,7 +209,7 @@ pub async fn terminate_ec2_instance_with_retry(
   unreachable!()
 }
 
-#[instrument(skip(client))]
+#[instrument("TerminateEc2InstanceInner", skip_all)]
 async fn terminate_ec2_instance_inner(
   client: &Client,
   instance_id: &str,

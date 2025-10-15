@@ -248,7 +248,6 @@ async fn variant_handler(
   handler(user, Json(req)).await
 }
 
-#[instrument(name = "ReadHandler", level = "debug", skip(user), fields(user_id = user.id))]
 async fn handler(
   Extension(user): Extension<User>,
   Json(request): Json<ReadRequest>,

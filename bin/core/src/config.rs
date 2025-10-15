@@ -349,12 +349,16 @@ pub fn core_config() -> &'static CoreConfig {
         location: env
           .komodo_logging_location
           .unwrap_or(config.logging.location),
+        ansi: env.komodo_logging_ansi.unwrap_or(config.logging.ansi),
         otlp_endpoint: env
           .komodo_logging_otlp_endpoint
           .unwrap_or(config.logging.otlp_endpoint),
         opentelemetry_service_name: env
           .komodo_logging_opentelemetry_service_name
           .unwrap_or(config.logging.opentelemetry_service_name),
+        opentelemetry_scope_name: env
+          .komodo_logging_opentelemetry_scope_name
+          .unwrap_or(config.logging.opentelemetry_scope_name),
       },
       pretty_startup_config: env
         .komodo_pretty_startup_config

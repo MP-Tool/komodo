@@ -34,7 +34,6 @@ mod helpers;
 use helpers::*;
 
 impl Resolve<super::Args> for GetDockerfileContentsOnHost {
-  #[instrument(name = "GetDockerfileContentsOnHost", level = "debug")]
   async fn resolve(
     self,
     _: &super::Args,
@@ -121,7 +120,7 @@ impl Resolve<super::Args> for WriteDockerfileContentsToHost {
 }
 
 impl Resolve<super::Args> for build::Build {
-  #[instrument(name = "Build", skip_all, fields(build = self.build.name.to_string()))]
+  #[instrument("Build", skip_all, fields(build = self.build.name.to_string()))]
   async fn resolve(
     self,
     _: &super::Args,
@@ -324,7 +323,7 @@ impl Resolve<super::Args> for build::Build {
 //
 
 impl Resolve<super::Args> for PruneBuilders {
-  #[instrument(name = "PruneBuilders", skip_all)]
+  #[instrument("PruneBuilders", skip_all)]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let command = String::from("docker builder prune -a -f");
     Ok(run_komodo_command("Prune Builders", None, command).await)
@@ -334,7 +333,7 @@ impl Resolve<super::Args> for PruneBuilders {
 //
 
 impl Resolve<super::Args> for PruneBuildx {
-  #[instrument(name = "PruneBuildx", skip_all)]
+  #[instrument("PruneBuildx", skip_all)]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let command = String::from("docker buildx prune -a -f");
     Ok(run_komodo_command("Prune Buildx", None, command).await)

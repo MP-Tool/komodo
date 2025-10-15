@@ -54,6 +54,14 @@ impl WriteStackRes for &mut ComposeRunResponse {
 /// Either writes the stack file_contents to a file, or clones the repo.
 /// Asssumes all interpolation is already complete.
 /// Returns (run_directory, env_file_path, periphery_replacers)
+#[instrument(
+  "WriteStack",
+  skip_all,
+  fields(
+    stack = stack.name,
+    repo = repo.as_ref().map(|repo| &repo.name),
+  )
+)]
 pub async fn stack<'a>(
   stack: &'a Stack,
   repo: Option<&Repo>,
@@ -81,6 +89,7 @@ pub async fn stack<'a>(
   }
 }
 
+#[instrument("WriteStackFilesOnHost", skip_all)]
 async fn write_stack_files_on_host(
   stack: &Stack,
   mut res: impl WriteStackRes,
@@ -117,6 +126,7 @@ async fn write_stack_files_on_host(
   }
 }
 
+#[instrument("WriteStackLinkedRepo", skip_all)]
 async fn write_stack_linked_repo<'a>(
   stack: &'a Stack,
   repo: &Repo,
@@ -215,6 +225,7 @@ async fn write_stack_linked_repo<'a>(
   ))
 }
 
+#[instrument("WriteStackInlineRepo", skip_all)]
 async fn write_stack_inline_repo<'a>(
   stack: &'a Stack,
   git_token: Option<String>,
@@ -299,6 +310,7 @@ async fn write_stack_inline_repo<'a>(
   ))
 }
 
+#[instrument("WriteStackUiDefined", skip_all)]
 async fn write_stack_ui_defined(
   stack: &Stack,
   mut res: impl WriteStackRes,

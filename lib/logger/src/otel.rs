@@ -18,10 +18,14 @@ fn resource(service_name: String) -> Resource {
     .build()
 }
 
-pub fn tracer(endpoint: &str, service_name: String) -> Tracer {
+pub fn tracer(
+  endpoint: &str,
+  service_name: String,
+  scope_name: String,
+) -> Tracer {
   let provider =
     opentelemetry_sdk::trace::TracerProviderBuilder::default()
-      .with_resource(resource(service_name.clone()))
+      .with_resource(resource(service_name))
       .with_sampler(Sampler::AlwaysOn)
       .with_batch_exporter(
         opentelemetry_otlp::SpanExporter::builder()
@@ -33,5 +37,5 @@ pub fn tracer(endpoint: &str, service_name: String) -> Tracer {
       )
       .build();
   global::set_tracer_provider(provider.clone());
-  provider.tracer(service_name)
+  provider.tracer(scope_name)
 }

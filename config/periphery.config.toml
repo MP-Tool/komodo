@@ -209,6 +209,12 @@ logging.otlp_endpoint = ""
 ## Default: "Komodo"
 logging.opentelemetry_service_name = "Periphery"
 
+## Set the opentelemetry scope name.
+## This will be attached to the telemetry Komodo will send.
+## Env: PERIPHERY_LOGGING_OPENTELEMETRY_SCOPE_NAME
+## Default: "Komodo"
+logging.opentelemetry_scope_name = "Komodo"
+
 ## Specify whether logging is more human readable.
 ## Note. Single logs will span multiple lines.
 ## Env: PERIPHERY_LOGGING_PRETTY

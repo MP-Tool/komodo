@@ -5,7 +5,7 @@ use axum::{
 use database::mongo_indexed::Document;
 use database::mungos::mongodb::bson::doc;
 use komodo_client::entities::{
-  komodo_timestamp,
+  komodo_timestamp, random_string,
   user::{User, UserConfig},
 };
 use reqwest::StatusCode;
@@ -14,7 +14,6 @@ use serror::AddStatusCode;
 
 use crate::{
   config::core_config,
-  helpers::random_string,
   state::{db_client, jwt_client},
 };
 
@@ -53,7 +52,6 @@ struct CallbackQuery {
   code: String,
 }
 
-#[instrument(name = "GithubCallback", level = "debug")]
 async fn callback(
   Query(query): Query<CallbackQuery>,
 ) -> anyhow::Result<Redirect> {

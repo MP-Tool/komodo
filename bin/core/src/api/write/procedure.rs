@@ -11,7 +11,7 @@ use crate::{permission::get_check_permissions, resource};
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateProcedure {
-  #[instrument(name = "CreateProcedure", skip(user))]
+  #[instrument("CreateProcedure", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -22,7 +22,7 @@ impl Resolve<WriteArgs> for CreateProcedure {
 }
 
 impl Resolve<WriteArgs> for CopyProcedure {
-  #[instrument(name = "CopyProcedure", skip(user))]
+  #[instrument("CopyProcedure", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -45,7 +45,7 @@ impl Resolve<WriteArgs> for CopyProcedure {
 }
 
 impl Resolve<WriteArgs> for UpdateProcedure {
-  #[instrument(name = "UpdateProcedure", skip(user))]
+  #[instrument("UpdateProcedure", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -58,7 +58,7 @@ impl Resolve<WriteArgs> for UpdateProcedure {
 }
 
 impl Resolve<WriteArgs> for RenameProcedure {
-  #[instrument(name = "RenameProcedure", skip(user))]
+  #[instrument("RenameProcedure", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -71,11 +71,11 @@ impl Resolve<WriteArgs> for RenameProcedure {
 }
 
 impl Resolve<WriteArgs> for DeleteProcedure {
-  #[instrument(name = "DeleteProcedure", skip(args))]
+  #[instrument("DeleteProcedure", skip(user))]
   async fn resolve(
     self,
-    args: &WriteArgs,
+    WriteArgs { user }: &WriteArgs,
   ) -> serror::Result<DeleteProcedureResponse> {
-    Ok(resource::delete::<Procedure>(&self.id, args).await?)
+    Ok(resource::delete::<Procedure>(&self.id, user).await?)
   }
 }

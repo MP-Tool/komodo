@@ -194,10 +194,14 @@ pub struct Env {
   pub periphery_logging_pretty: Option<bool>,
   /// Override `logging.location`
   pub periphery_logging_location: Option<bool>,
+  /// Override `logging.ansi`
+  pub periphery_logging_ansi: Option<bool>,
   /// Override `logging.otlp_endpoint`
   pub periphery_logging_otlp_endpoint: Option<String>,
   /// Override `logging.opentelemetry_service_name`
   pub periphery_logging_opentelemetry_service_name: Option<String>,
+  /// Override `logging.opentelemetry_scope_name`
+  pub periphery_logging_opentelemetry_scope_name: Option<String>,
   /// Override `pretty_startup_config`
   pub periphery_pretty_startup_config: Option<bool>,
 

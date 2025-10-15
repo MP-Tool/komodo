@@ -66,7 +66,7 @@ impl super::BatchExecute for BatchRunBuild {
 }
 
 impl Resolve<ExecuteArgs> for BatchRunBuild {
-  #[instrument(name = "BatchRunBuild", skip(user), fields(user_id = user.id))]
+  #[instrument("BatchRunBuild", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, .. }: &ExecuteArgs,
@@ -79,7 +79,7 @@ impl Resolve<ExecuteArgs> for BatchRunBuild {
 }
 
 impl Resolve<ExecuteArgs> for RunBuild {
-  #[instrument(name = "RunBuild", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("RunBuild", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -489,7 +489,7 @@ pub async fn validate_cancel_build(
 }
 
 impl Resolve<ExecuteArgs> for CancelBuild {
-  #[instrument(name = "CancelBuild", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("CancelBuild", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -549,7 +549,7 @@ impl Resolve<ExecuteArgs> for CancelBuild {
   }
 }
 
-#[instrument]
+#[instrument("PostBuildRedeploy")]
 async fn handle_post_build_redeploy(build_id: &str) {
   let Ok(redeploy_deployments) = find_collect(
     &db_client().deployments,

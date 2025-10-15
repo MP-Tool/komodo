@@ -11,7 +11,6 @@ use komodo_client::entities::{
   komodo_timestamp,
   stack::StackState,
 };
-use tracing::Instrument;
 
 use crate::helpers::query::get_variables_and_secrets;
 use crate::helpers::{
@@ -29,30 +28,25 @@ pub async fn send_alerts(alerts: &[Alert]) {
     return;
   }
 
-  let span = info_span!("SendAlerts", alerts = format!("{alerts:?}"));
-  async {
-    let Ok(alerters) = find_collect(
-      &db_client().alerters,
-      doc! { "config.enabled": true },
-      None,
-    )
-    .await
-    .inspect_err(|e| {
-      error!(
+  let Ok(alerters) = find_collect(
+    &db_client().alerters,
+    doc! { "config.enabled": true },
+    None,
+  )
+  .await
+  .inspect_err(|e| {
+    error!(
       "ERROR sending alerts | failed to get alerters from db | {e:#}"
     )
-    }) else {
-      return;
-    };
+  }) else {
+    return;
+  };
 
-    let handles = alerts
-      .iter()
-      .map(|alert| send_alert_to_alerters(&alerters, alert));
+  let handles = alerts
+    .iter()
+    .map(|alert| send_alert_to_alerters(&alerters, alert));
 
-    join_all(handles).await;
-  }
-  .instrument(span)
-  .await
+  join_all(handles).await;
 }
 
 async fn send_alert_to_alerters(alerters: &[Alerter], alert: &Alert) {

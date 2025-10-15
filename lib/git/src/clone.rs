@@ -16,10 +16,6 @@ use crate::get_commit_hash_log;
 ///
 /// Assumes all interpolation is already done and takes the list of replacers
 /// for the On Clone command.
-#[tracing::instrument(
-  level = "debug",
-  skip(clone_args, access_token)
-)]
 pub async fn clone<T>(
   clone_args: T,
   root_repo_dir: &Path,

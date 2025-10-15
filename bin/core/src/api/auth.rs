@@ -88,7 +88,6 @@ async fn variant_handler(
   handler(headers, Json(req)).await
 }
 
-#[instrument(name = "AuthHandler", level = "debug", skip(headers))]
 async fn handler(
   headers: HeaderMap,
   Json(request): Json<AuthRequest>,
@@ -125,7 +124,6 @@ fn login_options_reponse() -> &'static GetLoginOptionsResponse {
 }
 
 impl Resolve<AuthArgs> for GetLoginOptions {
-  #[instrument(name = "GetLoginOptions", level = "debug", skip(self))]
   async fn resolve(
     self,
     _: &AuthArgs,
@@ -135,7 +133,6 @@ impl Resolve<AuthArgs> for GetLoginOptions {
 }
 
 impl Resolve<AuthArgs> for ExchangeForJwt {
-  #[instrument(name = "ExchangeForJwt", level = "debug", skip(self))]
   async fn resolve(
     self,
     _: &AuthArgs,
@@ -148,7 +145,6 @@ impl Resolve<AuthArgs> for ExchangeForJwt {
 }
 
 impl Resolve<AuthArgs> for GetUser {
-  #[instrument(name = "GetUser", level = "debug", skip(self))]
   async fn resolve(
     self,
     AuthArgs { headers }: &AuthArgs,

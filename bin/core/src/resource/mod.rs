@@ -809,11 +809,11 @@ pub async fn rename<T: KomodoResource>(
 
 pub async fn delete<T: KomodoResource>(
   id_or_name: &str,
-  args: &WriteArgs,
+  user: &User,
 ) -> anyhow::Result<Resource<T::Config, T::Info>> {
   let resource = get_check_permissions::<T>(
     id_or_name,
-    &args.user,
+    user,
     PermissionLevel::Write.into(),
   )
   .await?;
@@ -827,15 +827,13 @@ pub async fn delete<T: KomodoResource>(
     targets: vec![target.clone()],
     ..Default::default()
   }
-  .resolve(&ReadArgs {
-    user: args.user.clone(),
-  })
+  .resolve(&ReadArgs { user: user.clone() })
   .await
   .map_err(|e| e.error)?
   .toml;
 
   let mut update =
-    make_update(target.clone(), T::delete_operation(), &args.user);
+    make_update(target.clone(), T::delete_operation(), user);
 
   T::pre_delete(&resource, &mut update).await?;
 
@@ -914,7 +912,7 @@ pub fn validate_resource_query_tags<T: Default + std::fmt::Debug>(
   Ok(())
 }
 
-#[instrument]
+#[instrument("DeleteAllPermissionsOnResource")]
 pub async fn delete_all_permissions_on_resource<T>(target: T)
 where
   T: Into<ResourceTarget> + std::fmt::Debug,
@@ -935,7 +933,7 @@ where
   }
 }
 
-#[instrument]
+#[instrument("RemoveFromRecentlyViewed")]
 pub async fn remove_from_recently_viewed<T>(resource: T)
 where
   T: Into<ResourceTarget> + std::fmt::Debug,

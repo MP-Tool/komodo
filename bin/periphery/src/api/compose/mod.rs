@@ -93,7 +93,6 @@ pub struct DockerComposeLsItem {
 //
 
 impl Resolve<super::Args> for GetComposeLog {
-  #[instrument(name = "GetComposeLog", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let GetComposeLog {
       project,
@@ -116,7 +115,6 @@ impl Resolve<super::Args> for GetComposeLog {
 }
 
 impl Resolve<super::Args> for GetComposeLogSearch {
-  #[instrument(name = "GetComposeLogSearch", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
     let GetComposeLogSearch {
       project,
@@ -144,7 +142,6 @@ impl Resolve<super::Args> for GetComposeLogSearch {
 //
 
 impl Resolve<super::Args> for GetComposeContentsOnHost {
-  #[instrument(name = "GetComposeContentsOnHost", level = "debug")]
   async fn resolve(
     self,
     _: &super::Args,
@@ -201,15 +198,16 @@ impl Resolve<super::Args> for GetComposeContentsOnHost {
 
 impl Resolve<super::Args> for WriteComposeContentsToHost {
   #[instrument(
-    name = "WriteComposeContentsToHost",
+    "WriteComposeContentsToHost",
     skip_all,
     fields(
-      stack = &self.name,
-      run_directory = &self.run_directory,
-      file_path = &self.file_path,
+      stack = self.name,
+      run_directory = self.run_directory,
+      file_path = self.file_path,
+      core = args.core,
     )
   )]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let WriteComposeContentsToHost {
       name,
       run_directory,
@@ -241,12 +239,13 @@ impl Resolve<super::Args> for WriteComposeContentsToHost {
 
 impl Resolve<super::Args> for WriteCommitComposeContents {
   #[instrument(
-    name = "WriteCommitComposeContents",
+    "WriteCommitComposeContents",
     skip_all,
     fields(
       stack = &self.stack.name,
       username = &self.username,
       file_path = &self.file_path,
+      core = args.core,
     )
   )]
   async fn resolve(
@@ -294,11 +293,12 @@ impl Resolve<super::Args> for WriteCommitComposeContents {
 
 impl Resolve<super::Args> for ComposePull {
   #[instrument(
-    name = "ComposePull",
+    "ComposePull",
     skip_all,
     fields(
       stack = &self.stack.name,
       services = format!("{:?}", self.services),
+      core = args.core,
     )
   )]
   async fn resolve(
@@ -409,10 +409,11 @@ impl Resolve<super::Args> for ComposePull {
 
 impl Resolve<super::Args> for ComposeUp {
   #[instrument(
-    name = "ComposeUp",
+    "ComposeUp",
     skip_all,
     fields(
-      stack = &self.stack.name,
+      stack = self.stack.name,
+      repo = self.repo.as_ref().map(|repo| &repo.name),
       services = format!("{:?}", self.services),
     )
   )]
@@ -676,8 +677,8 @@ impl Resolve<super::Args> for ComposeUp {
 //
 
 impl Resolve<super::Args> for ComposeExecution {
-  #[instrument(name = "ComposeExecution")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("ComposeExecution", skip(args), fields(core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let ComposeExecution { project, command } = self;
     let docker_compose = docker_compose();
     let log = run_komodo_command(
@@ -693,7 +694,15 @@ impl Resolve<super::Args> for ComposeExecution {
 //
 
 impl Resolve<super::Args> for ComposeRun {
-  #[instrument(name = "ComposeRun", level = "debug", skip_all, fields(stack = &self.stack.name, service = &self.service))]
+  #[instrument(
+    "ComposeRun",
+    skip_all,
+    fields(
+      stack = self.stack.name,
+      repo = self.repo.as_ref().map(|repo| &repo.name),
+      service = &self.service
+    )
+  )]
   async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let ComposeRun {
       mut stack,

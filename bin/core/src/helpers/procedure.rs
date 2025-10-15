@@ -31,7 +31,6 @@ use crate::{
 
 use super::update::{init_execution_update, update_update};
 
-#[instrument(skip_all)]
 pub async fn execute_procedure(
   procedure: &Procedure,
   update: &Mutex<Update>,
@@ -50,7 +49,7 @@ pub async fn execute_procedure(
     )
     .await;
     let timer = Instant::now();
-    execute_stage(
+    execute_procedure_stage(
       stage
         .executions
         .iter()
@@ -85,9 +84,8 @@ pub async fn execute_procedure(
   Ok(())
 }
 
-#[allow(dependency_on_unit_never_type_fallback)]
-#[instrument(skip(update))]
-async fn execute_stage(
+#[instrument("ExecuteProcedureStage", skip_all)]
+async fn execute_procedure_stage(
   _executions: Vec<Execution>,
   parent_id: &str,
   parent_name: &str,
@@ -217,6 +215,10 @@ async fn execute_stage(
   Ok(())
 }
 
+#[instrument(
+  "ExecuteProcedureExecution",
+  skip(parent_id, parent_name)
+)]
 async fn execute_execution(
   execution: Execution,
   // used to prevent recursive procedure

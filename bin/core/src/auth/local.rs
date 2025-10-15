@@ -22,7 +22,7 @@ use crate::{
 };
 
 impl Resolve<AuthArgs> for SignUpLocalUser {
-  #[instrument(name = "SignUpLocalUser", skip(self))]
+  #[instrument("SignUpLocalUser", skip(self))]
   async fn resolve(
     self,
     _: &AuthArgs,
@@ -104,7 +104,6 @@ impl Resolve<AuthArgs> for SignUpLocalUser {
 }
 
 impl Resolve<AuthArgs> for LoginLocalUser {
-  #[instrument(name = "LoginLocalUser", level = "debug", skip(self))]
   async fn resolve(
     self,
     _: &AuthArgs,

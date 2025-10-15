@@ -70,4 +70,3 @@ impl CastBytes for Vec<u8> {
     self
   }
 }
-

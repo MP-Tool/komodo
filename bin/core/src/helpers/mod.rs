@@ -15,7 +15,6 @@ use komodo_client::entities::{
   stack::Stack,
   user::User,
 };
-use rand::Rng;
 
 use crate::{
   config::core_config, connection::PeripheryConnectionArgs,
@@ -45,14 +44,6 @@ pub fn empty_or_only_spaces(word: &str) -> bool {
     }
   }
   true
-}
-
-pub fn random_string(length: usize) -> String {
-  rand::rng()
-    .sample_iter(&rand::distr::Alphanumeric)
-    .take(length)
-    .map(char::from)
-    .collect()
 }
 
 /// First checks db for token, then checks core config.
@@ -199,7 +190,14 @@ pub async fn periphery_client(
   .await
 }
 
-#[instrument]
+#[instrument(
+  "CreatePermission",
+  skip(user),
+  fields(
+    user_id = user.id,
+    username = user.username
+  )
+)]
 pub async fn create_permission<T>(
   user: &User,
   target: T,

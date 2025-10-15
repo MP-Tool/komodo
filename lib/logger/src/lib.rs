@@ -21,6 +21,7 @@ pub fn init(config: &LogConfig) -> anyhow::Result<()> {
       let tracer = otel::tracer(
         &config.otlp_endpoint,
         config.opentelemetry_service_name.clone(),
+        config.opentelemetry_scope_name.clone(),
       );
       registry
         .with(
@@ -28,7 +29,8 @@ pub fn init(config: &LogConfig) -> anyhow::Result<()> {
             .pretty()
             .with_file(false)
             .with_line_number(false)
-            .with_target(config.location),
+            .with_target(config.location)
+            .with_ansi(config.ansi),
         )
         .with(OpenTelemetryLayer::new(tracer))
         .try_init()
@@ -37,13 +39,15 @@ pub fn init(config: &LogConfig) -> anyhow::Result<()> {
       let tracer = otel::tracer(
         &config.otlp_endpoint,
         config.opentelemetry_service_name.clone(),
+        config.opentelemetry_scope_name.clone(),
       );
       registry
         .with(
           tracing_subscriber::fmt::layer()
             .with_file(false)
             .with_line_number(false)
-            .with_target(config.location),
+            .with_target(config.location)
+            .with_ansi(config.ansi),
         )
         .with(OpenTelemetryLayer::new(tracer))
         .try_init()
@@ -53,6 +57,7 @@ pub fn init(config: &LogConfig) -> anyhow::Result<()> {
       let tracer = otel::tracer(
         &config.otlp_endpoint,
         config.opentelemetry_service_name.clone(),
+        config.opentelemetry_scope_name.clone(),
       );
       registry
         .with(tracing_subscriber::fmt::layer().json())
@@ -66,7 +71,8 @@ pub fn init(config: &LogConfig) -> anyhow::Result<()> {
           .pretty()
           .with_file(false)
           .with_line_number(false)
-          .with_target(config.location),
+          .with_target(config.location)
+          .with_ansi(config.ansi),
       )
       .try_init(),
     (StdioLogMode::Standard, false, false) => registry
@@ -74,7 +80,8 @@ pub fn init(config: &LogConfig) -> anyhow::Result<()> {
         tracing_subscriber::fmt::layer()
           .with_file(false)
           .with_line_number(false)
-          .with_target(config.location),
+          .with_target(config.location)
+          .with_ansi(config.ansi),
       )
       .try_init(),
 
@@ -86,6 +93,7 @@ pub fn init(config: &LogConfig) -> anyhow::Result<()> {
       let tracer = otel::tracer(
         &config.otlp_endpoint,
         config.opentelemetry_service_name.clone(),
+        config.opentelemetry_scope_name.clone(),
       );
       registry.with(OpenTelemetryLayer::new(tracer)).try_init()
     }

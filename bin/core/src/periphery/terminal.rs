@@ -24,6 +24,7 @@ use crate::{
 };
 
 impl PeripheryClient {
+  #[instrument("ConnectTerminal", skip(self), fields(server_id = self.id))]
   pub async fn connect_terminal(
     &self,
     terminal: String,
@@ -60,6 +61,7 @@ impl PeripheryClient {
     Ok((channel_id, connection.sender.clone(), receiever))
   }
 
+  #[instrument("ConnectContainerExec", skip(self), fields(server_id = self.id))]
   pub async fn connect_container_exec(
     &self,
     container: String,
@@ -102,6 +104,7 @@ impl PeripheryClient {
     Ok((channel_id, connection.sender.clone(), receiever))
   }
 
+  #[instrument("ConnectContainerAttach", skip(self), fields(server_id = self.id))]
   pub async fn connect_container_attach(
     &self,
     container: String,
@@ -155,7 +158,7 @@ impl PeripheryClient {
   ///
   /// If this value is NOT the final item before stream closes, it means
   /// the terminal exited mid command, before giving status. Example: running `exit`.
-  #[tracing::instrument(level = "debug", skip(self))]
+  #[instrument("ExecuteTerminal", skip(self), fields(server_id = self.id))]
   pub async fn execute_terminal(
     &self,
     terminal: String,
@@ -163,7 +166,7 @@ impl PeripheryClient {
   ) -> anyhow::Result<
     impl Stream<Item = anyhow::Result<Vec<u8>>> + 'static,
   > {
-    tracing::trace!(
+    trace!(
       "sending request | type: ExecuteTerminal | terminal name: {terminal} | command: {command}",
     );
 
@@ -211,7 +214,7 @@ impl PeripheryClient {
   ///
   /// If this value is NOT the final item before stream closes, it means
   /// the container shell exited mid command, before giving status. Example: running `exit`.
-  #[tracing::instrument(level = "debug", skip(self))]
+  #[instrument("ExecuteContainerExec", skip(self), fields(server_id = self.id))]
   pub async fn execute_container_exec(
     &self,
     container: String,

@@ -79,17 +79,11 @@ impl PeripheryClient {
     periphery_connections().remove(&self.id).await
   }
 
-  #[tracing::instrument(level = "debug", skip(self))]
   pub async fn health_check(&self) -> anyhow::Result<()> {
     self.request(api::GetHealth {}).await?;
     Ok(())
   }
 
-  #[tracing::instrument(
-    name = "PeripheryRequest",
-    skip(self),
-    level = "debug"
-  )]
   pub async fn request<T>(
     &self,
     request: T,

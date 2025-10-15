@@ -33,7 +33,7 @@ use crate::{
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateDeployment {
-  #[instrument(name = "CreateDeployment", skip(user))]
+  #[instrument("CreateDeployment", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -49,7 +49,7 @@ impl Resolve<WriteArgs> for CreateDeployment {
 }
 
 impl Resolve<WriteArgs> for CopyDeployment {
-  #[instrument(name = "CopyDeployment", skip(user))]
+  #[instrument("CopyDeployment", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -72,7 +72,7 @@ impl Resolve<WriteArgs> for CopyDeployment {
 }
 
 impl Resolve<WriteArgs> for CreateDeploymentFromContainer {
-  #[instrument(name = "CreateDeploymentFromContainer", skip(user))]
+  #[instrument("CreateDeploymentFromContainer", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -166,17 +166,17 @@ impl Resolve<WriteArgs> for CreateDeploymentFromContainer {
 }
 
 impl Resolve<WriteArgs> for DeleteDeployment {
-  #[instrument(name = "DeleteDeployment", skip(args))]
+  #[instrument("DeleteDeployment", skip(user))]
   async fn resolve(
     self,
-    args: &WriteArgs,
+    WriteArgs { user }: &WriteArgs,
   ) -> serror::Result<Deployment> {
-    Ok(resource::delete::<Deployment>(&self.id, args).await?)
+    Ok(resource::delete::<Deployment>(&self.id, user).await?)
   }
 }
 
 impl Resolve<WriteArgs> for UpdateDeployment {
-  #[instrument(name = "UpdateDeployment", skip(user))]
+  #[instrument("UpdateDeployment", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -189,7 +189,7 @@ impl Resolve<WriteArgs> for UpdateDeployment {
 }
 
 impl Resolve<WriteArgs> for RenameDeployment {
-  #[instrument(name = "RenameDeployment", skip(user))]
+  #[instrument("RenameDeployment", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

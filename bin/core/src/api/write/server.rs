@@ -25,7 +25,7 @@ use crate::{
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateServer {
-  #[instrument(name = "CreateServer", skip(user))]
+  #[instrument("CreateServer", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -44,7 +44,7 @@ impl Resolve<WriteArgs> for CreateServer {
 }
 
 impl Resolve<WriteArgs> for CopyServer {
-  #[instrument(name = "CopyServer", skip(user))]
+  #[instrument("CopyServer", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -70,14 +70,17 @@ impl Resolve<WriteArgs> for CopyServer {
 }
 
 impl Resolve<WriteArgs> for DeleteServer {
-  #[instrument(name = "DeleteServer", skip(args))]
-  async fn resolve(self, args: &WriteArgs) -> serror::Result<Server> {
-    Ok(resource::delete::<Server>(&self.id, args).await?)
+  #[instrument("DeleteServer", skip(user))]
+  async fn resolve(
+    self,
+    WriteArgs { user }: &WriteArgs,
+  ) -> serror::Result<Server> {
+    Ok(resource::delete::<Server>(&self.id, user).await?)
   }
 }
 
 impl Resolve<WriteArgs> for UpdateServer {
-  #[instrument(name = "UpdateServer", skip(user))]
+  #[instrument("UpdateServer", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -87,7 +90,7 @@ impl Resolve<WriteArgs> for UpdateServer {
 }
 
 impl Resolve<WriteArgs> for RenameServer {
-  #[instrument(name = "RenameServer", skip(user))]
+  #[instrument("RenameServer", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -97,7 +100,7 @@ impl Resolve<WriteArgs> for RenameServer {
 }
 
 impl Resolve<WriteArgs> for CreateNetwork {
-  #[instrument(name = "CreateNetwork", skip(user))]
+  #[instrument("CreateNetwork", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -138,7 +141,7 @@ impl Resolve<WriteArgs> for CreateNetwork {
 }
 
 impl Resolve<WriteArgs> for CreateTerminal {
-  #[instrument(name = "CreateTerminal", skip(user))]
+  #[instrument("CreateTerminal", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -166,7 +169,7 @@ impl Resolve<WriteArgs> for CreateTerminal {
 }
 
 impl Resolve<WriteArgs> for DeleteTerminal {
-  #[instrument(name = "DeleteTerminal", skip(user))]
+  #[instrument("DeleteTerminal", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -192,7 +195,7 @@ impl Resolve<WriteArgs> for DeleteTerminal {
 }
 
 impl Resolve<WriteArgs> for DeleteAllTerminals {
-  #[instrument(name = "DeleteAllTerminals", skip(user))]
+  #[instrument("DeleteAllTerminals", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -218,7 +221,7 @@ impl Resolve<WriteArgs> for DeleteAllTerminals {
 //
 
 impl Resolve<WriteArgs> for UpdateServerPublicKey {
-  #[instrument(name = "UpdateServerPublicKey", skip(args))]
+  #[instrument("UpdateServerPublicKey", skip(args))]
   async fn resolve(
     self,
     args: &WriteArgs,
@@ -249,7 +252,7 @@ impl Resolve<WriteArgs> for UpdateServerPublicKey {
 //
 
 impl Resolve<WriteArgs> for RotateServerKeys {
-  #[instrument(name = "RotateServerPrivateKey", skip(args))]
+  #[instrument("RotateServerPrivateKey", skip(args))]
   async fn resolve(
     self,
     args: &WriteArgs,

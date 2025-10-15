@@ -109,6 +109,7 @@ pub struct PeripheryConnectionArgs<'a> {
 
 impl PublicKeyValidator for PeripheryConnectionArgs<'_> {
   type ValidationResult = String;
+  #[instrument("ValidatePeripheryPublicKey", skip(self))]
   async fn validate(
     &self,
     public_key: String,
@@ -327,13 +328,9 @@ impl PeripheryConnection {
   }
 
   #[instrument(
-    "PeripheryLogin",
+    "StandardPeripheryLoginFlow",
     skip(self, socket, identifiers),
-    fields(
-      server_id = self.args.id,
-      address = self.args.address,
-      public_key = self.args.periphery_public_key
-    )
+    fields(expected_public_key = self.args.periphery_public_key)
   )]
   pub async fn handle_login<W: Websocket, L: LoginFlow>(
     &self,

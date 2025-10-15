@@ -2036,7 +2036,6 @@ dependencies = [
  "komodo_client",
  "run_command",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -2853,7 +2852,6 @@ dependencies = [
  "openidconnect",
  "partial_derive2",
  "periphery_client",
- "rand 0.9.2",
  "regex",
  "reqwest",
  "resolver_api",
@@ -2866,6 +2864,7 @@ dependencies = [
  "serror",
  "sha2",
  "slack_client_rs",
+ "strum",
  "svi",
  "tokio",
  "tokio-util",

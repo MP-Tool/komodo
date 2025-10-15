@@ -38,7 +38,11 @@ impl super::BatchExecute for BatchRunProcedure {
 }
 
 impl Resolve<ExecuteArgs> for BatchRunProcedure {
-  #[instrument(name = "BatchRunProcedure", skip(user), fields(user_id = user.id))]
+  #[instrument(
+    "BatchRunProcedure",
+    skip_all,
+    fields(user_id = user.id)
+  )]
   async fn resolve(
     self,
     ExecuteArgs { user, .. }: &ExecuteArgs,
@@ -51,7 +55,15 @@ impl Resolve<ExecuteArgs> for BatchRunProcedure {
 }
 
 impl Resolve<ExecuteArgs> for RunProcedure {
-  #[instrument(name = "RunProcedure", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument(
+    "RunProcedure",
+    skip_all,
+    fields(
+      user_id = user.id,
+      update_id = update.id,
+      procedure = self.procedure,
+    )
+  )]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,

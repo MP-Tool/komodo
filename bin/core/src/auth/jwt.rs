@@ -9,12 +9,11 @@ use jsonwebtoken::{
   DecodingKey, EncodingKey, Header, Validation, decode, encode,
 };
 use komodo_client::{
-  api::auth::JwtResponse, entities::config::core::CoreConfig,
+  api::auth::JwtResponse,
+  entities::{config::core::CoreConfig, random_string},
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-
-use crate::helpers::random_string;
 
 type ExchangeTokenMap = Mutex<HashMap<String, (JwtResponse, u128)>>;
 
@@ -75,7 +74,6 @@ impl JwtClient {
       .context("failed to decode token claims")
   }
 
-  #[instrument(level = "debug", skip_all)]
   pub async fn create_exchange_token(
     &self,
     jwt: JwtResponse,
@@ -91,7 +89,7 @@ impl JwtClient {
     );
     exchange_token
   }
-  #[instrument(level = "debug", skip(self))]
+  
   pub async fn redeem_exchange_token(
     &self,
     exchange_token: &str,

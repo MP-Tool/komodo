@@ -49,7 +49,7 @@ impl super::BatchExecute for BatchDeploy {
 }
 
 impl Resolve<ExecuteArgs> for BatchDeploy {
-  #[instrument(name = "BatchDeploy", skip(user), fields(user_id = user.id))]
+  #[instrument("BatchDeploy", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, .. }: &ExecuteArgs,
@@ -87,7 +87,7 @@ async fn setup_deployment_execution(
 }
 
 impl Resolve<ExecuteArgs> for Deploy {
-  #[instrument(name = "Deploy", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("Deploy", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -358,7 +358,7 @@ pub async fn pull_deployment_inner(
 }
 
 impl Resolve<ExecuteArgs> for PullDeployment {
-  #[instrument(name = "PullDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PullDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -392,7 +392,7 @@ impl Resolve<ExecuteArgs> for PullDeployment {
 }
 
 impl Resolve<ExecuteArgs> for StartDeployment {
-  #[instrument(name = "StartDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("StartDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -440,7 +440,7 @@ impl Resolve<ExecuteArgs> for StartDeployment {
 }
 
 impl Resolve<ExecuteArgs> for RestartDeployment {
-  #[instrument(name = "RestartDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("RestartDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -490,7 +490,7 @@ impl Resolve<ExecuteArgs> for RestartDeployment {
 }
 
 impl Resolve<ExecuteArgs> for PauseDeployment {
-  #[instrument(name = "PauseDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PauseDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -538,7 +538,7 @@ impl Resolve<ExecuteArgs> for PauseDeployment {
 }
 
 impl Resolve<ExecuteArgs> for UnpauseDeployment {
-  #[instrument(name = "UnpauseDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("UnpauseDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -588,7 +588,7 @@ impl Resolve<ExecuteArgs> for UnpauseDeployment {
 }
 
 impl Resolve<ExecuteArgs> for StopDeployment {
-  #[instrument(name = "StopDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("StopDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -655,7 +655,7 @@ impl super::BatchExecute for BatchDestroyDeployment {
 }
 
 impl Resolve<ExecuteArgs> for BatchDestroyDeployment {
-  #[instrument(name = "BatchDestroyDeployment", skip(user), fields(user_id = user.id))]
+  #[instrument("BatchDestroyDeployment", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, .. }: &ExecuteArgs,
@@ -671,7 +671,7 @@ impl Resolve<ExecuteArgs> for BatchDestroyDeployment {
 }
 
 impl Resolve<ExecuteArgs> for DestroyDeployment {
-  #[instrument(name = "DestroyDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("DestroyDeployment", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,

@@ -138,12 +138,18 @@ pub fn periphery_config() -> &'static PeripheryConfig {
         location: env
           .periphery_logging_location
           .unwrap_or(config.logging.location),
+        ansi: env
+          .periphery_logging_ansi
+          .unwrap_or(config.logging.ansi),
         otlp_endpoint: env
           .periphery_logging_otlp_endpoint
           .unwrap_or(config.logging.otlp_endpoint),
         opentelemetry_service_name: env
           .periphery_logging_opentelemetry_service_name
           .unwrap_or(config.logging.opentelemetry_service_name),
+        opentelemetry_scope_name: env
+          .periphery_logging_opentelemetry_scope_name
+          .unwrap_or(config.logging.opentelemetry_scope_name),
       },
       pretty_startup_config: env
         .periphery_pretty_startup_config

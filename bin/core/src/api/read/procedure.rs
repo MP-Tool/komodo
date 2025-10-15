@@ -45,9 +45,7 @@ impl Resolve<ReadArgs> for ListProcedures {
     };
     Ok(
       resource::list_for_user::<Procedure>(
-        self.query,
-        user,
-        &all_tags,
+        self.query, user, &all_tags,
       )
       .await?,
     )
@@ -66,9 +64,7 @@ impl Resolve<ReadArgs> for ListFullProcedures {
     };
     Ok(
       resource::list_full_for_user::<Procedure>(
-        self.query,
-        user,
-        &all_tags,
+        self.query, user, &all_tags,
       )
       .await?,
     )

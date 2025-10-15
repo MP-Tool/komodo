@@ -17,7 +17,6 @@ use crate::{
 };
 
 impl Resolve<super::Args> for GetLatestCommit {
-  #[instrument(name = "GetLatestCommit", level = "debug")]
   async fn resolve(
     self,
     _: &super::Args,
@@ -41,11 +40,12 @@ impl Resolve<super::Args> for CloneRepo {
     fields(
       args = format!("{:?}", self.args),
       skip_secret_interp = self.skip_secret_interp,
+      core = args.core,
     )
   )]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> anyhow::Result<PeripheryRepoExecutionResponse> {
     let CloneRepo {
       args,
@@ -85,11 +85,12 @@ impl Resolve<super::Args> for PullRepo {
     fields(
       args = format!("{:?}", self.args),
       skip_secret_interp = self.skip_secret_interp,
+      core = args.core,
     )
   )]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> anyhow::Result<PeripheryRepoExecutionResponse> {
     let PullRepo {
       args,
@@ -128,11 +129,12 @@ impl Resolve<super::Args> for PullOrCloneRepo {
     fields(
       args = format!("{:?}", self.args),
       skip_secret_interp = self.skip_secret_interp,
+      core = args.core,
     )
   )]
   async fn resolve(
     self,
-    _: &super::Args,
+    args: &super::Args,
   ) -> anyhow::Result<PeripheryRepoExecutionResponse> {
     let PullOrCloneRepo {
       args,
@@ -167,8 +169,8 @@ impl Resolve<super::Args> for PullOrCloneRepo {
 //
 
 impl Resolve<super::Args> for RenameRepo {
-  #[instrument(name = "RenameRepo")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("RenameRepo", skip(args), fields(core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let RenameRepo {
       curr_name,
       new_name,
@@ -188,8 +190,16 @@ impl Resolve<super::Args> for RenameRepo {
 //
 
 impl Resolve<super::Args> for DeleteRepo {
-  #[instrument(name = "DeleteRepo")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument(
+    "DeleteRepo",
+    skip_all,
+    fields(
+      repo = self.name,
+      is_build = self.is_build,
+      core = args.core
+    )
+  )]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let DeleteRepo { name, is_build } = self;
     // If using custom clone path, it will be passed by core instead of name.
     // So the join will resolve to just the absolute path.

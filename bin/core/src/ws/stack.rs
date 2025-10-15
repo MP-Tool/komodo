@@ -15,7 +15,7 @@ use crate::{
   state::stack_status_cache,
 };
 
-#[instrument(name = "ConnectStackExec", skip(ws))]
+#[instrument("ConnectStackExec", skip(ws))]
 pub async fn exec(
   Query(ConnectStackExecQuery {
     stack,
@@ -43,7 +43,7 @@ pub async fn exec(
   })
 }
 
-#[instrument(name = "ConnectStackAttach", skip(ws))]
+#[instrument("ConnectStackAttach", skip(ws))]
 pub async fn attach(
   Query(ConnectStackAttachQuery {
     stack,

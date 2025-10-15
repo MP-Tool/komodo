@@ -12,7 +12,7 @@ use komodo_client::{
 
 use crate::permission::get_check_permissions;
 
-#[instrument(name = "ConnectContainerExec", skip(ws))]
+#[instrument("ConnectContainerExec", skip(ws))]
 pub async fn exec(
   Query(ConnectContainerExecQuery {
     server,
@@ -58,7 +58,7 @@ pub async fn exec(
   })
 }
 
-#[instrument(name = "ConnectContainerAttach", skip(ws))]
+#[instrument("ConnectContainerAttach", skip(ws))]
 pub async fn attach(
   Query(ConnectContainerAttachQuery {
     server,

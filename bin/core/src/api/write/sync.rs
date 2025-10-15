@@ -56,7 +56,7 @@ use crate::{
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateResourceSync {
-  #[instrument(name = "CreateResourceSync", skip(user))]
+  #[instrument("CreateResourceSync", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -72,7 +72,7 @@ impl Resolve<WriteArgs> for CreateResourceSync {
 }
 
 impl Resolve<WriteArgs> for CopyResourceSync {
-  #[instrument(name = "CopyResourceSync", skip(user))]
+  #[instrument("CopyResourceSync", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -95,17 +95,17 @@ impl Resolve<WriteArgs> for CopyResourceSync {
 }
 
 impl Resolve<WriteArgs> for DeleteResourceSync {
-  #[instrument(name = "DeleteResourceSync", skip(args))]
+  #[instrument("DeleteResourceSync", skip(user))]
   async fn resolve(
     self,
-    args: &WriteArgs,
+    WriteArgs { user }: &WriteArgs,
   ) -> serror::Result<ResourceSync> {
-    Ok(resource::delete::<ResourceSync>(&self.id, args).await?)
+    Ok(resource::delete::<ResourceSync>(&self.id, user).await?)
   }
 }
 
 impl Resolve<WriteArgs> for UpdateResourceSync {
-  #[instrument(name = "UpdateResourceSync", skip(user))]
+  #[instrument("UpdateResourceSync", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -118,7 +118,7 @@ impl Resolve<WriteArgs> for UpdateResourceSync {
 }
 
 impl Resolve<WriteArgs> for RenameResourceSync {
-  #[instrument(name = "RenameResourceSync", skip(user))]
+  #[instrument("RenameResourceSync", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -131,7 +131,7 @@ impl Resolve<WriteArgs> for RenameResourceSync {
 }
 
 impl Resolve<WriteArgs> for WriteSyncFileContents {
-  #[instrument(name = "WriteSyncFileContents", skip(args))]
+  #[instrument("WriteSyncFileContents", skip(args))]
   async fn resolve(self, args: &WriteArgs) -> serror::Result<Update> {
     let sync = get_check_permissions::<ResourceSync>(
       &self.sync,
@@ -389,7 +389,7 @@ async fn write_sync_file_contents_git(
 }
 
 impl Resolve<WriteArgs> for CommitSync {
-  #[instrument(name = "CommitSync", skip(args))]
+  #[instrument("CommitSync", skip(args))]
   async fn resolve(self, args: &WriteArgs) -> serror::Result<Update> {
     let WriteArgs { user } = args;
 
@@ -613,11 +613,6 @@ async fn commit_git_sync(
 }
 
 impl Resolve<WriteArgs> for RefreshResourceSyncPending {
-  #[instrument(
-    name = "RefreshResourceSyncPending",
-    level = "debug",
-    skip(user)
-  )]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

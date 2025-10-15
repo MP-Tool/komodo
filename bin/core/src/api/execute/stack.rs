@@ -54,7 +54,7 @@ impl super::BatchExecute for BatchDeployStack {
 }
 
 impl Resolve<ExecuteArgs> for BatchDeployStack {
-  #[instrument(name = "BatchDeployStack", skip(user), fields(user_id = user.id))]
+  #[instrument("BatchDeployStack", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, .. }: &ExecuteArgs,
@@ -67,7 +67,7 @@ impl Resolve<ExecuteArgs> for BatchDeployStack {
 }
 
 impl Resolve<ExecuteArgs> for DeployStack {
-  #[instrument(name = "DeployStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("DeployStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -281,7 +281,7 @@ impl super::BatchExecute for BatchDeployStackIfChanged {
 }
 
 impl Resolve<ExecuteArgs> for BatchDeployStackIfChanged {
-  #[instrument(name = "BatchDeployStackIfChanged", skip(user), fields(user_id = user.id))]
+  #[instrument("BatchDeployStackIfChanged", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, .. }: &ExecuteArgs,
@@ -297,7 +297,7 @@ impl Resolve<ExecuteArgs> for BatchDeployStackIfChanged {
 }
 
 impl Resolve<ExecuteArgs> for DeployStackIfChanged {
-  #[instrument(name = "DeployStackIfChanged", skip(user, update), fields(user_id = user.id))]
+  #[instrument("DeployStackIfChanged", skip(user, update), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -663,7 +663,7 @@ impl super::BatchExecute for BatchPullStack {
 }
 
 impl Resolve<ExecuteArgs> for BatchPullStack {
-  #[instrument(name = "BatchPullStack", skip(user), fields(user_id = user.id))]
+  #[instrument("BatchPullStack", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, .. }: &ExecuteArgs,
@@ -769,7 +769,7 @@ pub async fn pull_stack_inner(
 }
 
 impl Resolve<ExecuteArgs> for PullStack {
-  #[instrument(name = "PullStack", skip(user, update), fields(user_id = user.id))]
+  #[instrument("PullStack", skip(user, update), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -822,7 +822,7 @@ impl Resolve<ExecuteArgs> for PullStack {
 }
 
 impl Resolve<ExecuteArgs> for StartStack {
-  #[instrument(name = "StartStack", skip(user, update), fields(user_id = user.id))]
+  #[instrument("StartStack", skip(user, update), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -841,7 +841,7 @@ impl Resolve<ExecuteArgs> for StartStack {
 }
 
 impl Resolve<ExecuteArgs> for RestartStack {
-  #[instrument(name = "RestartStack", skip(user, update), fields(user_id = user.id))]
+  #[instrument("RestartStack", skip(user, update), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -862,7 +862,7 @@ impl Resolve<ExecuteArgs> for RestartStack {
 }
 
 impl Resolve<ExecuteArgs> for PauseStack {
-  #[instrument(name = "PauseStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("PauseStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -881,7 +881,7 @@ impl Resolve<ExecuteArgs> for PauseStack {
 }
 
 impl Resolve<ExecuteArgs> for UnpauseStack {
-  #[instrument(name = "UnpauseStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("UnpauseStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -900,7 +900,7 @@ impl Resolve<ExecuteArgs> for UnpauseStack {
 }
 
 impl Resolve<ExecuteArgs> for StopStack {
-  #[instrument(name = "StopStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("StopStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -931,7 +931,7 @@ impl super::BatchExecute for BatchDestroyStack {
 }
 
 impl Resolve<ExecuteArgs> for BatchDestroyStack {
-  #[instrument(name = "BatchDestroyStack", skip(user), fields(user_id = user.id))]
+  #[instrument("BatchDestroyStack", skip(user), fields(user_id = user.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, .. }: &ExecuteArgs,
@@ -943,7 +943,7 @@ impl Resolve<ExecuteArgs> for BatchDestroyStack {
 }
 
 impl Resolve<ExecuteArgs> for DestroyStack {
-  #[instrument(name = "DestroyStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("DestroyStack", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,
@@ -962,7 +962,7 @@ impl Resolve<ExecuteArgs> for DestroyStack {
 }
 
 impl Resolve<ExecuteArgs> for RunStackService {
-  #[instrument(name = "RunStackService", skip(user, update), fields(user_id = user.id, update_id = update.id))]
+  #[instrument("RunStackService", skip(user, update), fields(user_id = user.id, update_id = update.id))]
   async fn resolve(
     self,
     ExecuteArgs { user, update }: &ExecuteArgs,

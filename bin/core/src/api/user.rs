@@ -9,6 +9,7 @@ use database::mungos::{
   by_id::update_one_by_id, mongodb::bson::to_bson,
 };
 use derive_variants::EnumVariants;
+use komodo_client::entities::random_string;
 use komodo_client::{
   api::user::*,
   entities::{api_key::ApiKey, komodo_timestamp, user::User},
@@ -21,9 +22,7 @@ use typeshare::typeshare;
 use uuid::Uuid;
 
 use crate::{
-  auth::auth_request,
-  helpers::{query::get_user, random_string},
-  state::db_client,
+  auth::auth_request, helpers::query::get_user, state::db_client,
 };
 
 use super::Variant;
@@ -66,7 +65,6 @@ async fn variant_handler(
   handler(user, Json(req)).await
 }
 
-#[instrument(name = "UserHandler", level = "debug", skip(user))]
 async fn handler(
   Extension(user): Extension<User>,
   Json(request): Json<UserRequest>,
@@ -89,11 +87,6 @@ async fn handler(
 const RECENTLY_VIEWED_MAX: usize = 10;
 
 impl Resolve<UserArgs> for PushRecentlyViewed {
-  #[instrument(
-    name = "PushRecentlyViewed",
-    level = "debug",
-    skip(user)
-  )]
   async fn resolve(
     self,
     UserArgs { user }: &UserArgs,
@@ -131,11 +124,6 @@ impl Resolve<UserArgs> for PushRecentlyViewed {
 }
 
 impl Resolve<UserArgs> for SetLastSeenUpdate {
-  #[instrument(
-    name = "SetLastSeenUpdate",
-    level = "debug",
-    skip(user)
-  )]
   async fn resolve(
     self,
     UserArgs { user }: &UserArgs,
@@ -158,7 +146,11 @@ const SECRET_LENGTH: usize = 40;
 const BCRYPT_COST: u32 = 10;
 
 impl Resolve<UserArgs> for CreateApiKey {
-  #[instrument(name = "CreateApiKey", level = "debug", skip(user))]
+  #[instrument(
+    "CreateApiKey",
+    skip_all,
+    fields(user_id = user.id)
+  )]
   async fn resolve(
     self,
     UserArgs { user }: &UserArgs,
@@ -188,7 +180,11 @@ impl Resolve<UserArgs> for CreateApiKey {
 }
 
 impl Resolve<UserArgs> for DeleteApiKey {
-  #[instrument(name = "DeleteApiKey", level = "debug", skip(user))]
+  #[instrument(
+    "DeleteApiKey",
+    skip_all,
+    fields(user_id = user.id)
+  )]
   async fn resolve(
     self,
     UserArgs { user }: &UserArgs,

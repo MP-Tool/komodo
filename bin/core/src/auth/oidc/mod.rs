@@ -8,7 +8,7 @@ use client::oidc_client;
 use dashmap::DashMap;
 use database::mungos::mongodb::bson::{Document, doc};
 use komodo_client::entities::{
-  komodo_timestamp,
+  komodo_timestamp, random_string,
   user::{User, UserConfig},
 };
 use openidconnect::{
@@ -23,7 +23,6 @@ use serror::AddStatusCode;
 
 use crate::{
   config::core_config,
-  helpers::random_string,
   state::{db_client, jwt_client},
 };
 
@@ -75,7 +74,6 @@ pub fn router() -> Router {
     )
 }
 
-#[instrument(name = "OidcRedirect", level = "debug")]
 async fn login(
   Query(RedirectQuery { redirect }): Query<RedirectQuery>,
 ) -> anyhow::Result<Redirect> {
@@ -138,7 +136,6 @@ struct CallbackQuery {
   error: Option<String>,
 }
 
-#[instrument(name = "OidcCallback", level = "debug")]
 async fn callback(
   Query(query): Query<CallbackQuery>,
 ) -> anyhow::Result<Redirect> {

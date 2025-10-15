@@ -94,10 +94,14 @@ pub struct Env {
   pub komodo_cli_logging_stdio: Option<StdioLogMode>,
   /// Override `logging.pretty`
   pub komodo_cli_logging_pretty: Option<bool>,
+  /// Override `logging.ansi`
+  pub komodo_cli_logging_ansi: Option<bool>,
   /// Override `logging.otlp_endpoint`
   pub komodo_cli_logging_otlp_endpoint: Option<String>,
   /// Override `logging.opentelemetry_service_name`
   pub komodo_cli_logging_opentelemetry_service_name: Option<String>,
+  /// Override `logging.opentelemetry_scope_name`
+  pub komodo_cli_logging_opentelemetry_scope_name: Option<String>,
   /// Override `pretty_startup_config`
   pub komodo_cli_pretty_startup_config: Option<bool>,
 

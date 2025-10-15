@@ -44,12 +44,8 @@ impl Resolve<ReadArgs> for ListBuilders {
       get_all_tags(None).await?
     };
     Ok(
-      resource::list_for_user::<Builder>(
-        self.query,
-        user,
-        &all_tags,
-      )
-      .await?,
+      resource::list_for_user::<Builder>(self.query, user, &all_tags)
+        .await?,
     )
   }
 }
@@ -66,9 +62,7 @@ impl Resolve<ReadArgs> for ListFullBuilders {
     };
     Ok(
       resource::list_full_for_user::<Builder>(
-        self.query,
-        user,
-        &all_tags,
+        self.query, user, &all_tags,
       )
       .await?,
     )

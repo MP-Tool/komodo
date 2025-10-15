@@ -23,7 +23,6 @@ use crate::{docker::docker_login, state::docker_client};
 // =====
 
 impl Resolve<super::Args> for InspectImage {
-  #[instrument(name = "InspectImage", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Image> {
     let client = docker_client().load();
     let client = client
@@ -37,7 +36,6 @@ impl Resolve<super::Args> for InspectImage {
 //
 
 impl Resolve<super::Args> for ImageHistory {
-  #[instrument(name = "ImageHistory", level = "debug")]
   async fn resolve(
     self,
     _: &super::Args,
@@ -63,8 +61,8 @@ fn pull_cache() -> &'static TimeoutCache<String, Log> {
 }
 
 impl Resolve<super::Args> for PullImage {
-  #[instrument(name = "PullImage", skip_all, fields(name = &self.name))]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("PullImage", skip_all, fields(name = self.name, core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let PullImage {
       name,
       account,
@@ -112,8 +110,8 @@ impl Resolve<super::Args> for PullImage {
 //
 
 impl Resolve<super::Args> for DeleteImage {
-  #[instrument(name = "DeleteImage")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("DeleteImage", skip_all, fields(image_name = self.name, core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let command = format!("docker image rm {}", self.name);
     Ok(run_komodo_command("Delete Image", None, command).await)
   }
@@ -122,8 +120,8 @@ impl Resolve<super::Args> for DeleteImage {
 //
 
 impl Resolve<super::Args> for PruneImages {
-  #[instrument(name = "PruneImages")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("PruneImages", skip_all, fields(core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let command = String::from("docker image prune -a -f");
     Ok(run_komodo_command("Prune Images", None, command).await)
   }
@@ -134,7 +132,6 @@ impl Resolve<super::Args> for PruneImages {
 // =======
 
 impl Resolve<super::Args> for InspectNetwork {
-  #[instrument(name = "InspectNetwork", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Network> {
     let client = docker_client().load();
     let client = client
@@ -148,8 +145,8 @@ impl Resolve<super::Args> for InspectNetwork {
 //
 
 impl Resolve<super::Args> for CreateNetwork {
-  #[instrument(name = "CreateNetwork", skip(self))]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("CreateNetwork", skip(args), fields(core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let CreateNetwork { name, driver } = self;
     let driver = match driver {
       Some(driver) => format!(" -d {driver}"),
@@ -163,8 +160,8 @@ impl Resolve<super::Args> for CreateNetwork {
 //
 
 impl Resolve<super::Args> for DeleteNetwork {
-  #[instrument(name = "DeleteNetwork", skip(self))]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("DeleteNetwork", skip_all, fields(network_name = self.name, core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let command = format!("docker network rm {}", self.name);
     Ok(run_komodo_command("Delete Network", None, command).await)
   }
@@ -173,8 +170,8 @@ impl Resolve<super::Args> for DeleteNetwork {
 //
 
 impl Resolve<super::Args> for PruneNetworks {
-  #[instrument(name = "PruneNetworks", skip(self))]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("PruneNetworks", skip_all, fields(core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let command = String::from("docker network prune -f");
     Ok(run_komodo_command("Prune Networks", None, command).await)
   }
@@ -185,7 +182,6 @@ impl Resolve<super::Args> for PruneNetworks {
 // ======
 
 impl Resolve<super::Args> for InspectVolume {
-  #[instrument(name = "InspectVolume", level = "debug")]
   async fn resolve(self, _: &super::Args) -> anyhow::Result<Volume> {
     let client = docker_client().load();
     let client = client
@@ -199,8 +195,8 @@ impl Resolve<super::Args> for InspectVolume {
 //
 
 impl Resolve<super::Args> for DeleteVolume {
-  #[instrument(name = "DeleteVolume")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("DeleteVolume", skip_all, fields(volume_name = self.name, core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let command = format!("docker volume rm {}", self.name);
     Ok(run_komodo_command("Delete Volume", None, command).await)
   }
@@ -209,8 +205,8 @@ impl Resolve<super::Args> for DeleteVolume {
 //
 
 impl Resolve<super::Args> for PruneVolumes {
-  #[instrument(name = "PruneVolumes")]
-  async fn resolve(self, _: &super::Args) -> anyhow::Result<Log> {
+  #[instrument("PruneVolumes", skip_all, fields(core = args.core))]
+  async fn resolve(self, args: &super::Args) -> anyhow::Result<Log> {
     let command = String::from("docker volume prune -a -f");
     Ok(run_komodo_command("Prune Volumes", None, command).await)
   }

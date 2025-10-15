@@ -200,9 +200,7 @@ impl Resolve<ReadArgs> for ListCommonStackExtraArgs {
       get_all_tags(None).await?
     };
     let stacks = resource::list_full_for_user::<Stack>(
-      self.query,
-      user,
-      &all_tags,
+      self.query, user, &all_tags,
     )
     .await
     .context("failed to get resources matching query")?;
@@ -233,9 +231,7 @@ impl Resolve<ReadArgs> for ListCommonStackBuildExtraArgs {
       get_all_tags(None).await?
     };
     let stacks = resource::list_full_for_user::<Stack>(
-      self.query,
-      user,
-      &all_tags,
+      self.query, user, &all_tags,
     )
     .await
     .context("failed to get resources matching query")?;
@@ -266,12 +262,9 @@ impl Resolve<ReadArgs> for ListStacks {
       get_all_tags(None).await?
     };
     let only_update_available = self.query.specific.update_available;
-    let stacks = resource::list_for_user::<Stack>(
-      self.query,
-      user,
-      &all_tags,
-    )
-    .await?;
+    let stacks =
+      resource::list_for_user::<Stack>(self.query, user, &all_tags)
+        .await?;
     let stacks = if only_update_available {
       stacks
         .into_iter()
@@ -302,9 +295,7 @@ impl Resolve<ReadArgs> for ListFullStacks {
     };
     Ok(
       resource::list_full_for_user::<Stack>(
-        self.query,
-        user,
-        &all_tags,
+        self.query, user, &all_tags,
       )
       .await?,
     )

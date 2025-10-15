@@ -27,7 +27,7 @@ use crate::{
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateTag {
-  #[instrument(name = "CreateTag", skip(user))]
+  #[instrument("CreateTag", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -68,7 +68,7 @@ impl Resolve<WriteArgs> for CreateTag {
 }
 
 impl Resolve<WriteArgs> for RenameTag {
-  #[instrument(name = "RenameTag", skip(user))]
+  #[instrument("RenameTag", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -93,7 +93,7 @@ impl Resolve<WriteArgs> for RenameTag {
 }
 
 impl Resolve<WriteArgs> for UpdateTagColor {
-  #[instrument(name = "UpdateTagColor", skip(user))]
+  #[instrument("UpdateTagColor", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -114,7 +114,7 @@ impl Resolve<WriteArgs> for UpdateTagColor {
 }
 
 impl Resolve<WriteArgs> for DeleteTag {
-  #[instrument(name = "DeleteTag", skip(user))]
+  #[instrument("DeleteTag", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

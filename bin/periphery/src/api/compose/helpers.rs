@@ -25,6 +25,11 @@ use crate::{
 
 use super::docker_compose;
 
+#[instrument(
+  "MaybeLoginRegistry",
+  skip_all,
+  fields(stack = stack.name)
+)]
 pub async fn maybe_login_registry(
   stack: &Stack,
   registry_token: Option<String>,
@@ -82,6 +87,7 @@ pub fn env_file_args(
   Ok(res)
 }
 
+#[instrument("ComposeDown", skip(res))]
 pub async fn compose_down(
   project: &str,
   services: &[String],
@@ -114,6 +120,14 @@ pub async fn compose_down(
 /// Returns path to root directory of the stack repo.
 ///
 /// Both Stack and Repo environment, on clone, on pull are ignored.
+#[instrument(
+  "PullOrCloneStack",
+  skip_all,
+  fields(
+    stack = stack.name,
+    repo = repo.as_ref().map(|repo| &repo.name),
+  )
+)]
 pub async fn pull_or_clone_stack(
   stack: &Stack,
   repo: Option<&Repo>,
@@ -171,6 +185,11 @@ pub async fn pull_or_clone_stack(
   Ok(root)
 }
 
+#[instrument(
+  "ValidateStackFiles",
+  skip(stack, res),
+  fields(stack = stack.name)
+)]
 pub async fn validate_files(
   stack: &Stack,
   run_directory: &Path,

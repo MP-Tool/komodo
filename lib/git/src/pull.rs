@@ -27,10 +27,6 @@ fn pull_cache()
 /// This will pull in a way that handles edge cases
 /// from possible state of the repo. For example, the user
 /// can change branch after clone, or even the remote.
-#[tracing::instrument(
-  level = "debug",
-  skip(clone_args, access_token)
-)]
 #[allow(clippy::too_many_arguments)]
 pub async fn pull<T>(
   clone_args: T,

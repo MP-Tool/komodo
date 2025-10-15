@@ -19,7 +19,7 @@ use crate::{api::user::UserArgs, state::db_client};
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateServiceUser {
-  #[instrument(name = "CreateServiceUser", skip(user))]
+  #[instrument("CreateServiceUser", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -63,7 +63,7 @@ impl Resolve<WriteArgs> for CreateServiceUser {
 }
 
 impl Resolve<WriteArgs> for UpdateServiceUserDescription {
-  #[instrument(name = "UpdateServiceUserDescription", skip(user))]
+  #[instrument("UpdateServiceUserDescription", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -99,7 +99,7 @@ impl Resolve<WriteArgs> for UpdateServiceUserDescription {
 }
 
 impl Resolve<WriteArgs> for CreateApiKeyForServiceUser {
-  #[instrument(name = "CreateApiKeyForServiceUser", skip(user))]
+  #[instrument("CreateApiKeyForServiceUser", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -125,7 +125,7 @@ impl Resolve<WriteArgs> for CreateApiKeyForServiceUser {
 }
 
 impl Resolve<WriteArgs> for DeleteApiKeyForServiceUser {
-  #[instrument(name = "DeleteApiKeyForServiceUser", skip(user))]
+  #[instrument("DeleteApiKeyForServiceUser", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

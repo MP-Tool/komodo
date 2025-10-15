@@ -68,12 +68,11 @@ pub async fn get_check_permissions<T: KomodoResource>(
   }
 }
 
-#[instrument(level = "debug")]
 pub fn get_user_permission_on_resource<'a, T: KomodoResource>(
   user: &'a User,
   resource_id: &'a str,
 ) -> BoxFuture<'a, anyhow::Result<PermissionLevelAndSpecifics>> {
-  Box::pin(async {
+  Box::pin(async move {
     // Admin returns early with max permissions
     if user.admin {
       return Ok(PermissionLevel::Write.all());

@@ -19,7 +19,7 @@ use crate::{
 use super::WriteArgs;
 
 impl Resolve<WriteArgs> for CreateVariable {
-  #[instrument(name = "CreateVariable", skip(user, self), fields(name = &self.name))]
+  #[instrument("CreateVariable", skip(user, self), fields(name = &self.name))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -68,7 +68,7 @@ impl Resolve<WriteArgs> for CreateVariable {
 }
 
 impl Resolve<WriteArgs> for UpdateVariableValue {
-  #[instrument(name = "UpdateVariableValue", skip(user, self), fields(name = &self.name))]
+  #[instrument("UpdateVariableValue", skip(user, self), fields(name = &self.name))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -125,7 +125,7 @@ impl Resolve<WriteArgs> for UpdateVariableValue {
 }
 
 impl Resolve<WriteArgs> for UpdateVariableDescription {
-  #[instrument(name = "UpdateVariableDescription", skip(user))]
+  #[instrument("UpdateVariableDescription", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,
@@ -149,7 +149,7 @@ impl Resolve<WriteArgs> for UpdateVariableDescription {
 }
 
 impl Resolve<WriteArgs> for UpdateVariableIsSecret {
-  #[instrument(name = "UpdateVariableIsSecret", skip(user))]
+  #[instrument("UpdateVariableIsSecret", skip(user))]
   async fn resolve(
     self,
     WriteArgs { user }: &WriteArgs,

@@ -261,12 +261,18 @@ pub fn cli_config() -> &'static CliConfig {
           .komodo_cli_logging_pretty
           .unwrap_or(config.cli_logging.pretty),
         location: false,
+        ansi: env
+          .komodo_cli_logging_ansi
+          .unwrap_or(config.cli_logging.ansi),
         otlp_endpoint: env
           .komodo_cli_logging_otlp_endpoint
           .unwrap_or(config.cli_logging.otlp_endpoint),
         opentelemetry_service_name: env
           .komodo_cli_logging_opentelemetry_service_name
           .unwrap_or(config.cli_logging.opentelemetry_service_name),
+        opentelemetry_scope_name: env
+          .komodo_cli_logging_opentelemetry_scope_name
+          .unwrap_or(config.cli_logging.opentelemetry_scope_name),
       },
       profile: config.profile,
     }

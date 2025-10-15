@@ -25,10 +25,10 @@ use crate::{
 
 impl Resolve<super::Args> for Deploy {
   #[instrument(
-    name = "Deploy",
+    "Deploy",
     skip_all,
     fields(
-      stack = &self.deployment.name,
+      deployment = &self.deployment.name,
       stop_signal = format!("{:?}", self.stop_signal),
       stop_time = self.stop_time,
     )
