@@ -1,6 +1,6 @@
 ## All in one, multi stage compile + runtime Docker build for your architecture.
 
-FROM rust:1.89.0-bullseye AS builder
+FROM rust:1.89.0-bookworm AS builder
 RUN cargo install cargo-strip
 
 WORKDIR /builder
@@ -14,7 +14,7 @@ COPY ./bin/periphery ./bin/periphery
 RUN cargo build -p komodo_periphery --release && cargo strip
 
 # Final Image
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 COPY ./bin/periphery/starship.toml /starship.toml
 COPY ./bin/periphery/debian-deps.sh .
